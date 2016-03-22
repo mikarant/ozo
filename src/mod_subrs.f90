@@ -492,7 +492,7 @@ contains
     use mod_const
     use mod_type_vars
     use mod_common_subrs
-    use mod_poisson
+    use mod_poisson_DFT
     implicit none
     
     real,dimension(:,:,:,:),intent(in) :: omegas
@@ -510,8 +510,6 @@ contains
     type(terms3d) :: tempTends,gvortTends
     double precision, dimension ( : , : ), allocatable :: &
          bd_ay, bd_by, bd_0
-    character ( 4 ) :: BCTYPE, solver
-    logical :: shift
         
     nlon=size(q,1); nlat=size(q,2); nlev=size(q,3)
     do i=1,n_terms
@@ -557,10 +555,7 @@ contains
     bd_by ( nlon + 1, : )  =bd_by ( 1, : )
 
     bd_0 = 0.0e0
-    BCTYPE = "PPDD"
-    shift = .false.
-    solver = "DFT"
-
+ 
 ! "Pseudo" height tendency
     call laplace_cart(ztend,laplz,dx,dy)
     vortTends%term(termVKhi)%data=(g/corf)*laplz
@@ -581,21 +576,17 @@ contains
        do i=1,5
           ! Five first terms with zero y-boundaries
           call poisson_solver_2D( gvortTends%term(i)%data ( :, :, k ), &
-               BCTYPE, shift, solver, dx, dy, hTends(:,:,k,i), &
-               bd_0 ( :, k ), bd_0 ( :, k ) )
+               dx, dy, hTends(:,:,k,i), bd_0 ( :, k ), bd_0 ( :, k ) )
        enddo
        ! Ztend-boundaries for B-term
        call poisson_solver_2D( gvortTends%term(termB)%data ( :, :, k ), &
-            BCTYPE, shift, solver, dx, dy, hTends(:,:,k,termB), &
-            bd_ay ( :, k ), bd_by ( :, k ) )
+            dx, dy, hTends(:,:,k,termB), bd_ay ( :, k ), bd_by ( :, k ) )
        ! "Pseudo" height tendency
        call poisson_solver_2D( gvortTends%term(termVKhi)%data ( :, :, k ), & 
-            BCTYPE, shift, solver, dx, dy, hTends(:,:,k,termVKhi), &
-            bd_ay ( :, k ), bd_by ( :, k ) )
+            dx, dy, hTends(:,:,k,termVKhi), bd_ay ( :, k ), bd_by ( :, k ) )
        ! WRF omega height tendency
-       call poisson_solver_2D( gvTend_omegaWRF ( :, :, k ), BCTYPE, shift, &
-            solver, dx, dy, hTends(:,:,k,termTKhi), bd_ay ( :, k ), &
-            bd_by ( :, k ) )
+       call poisson_solver_2D( gvTend_omegaWRF ( :, :, k ), dx, dy, &
+            hTends(:,:,k,termTKhi), bd_ay ( :, k ), bd_by ( :, k ) )
     enddo
     
   end subroutine zwack_okossi
