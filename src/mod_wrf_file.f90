@@ -2,6 +2,7 @@ module mod_wrf_file
   use netcdf
   implicit none
 
+  integer,parameter :: n_terms = 8
   integer,parameter :: termV=1,& ! names of omega and height tendency terms
                        termT=2,&
                        termF=3,&
@@ -10,7 +11,7 @@ module mod_wrf_file
                        termB=6,&
                        termVKhi=7,&
                        termTKhi=8
-  character ( 6 ), dimension ( 8 ), parameter :: &
+  character ( 6 ), dimension ( n_terms ), parameter :: &
        omega_term_names &
        = [ 'ome_v ', 'ome_t ', 'ome_f ', 'ome_q ', 'ome_a ', 'ome_b ', &
        'ome_vs', 'ome_ts' ], &

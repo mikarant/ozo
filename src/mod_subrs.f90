@@ -6,59 +6,6 @@ contains
 !
 !------------SUBROUTINES--------------
 !
-  subroutine calc_phys_tendencies(vars_phy,vars_2d,pres,q,xfrict,yfrict)
-    use mod_type_vars
-    use mod_const
-    implicit none
-!   This subroutine sums all physical tendencies related to diabatic
-!   heating and friction. They have to be divided by mass to get right
-!   unit. Diabatic heating is also converted from potential temperature
-!   to absolute temperature.
-
-    type(var3d),dimension(:),intent(in) :: vars_phy
-    type(var2d),dimension(:),intent(in) :: vars_2d
-    real,dimension(:,:,:),   intent(in) :: pres
-    real,dimension(:,:,:),   intent(out) :: q,xfrict,yfrict
-    integer :: k
-
-    do k=1,size(vars_phy(1)%data,3)
-       q(:,:,k)=(vars_phy(rthshten)%data(:,:,k)&
-                +vars_phy(rthcuten)%data(:,:,k)&
-                +vars_phy(rthraten)%data(:,:,k)&
-                +vars_phy(rthblten)%data(:,:,k))&
-                /(vars_2d(mub)%data+vars_2d(mu)%data)&
-                +vars_phy(h_diabatic)%data(:,:,k)
-       xfrict(:,:,k)=(vars_phy(rushten)%data(:,:,k)&
-                     +vars_phy(rucuten)%data(:,:,k)&
-                     +vars_phy(rublten)%data(:,:,k))&
-                     /(vars_2d(mub)%data+vars_2d(mu)%data)
-       yfrict(:,:,k)=(vars_phy(rvshten)%data(:,:,k)&
-                     +vars_phy(rvcuten)%data(:,:,k)&
-                     +vars_phy(rvblten)%data(:,:,k))&
-                     /(vars_2d(mub)%data+vars_2d(mu)%data)
-    enddo
-
-    q=q*(pres/1e5)**(r/cp)
-
-  end subroutine calc_phys_tendencies
-
-  subroutine calc_real_tendencies(t,u,v,z,tstep,ttend,utend,vtend,ztend)
-    use mod_type_vars
-    implicit none
-!   Calculation of tendencies of T,u,v and z by using two hour central
-!   difference method.
-
-    real,dimension(:,:,:,:),intent(in) :: t,u,v,z
-    real,dimension(:,:,:),intent(inout) :: ttend,utend,vtend,ztend
-    integer,intent(in) :: tstep
-
-    ttend=(t(:,:,:,3)-t(:,:,:,1))/(2*tstep)
-    utend=(u(:,:,:,3)-u(:,:,:,1))/(2*tstep)
-    vtend=(v(:,:,:,3)-v(:,:,:,1))/(2*tstep)
-    ztend=(z(:,:,:,3)-z(:,:,:,1))/(2*tstep)
-
-  end subroutine calc_real_tendencies
-
   subroutine calculate_tendencies(omegas,t,u,v,z,lev,dx,dy,corpar,&
                                   q,xfrict,yfrict,ztend,utend,vtend,ttend,&
                                   psfc,hTends)
@@ -66,7 +13,7 @@ contains
 !   arguments are variables from WRF and omegas, and output of this subroutine
 !   is height tendencies, stored in hTends.
     use mod_const
-    use mod_type_vars
+    use mod_wrf_file
     use mod_common_subrs
     implicit none
 
@@ -79,15 +26,16 @@ contains
     real,dimension(:,:,:,:),intent(inout) :: hTends
     real,dimension(:,:,:),intent(inout) :: z,q,ztend
 
-    type(terms3d) :: vortTends
+    real,dimension(:,:,:,:),allocatable :: vortTends
     real,dimension(:,:,:),allocatable :: w,sigma,zetatend,sp,tadv,tadvs,zeta
     real,dimension(:,:,:),allocatable :: mulfact,uKhi,vKhi,vorTend_omegaWRF
     real,dimension(:,:,:,:),allocatable :: temptend
-    integer :: nlon,nlat,nlev,i
+    integer :: nlon,nlat,nlev
     real :: dlev
 
     nlon=size(t,1); nlat=size(t,2); nlev=size(t,3)
     
+    allocate(vortTends(nlon,nlat,nlev,n_terms))
     allocate(sigma(nlon,nlat,nlev),sp(nlon,nlat,nlev))
     allocate(zetatend(nlon,nlat,nlev),zeta(nlon,nlat,nlev))
     allocate(tadv(nlon,nlat,nlev),tadvs(nlon,nlat,nlev))
@@ -96,13 +44,10 @@ contains
     allocate(temptend(nlon,nlat,nlev,n_terms))
     allocate(w(nlon,nlat,nlev))
     allocate(vorTend_omegaWRF(nlon,nlat,nlev))
+
     vorTend_omegaWRF=0.
     w=0.
-
-    do i=1,n_terms
-       allocate(vortTends%term(i)%data(nlon,nlat,nlev))
-       vortTends%term(i)%data=0.
-    end do
+    vortTends=0.
    
     dlev=lev(2)-lev(1)
 
@@ -156,7 +101,8 @@ contains
 
 !   This subroutine does area mean correction for height tendencies
 !   by using mean temperature tendencies and hypsometric equation.
-    use mod_type_vars
+!    use mod_type_vars
+    use mod_wrf_file
     use mod_const
     implicit none
     real,dimension(:,:,:,:),intent(in) :: omegas
@@ -281,7 +227,7 @@ contains
 !   output: vorticity tendencies of six forcings 
 
     use mod_const
-    use mod_type_vars
+    use mod_wrf_file
     use mod_common_subrs
     implicit none
 
@@ -290,9 +236,10 @@ contains
     real,dimension(:,:,:),intent(in) :: xfrict,yfrict,mulfact
     real,dimension(:),intent(in) :: corpar
     real,dimension(:,:,:),intent(inout) :: vorTend_omegaWRF
-    type(terms3d),        intent(inout) :: vortTends
+    real,dimension(:,:,:,:),intent(inout) :: vortTends
     
-    type(vorterms3d) :: vTend,vTend_omegaWRF
+    real,dimension(:,:,:,:,:),allocatable :: vTend
+    real,dimension(:,:,:,:),allocatable :: vTend_omegaWRF
     real,dimension(:,:,:),allocatable :: eta,vadv,vadvs,avortt,fvort
     real :: dlev,dx,dy
     integer :: i,j,nlon,nlat,nlev
@@ -304,14 +251,11 @@ contains
     allocate(vadvs(nlon,nlat,nlev))
     allocate(avortt(nlon,nlat,nlev))
     allocate(fvort(nlon,nlat,nlev))
-    do i=1,n_terms
-       do j=1,3
-          allocate(vTend%term(i)%term(j)%data(nlon,nlat,nlev))
-          allocate(vTend_omegaWRF%term(i)%term(j)%data(nlon,nlat,nlev))
-          vTend%term(i)%term(j)%data=0.
-          vTend_omegaWRF%term(i)%term(j)%data=0.
-       enddo
-    enddo
+    allocate(vTend(nlon,nlat,nlev,3,n_terms))
+    allocate(vTend_omegaWRF(nlon,nlat,nlev,3))
+
+    vTend_omegaWRF=0.
+    vTend=0.
 
     do j=1,nlat
        eta(:,j,:)=zeta(:,j,:)+corpar(j)
@@ -319,10 +263,10 @@ contains
 
 !   Omega-related vorticity equation terms
     do i=1,n_terms
-       call vorterms(omegas(:,:,:,i),dx,dy,eta,u,v,zeta,dlev,vTend%term(i))
+       call vorterms(omegas(:,:,:,i),dx,dy,eta,u,v,zeta,dlev,vTend(:,:,:,:,i))
     enddo
 
-    call vorterms(w,dx,dy,eta,u,v,zeta,dlev,vTend_omegaWRF%term(1))
+    call vorterms(w,dx,dy,eta,u,v,zeta,dlev,vTend_omegaWRF)
 
 !   Vorticity advection term
     call advect_cart(u,v,eta,dx,dy,vadv)
@@ -343,40 +287,39 @@ contains
 !   Totalling all terms, both direct and indirect effects:
     do i=1,n_terms
        do j=1,3
-          vortTends%term(i)%data=vortTends%term(i)%data+&
-                                 vTend%term(i)%term(j)%data 
+          vortTends(:,:,:,i)=vortTends(:,:,:,i)+&
+                                 vTend(:,:,:,j,i) 
        enddo
     enddo
-    vortTends%term(termV)%data=vadv+vortTends%term(termV)%data
-    vortTends%term(termF)%data=fvort+vortTends%term(termF)%data
-    vortTends%term(termA)%data=avortt+vortTends%term(termA)%data
-    vortTends%term(termVKhi)%data=vadvs+vortTends%term(termVkhi)%data
+    vortTends(:,:,:,termV)=vadv+vortTends(:,:,:,termV)
+    vortTends(:,:,:,termf)=fvort+vortTends(:,:,:,termF)
+    vortTends(:,:,:,termA)=avortt+vortTends(:,:,:,termA)
+    vortTends(:,:,:,termVKhi)=vadvs+vortTends(:,:,:,termVKhi)
     
     ! Vorticity tendency with WRF omega
     do j=1,3
-       vorTend_omegaWRF=vorTend_omegaWRF+vTend_omegaWRF%term(1)%term(j)%data
+       vorTend_omegaWRF=vorTend_omegaWRF+vTend_omegaWRF(:,:,:,j)
     enddo
     vorTend_omegaWRF=vorTend_omegaWRF+vadv+fvort+avortt
 
   end subroutine vorticity_tendencies
 
   subroutine vorterms(omega,dx,dy,eta,u,v,zeta,dlev,vortt)
-    use mod_type_vars
 
 !   This function calculates omega-related terms of vorticity equation
     implicit none
     real,dimension(:,:,:),intent(in) :: omega,eta,u,v,zeta
     real,                 intent(in) :: dx,dy,dlev  
-    type(vterm),          intent(inout) :: vortt
+    real,dimension(:,:,:,:),intent(inout) :: vortt
  
 !   Vertical advection of vorticity
-    call f2(omega,zeta,dlev,vortt%term(1)%data)
+    call f2(omega,zeta,dlev,vortt(:,:,:,1))
        
 !   Divergence term
-    call f3(omega,dlev,eta,vortt%term(2)%data)
+    call f3(omega,dlev,eta,vortt(:,:,:,2))
 
 !   Tilting/twisting term
-    call f4(omega,u,v,dx,dy,dlev,vortt%term(3)%data)
+    call f4(omega,u,v,dx,dy,dlev,vortt(:,:,:,3))
     
   end subroutine vorterms
 
@@ -490,13 +433,13 @@ contains
 !   diabatic heating.
 !   Output: Height tendencies of different forcingterms.  
     use mod_const
-    use mod_type_vars
+    use mod_wrf_file
     use mod_common_subrs
     use mod_poisson_DFT
     implicit none
     
     real,dimension(:,:,:,:),intent(in) :: omegas
-    type(terms3d),        intent(inout) :: vortTends
+    real,dimension(:,:,:,:),intent(inout) :: vortTends
     real,dimension(:,:,:),intent(in) :: tadv,tadvs,q,sp
     real,                 intent(in) :: dx,dy
     real,dimension(:,:,:),intent(in) :: w,ztend,ttend
@@ -506,21 +449,21 @@ contains
 
     real,dimension(:,:,:),allocatable :: corf,laplz
     real,dimension(:,:,:),allocatable :: ttend_omegaWRF,gvtend_omegaWRF
+    real,dimension(:,:,:,:),allocatable :: tempTends,gvortTends
     integer :: nlon,nlat,nlev,i,j,k
-    type(terms3d) :: tempTends,gvortTends
     double precision, dimension ( : , : ), allocatable :: &
          bd_ay, bd_by, bd_0
         
     nlon=size(q,1); nlat=size(q,2); nlev=size(q,3)
-    do i=1,n_terms
-       allocate(tempTends%term(i)%data(nlon,nlat,nlev))
-       allocate(gvortTends%term(i)%data(nlon,nlat,nlev))
-    end do
+
+    allocate(tempTends(nlon,nlat,nlev,n_terms))
+    allocate(gvortTends(nlon,nlat,nlev,n_terms))
     allocate ( bd_ay ( nlon + 1, nlev ), bd_by ( nlon + 1, nlev ) )
     allocate ( bd_0 ( nlon + 1, nlev ) )
     allocate(laplz(nlon,nlat,nlev),ttend_omegaWRF(nlon,nlat,nlev))
     allocate(corf(nlon,nlat,nlev))
     allocate(gvtend_omegaWRF(nlon,nlat,nlev))
+
     ttend_omegaWRF=0.
     gvtend_omegaWRF=0.
 
@@ -530,11 +473,11 @@ contains
 
 !   Temperature tendencies
     do i=1,n_terms
-       tempTends%term(i)%data=sp*omegas(:,:,:,i)       
+       tempTends(:,:,:,i)=sp*omegas(:,:,:,i)       
     enddo
-    tempTends%term(termT)%data=tadv+tempTends%term(termT)%data
-    tempTends%term(termQ)%data=q+tempTends%term(termQ)%data
-    tempTends%term(termTKhi)%data=tadvs+tempTends%term(termTKhi)%data
+    tempTends(:,:,:,termT)=tadv+tempTends(:,:,:,termT)
+    tempTends(:,:,:,termQ)=q+tempTends(:,:,:,termQ)
+    tempTends(:,:,:,termTKhi)=tadvs+tempTends(:,:,:,termTKhi)
 
 !   Calculation of geostrophic vorticity tendencies of all forcings using 
 !   zwack-okossi vorticity equation.
@@ -558,13 +501,13 @@ contains
  
 ! "Pseudo" height tendency
     call laplace_cart(ztend,laplz,dx,dy)
-    vortTends%term(termVKhi)%data=(g/corf)*laplz
-    tempTends%term(termVKhi)%data=ttend
+    vortTends(:,:,:,termVKhi)=(g/corf)*laplz
+    tempTends(:,:,:,termVKhi)=ttend
 
 ! Integration
     do i=1,n_terms
-       call zo_integral(vortTends%term(i)%data,tempTends%term(i)%data,&
-                        dx,dy,corf,gvortTends%term(i)%data)
+       call zo_integral(vortTends(:,:,:,i),tempTends(:,:,:,i),dx,dy,corf,&
+            gvortTends(:,:,:,i))
     enddo
 
 ! Height tendency with WRF omega
@@ -575,14 +518,14 @@ contains
     do k=1,nlev
        do i=1,5
           ! Five first terms with zero y-boundaries
-          call poisson_solver_2D( gvortTends%term(i)%data ( :, :, k ), &
+          call poisson_solver_2D( gvortTends( :, :, k, i ), &
                dx, dy, hTends(:,:,k,i), bd_0 ( :, k ), bd_0 ( :, k ) )
        enddo
        ! Ztend-boundaries for B-term
-       call poisson_solver_2D( gvortTends%term(termB)%data ( :, :, k ), &
+       call poisson_solver_2D( gvortTends ( :, :, k, termB ), &
             dx, dy, hTends(:,:,k,termB), bd_ay ( :, k ), bd_by ( :, k ) )
        ! "Pseudo" height tendency
-       call poisson_solver_2D( gvortTends%term(termVKhi)%data ( :, :, k ), & 
+       call poisson_solver_2D( gvortTends ( :, :, k, termVKhi ), & 
             dx, dy, hTends(:,:,k,termVKhi), bd_ay ( :, k ), bd_by ( :, k ) )
        ! WRF omega height tendency
        call poisson_solver_2D( gvTend_omegaWRF ( :, :, k ), dx, dy, &
