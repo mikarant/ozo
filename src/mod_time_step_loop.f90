@@ -13,6 +13,7 @@ contains
          dT_dt, du_dt, dv_dt, dz_dt, fx, fy, q, w
     real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends
+    logical, parameter :: calc_omegas=.false., calc_htends=.true.
 
     integer :: time
 
@@ -38,12 +39,24 @@ contains
          fy     = friction ( wrfin_file, time, 'V', mu_inv )
          p_sfc  = real2d ( wrfin_file, time, [ 'PSFC' ]  )
          w      = real3d ( wrfin_file, time, [ 'WW' ]  )
-         omegas = read_omegas ( wrfin_file, time )
-         call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
-              dx, dy, corpar, q, &
-              fx,fy, dz_dt,  du_dt, &
-              dv_dt, dT_dt, p_sfc, hTends )
-
+         
+         if ( calc_omegas ) then
+            call calculate_omegas( T, u, v, z, p_levs, dx, dy, &
+                 corpar, q, fx, fy, dz_dt, du_dt, dv_dt, dT_dt,&
+                 p_sfc, omegas)
+         else
+            omegas = read_omegas ( wrfin_file, time )
+         end if
+         
+         if ( calc_htends ) then
+            call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
+                 dx, dy, corpar, q, &
+                 fx,fy, dz_dt, du_dt, &
+                 dv_dt, dT_dt, p_sfc, hTends )
+         else
+            hTends=0.
+         end if
+         
          call write_tendencies ( wrfin_file, time, hTends )
          call write3d ( wrfin_file, time, ztend_name, dz_dt )
 
