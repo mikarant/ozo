@@ -1,0 +1,13 @@
+* Preprocessing with cdo
+
+Rename `time` to `Time` in omega*.nc file, and merge it with wrf-output file. Select only time steps 121-124.
+
+- using `nco` and `cdo`
+
+#+BEGIN_SRC bash
+ncrename -v time,Time omega_out_G_20lev_hourly_censorS.nc
+ncrename -d time,Time omega_out_G_20lev_hourly_censorS.nc
+cdo merge wrf_output_corr_20lev.nc omega_out_G_20lev_hourly_censorS.nc wrf1.nc
+cdo seltimestep,121,122,123,124 wrf1.nc wrf_4.nc 
+#+END_SRC
+
