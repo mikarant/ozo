@@ -18,6 +18,7 @@ module mod_wrf_file
        htend_term_names &
        = [ 'htv   ', 'htt   ', 'htf   ', 'htq   ', 'hta   ', 'htb   ', &
        'htvKhi', 'httKhi' ]
+  character ( 9 ), parameter :: ztend_name='ztend_WRF'
 
   type wrf_file
      integer :: ncid, dims ( 4 )
@@ -78,6 +79,11 @@ contains
        if ( .not. ( status == nf90_enameinuse .or. status == NF90_NOERR ) ) &
             call check ( status )
     end do
+    
+    status = nf90_def_var ( f % ncid, trim ( ztend_name ), NF90_FLOAT, &
+         dimids, varid )
+    if ( .not. ( status == nf90_enameinuse .or. status == NF90_NOERR ) ) &
+         call check ( status )
     
     call check( nf90_enddef ( f % ncid ) )
 

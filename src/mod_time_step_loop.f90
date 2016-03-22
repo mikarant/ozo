@@ -45,6 +45,8 @@ contains
               dv_dt, dT_dt, p_sfc, hTends )
 
          call write_tendencies ( wrfin_file, time, hTends )
+         call write3d ( wrfin_file, time, ztend_name, dz_dt )
+
       end do
 
     end associate
@@ -171,6 +173,30 @@ contains
         end do
       end associate
     end subroutine write_tendencies
+
+    subroutine write3d ( file, time, name, data )
+      type ( wrf_file ), intent ( in ) :: file
+      integer, intent ( in ) :: time
+      character(*) :: name
+      real, dimension ( :, :, : ) :: data
+      integer :: varid
+
+      associate ( &
+           ncid => file % ncid, &
+           nlon => file % dims ( 1 ), &
+           nlat => file % dims ( 2 ), &
+           nlev => file % dims ( 3 ) )
+        
+        call check ( nf90_inq_varid ( ncid, &
+             trim ( name ), varid ) )
+        call check ( nf90_put_var ( ncid, varid, &
+             data ( :, :, : ), &
+             [ 1, 1, 1, time ], &
+             [ nlon, nlat, nlev, 1 ] ) )
+
+      end associate
+
+    end subroutine write3d
   end subroutine time_step_loop
 
 end module mod_time_step_loop
