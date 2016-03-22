@@ -10,9 +10,8 @@ contains
     integer :: time_1, time_n
     real, dimension ( :, :, : ), pointer :: T, u, v, z
     real, dimension ( :, :, : ), allocatable :: &
-         dT_dt, du_dt, dv_dt, dz_dt, fx, fy, q
+         dT_dt, du_dt, dv_dt, dz_dt, fx, fy, q, w
     real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
-    real,dimension( :, :, : ), allocatable :: response
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends
 
     integer :: time
@@ -26,9 +25,7 @@ contains
          p_levs => wrfin_file % pressure_levels, &
          corpar => wrfin_file % corpar )
 
-      allocate ( hTends ( nlon, nlat, nlev, size ( omega_term_names ) ) )
-      allocate ( response ( nlon / 2 + 1, nlat, ( nlat + 1 ) / 2 ) )
-!      call responsekernel( response, nlon, nlat, dx, dy )
+      allocate ( hTends ( nlon, nlat, nlev, n_terms ) )
 
       call read_T_u_v_z ( wrfin_file, time_1 - 2 )
       call read_T_u_v_z ( wrfin_file, time_1 - 1 )
@@ -40,15 +37,13 @@ contains
          fx     = friction ( wrfin_file, time, 'U', mu_inv )
          fy     = friction ( wrfin_file, time, 'V', mu_inv )
          p_sfc  = real2d ( wrfin_file, time, [ 'PSFC' ]  )
+         w      = real3d ( wrfin_file, time, [ 'WW' ]  )
          omegas = read_omegas ( wrfin_file, time )
-         call calculate_tendencies ( omegas, T, u, v, z, p_levs, &
+         call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
               dx, dy, corpar, q, &
               fx,fy, dz_dt,  du_dt, &
               dv_dt, dT_dt, p_sfc, hTends )
-!         call calculate_tendencies ( omegas, T, u, v, z, p_levs, &
-!              dx, dy, corpar, q, &
-!              fx,fy, dz_dt, du_dt, &
-!              dv_dt, dT_dt, p_sfc, hTends )
+
          call write_tendencies ( wrfin_file, time, hTends )
       end do
 

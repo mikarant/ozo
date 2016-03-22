@@ -6,7 +6,7 @@ contains
 !
 !------------SUBROUTINES--------------
 !
-  subroutine calculate_tendencies(omegas,t,u,v,z,lev,dx,dy,corpar,&
+  subroutine calculate_tendencies(omegas,t,u,v,w,z,lev,dx,dy,corpar,&
                                   q,xfrict,yfrict,ztend,utend,vtend,ttend,&
                                   psfc,hTends)
 !   This is the main subroutine of solving the Zwack-Okossi equation. Input 
@@ -18,7 +18,7 @@ contains
     implicit none
 
     real,dimension(:,:,:,:),intent(in) :: omegas
-    real,dimension(:,:,:),intent(in) :: t,u,v,xfrict,yfrict
+    real,dimension(:,:,:),intent(in) :: t,u,v,w,xfrict,yfrict
     real,dimension(:,:,:),intent(in) :: utend,vtend,ttend
     real,dimension(:,:),  intent(in) :: psfc
     real,dimension(:),intent(in) :: lev,corpar
@@ -27,7 +27,7 @@ contains
     real,dimension(:,:,:),intent(inout) :: z,q,ztend
 
     real,dimension(:,:,:,:),allocatable :: vortTends
-    real,dimension(:,:,:),allocatable :: w,sigma,zetatend,sp,tadv,tadvs,zeta
+    real,dimension(:,:,:),allocatable :: sigma,zetatend,sp,tadv,tadvs,zeta
     real,dimension(:,:,:),allocatable :: mulfact,uKhi,vKhi,vorTend_omegaWRF
     real,dimension(:,:,:,:),allocatable :: temptend
     integer :: nlon,nlat,nlev
@@ -42,11 +42,9 @@ contains
     allocate(mulfact(nlon,nlat,nlev))
     allocate(uKhi(nlon,nlat,nlev),vKhi(nlon,nlat,nlev))
     allocate(temptend(nlon,nlat,nlev,n_terms))
-    allocate(w(nlon,nlat,nlev))
     allocate(vorTend_omegaWRF(nlon,nlat,nlev))
 
     vorTend_omegaWRF=0.
-    w=0.
     vortTends=0.
    
     dlev=lev(2)-lev(1)
@@ -655,16 +653,5 @@ contains
     enddo
     
   end subroutine interp1000
-
-  subroutine write_gnuplot_datafile ( unit, vname, data )
-    integer, intent ( in ) :: unit
-    character ( * ), intent ( in ) :: vname
-    real, dimension ( : ) :: data
-    write ( UNIT = unit, FMT = '(A)' ) vname
-    write ( UNIT = unit, FMT = '(E15.4)' ) data
-    write ( UNIT = unit, FMT = '(A)' ) ''
-    write ( UNIT = unit, FMT = '(A)' ) ''
-  end subroutine write_gnuplot_datafile
-
 
 end module mod_subrs
