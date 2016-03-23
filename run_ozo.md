@@ -8,7 +8,7 @@ Technical requirements:
 
 2. Intel Math Kernel Library. The program uses Intel's MKL library for solving poisson's equation. It can be downloaded for free, but registration is required. 
 
-See more: [https://software.intel.com/en-us/articles/free_mkl]
+See more: [https://software.intel.com/en-us/articles/free_mkl] [MKL]
 
 ## 1. Downloading the source code
 
@@ -24,3 +24,8 @@ If the clone was successful, you should now have ozo-directory appeared on your 
 ## 2. Compiling the program
 
 Downloaded directory contains a makefile for compiling and running the program. At first, you should change paths for netcdf- and mkl-libraries.
+
+
+[//]: # Reference links
+
+[MKL]: <https://software.intel.com/en-us/articles/free_mkl>
