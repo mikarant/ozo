@@ -35,17 +35,17 @@ Downloaded directory contains a makefile for compiling and running the program. 
 
 2. Open makefile, for example with emacs:
 
-        ```<!-- language: lang-bash -->
-        emacs makefile
-        ```
+    ```bash
+    emacs makefile
+    ```
 
 3. Change following paths according to where netcdf and mkl libraries are located locally in your computer: 
 
-```make
-NETCDF_INCLUDES = -I/usr/include
-NETCDF_LIBS     = -L/usr/lib -lnetcdff
-MKLROOT         = /home/mikarant/intel/compilers_and_libraries_2016.2.181/linux/mkl
-```
+    ```make
+    NETCDF_INCLUDES = -I/usr/include
+    NETCDF_LIBS     = -L/usr/lib -lnetcdff
+    MKLROOT         = /home/mikarant/intel/compilers_and_libraries_2016.2.181/linux/mkl
+    ```
 
 4. Save your changes and close the makefile
 
