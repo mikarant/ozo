@@ -35,7 +35,7 @@ Downloaded directory contains a makefile for compiling and running the program. 
 
 2. Open makefile, for example with emacs:
 
-        ```bash
+        ```<!-- language: lang-bash -->
         emacs makefile
         ```
 
