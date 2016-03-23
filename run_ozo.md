@@ -43,9 +43,7 @@ Downloaded directory contains a makefile for compiling and running the program. 
 
     ```
     NETCDF_INCLUDES = -I/usr/include
-    
     NETCDF_LIBS     = -L/usr/lib -lnetcdff
-    
     MKLROOT         = /home/mikarant/intel/compilers_and_libraries_2016.2.181/linux/mkl
     ```
 
