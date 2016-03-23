@@ -26,6 +26,6 @@ If the clone was successful, you should now have ozo-directory appeared on your 
 Downloaded directory contains a makefile for compiling and running the program. At first, you should change paths for netcdf- and mkl-libraries.
 
 
-[//]: # Reference links
+[//]: # (Reference links)
 
 [MKL]: <https://software.intel.com/en-us/articles/free_mkl>
