@@ -30,9 +30,9 @@ Downloaded directory contains a makefile for compiling and running the program. 
 1. Go to ozo-directory
 2. Open makefile, for example with emacs:
 
-```bash
-emacs makefile
-```
+   ```bash
+   emacs makefile
+   ```
 
 3. Change following paths according to where netcdf and mkl libraries are located locally in your computer: 
 
