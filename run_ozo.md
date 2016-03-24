@@ -22,8 +22,8 @@ It can be downloaded for free, but registration is required.
 3. Write to the command line:
 
         ```
-   git clone git@bitbucket.org:mikarant/ozo.git`
-   ```
+        git clone git@bitbucket.org:mikarant/ozo.git`
+        ```
 
 If the clone was successful, you should now have ozo-directory appeared on your local drive.
 
