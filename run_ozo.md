@@ -20,7 +20,8 @@ It can be downloaded for free, but registration is required.
 2. Go to the local directory where you want to put the program
 
 3. Write to the command line:
-   ```sh
+
+   ```
    git clone git@bitbucket.org:mikarant/ozo.git`
    ```
 
