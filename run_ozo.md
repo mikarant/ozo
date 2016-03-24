@@ -21,7 +21,7 @@ It can be downloaded for free, but registration is required.
 
 3. Write to the command line:
 
-   ```
+        ```
    git clone git@bitbucket.org:mikarant/ozo.git`
    ```
 
