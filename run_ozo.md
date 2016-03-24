@@ -21,9 +21,7 @@ It can be downloaded for free, but registration is required.
 
 3. Write to the command line:
 
-        ```
         git clone git@bitbucket.org:mikarant/ozo.git`
-        ```
 
 If the clone was successful, you should now have ozo-directory appeared on your local drive.
 
@@ -34,16 +32,15 @@ Downloaded directory contains a makefile for compiling and running the program. 
 1. Go to ozo-directory
 
 2. Open makefile, for example with emacs:
-```bash
-emacs makefile
-```
+
+        emacs makefile
+
 
 3. Change following paths according to where netcdf and mkl libraries are located locally in your computer:
-```
-NETCDF_INCLUDES = -I/usr/include  
-NETCDF_LIBS     = -L/usr/lib -lnetcdff  
-MKLROOT         = /home/mikarant/intel/compilers_and_libraries_2016.2.181/linux/mkl  
-```
+
+        NETCDF_INCLUDES = -I/usr/include  
+        NETCDF_LIBS     = -L/usr/lib -lnetcdff  
+        MKLROOT         = /home/mikarant/intel/compilers_and_libraries_2016.2.181/linux/mkl  
 
 4. Save your changes and close the makefile
 
