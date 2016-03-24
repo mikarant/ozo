@@ -14,7 +14,6 @@ It can be downloaded for free, but registration is required.
 
 ## 2. Downloading the source code
 
-
 1. Launch a terminal window
 
 2. Go to the local directory where you want to put the program
@@ -25,7 +24,21 @@ It can be downloaded for free, but registration is required.
 
 If the clone was successful, you should now have ozo-directory appeared on your local drive.
 
-## 3. Compiling the program
+## 3. Downloading test data
+
+For running the test case, you need to download test data. Datafile is in nc-format and contains WRF-output variables and calculated vertical motion fields from two timesteps.
+
+1. Go to test-directory:
+
+        cd ozo/test
+
+2. Download the data by command (provided that you are added as an user to the private repository) (note this is all one line):
+
+        wget --user=<email> --password=<password>  
+        https://bitbucket.org/mikarant/ozo/downloads/wrf_4.nc
+
+
+## 4. Compiling the program
 
 Downloaded directory contains a makefile for compiling and running the program. At first, you should change paths for netcdf- and mkl-libraries.
 
@@ -34,7 +47,6 @@ Downloaded directory contains a makefile for compiling and running the program. 
 2. Open makefile, for example with emacs:
 
         emacs makefile
-
 
 3. Change following paths according to where netcdf and mkl libraries are located locally in your computer:
 
@@ -50,13 +62,13 @@ make
 ```
 in the ozo-directory. If the compiling was successful, you should have executable called ``` ozo ``` appeared in your directory.
 
-## 4. Running the test case
+## 5. Running the test case
 
 Once you have compiled the program, you can test whether it is working by running the test case. You can do it by writing command
 ```bash
 make test
 ```
-in the ozo-directory. Test-directory contains the data needed by the test case. Datafile is in ncdf-format and contains WRF-output variables and calculated vertical motion fields from two timesteps.
+in the ozo-directory.
 
 
 [//]: # (Reference links)
