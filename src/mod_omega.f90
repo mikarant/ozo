@@ -2,7 +2,7 @@ module mod_omega
 !  use mod_subrs
   use mod_const
   use mod_wrf_file
-!  use mod_common_subrs
+  use mod_common_subrs
   implicit none
 
 contains
@@ -14,13 +14,14 @@ contains
     real,dimension(:,:,:),intent(in) :: t,u,v,w,xfrict,yfrict
     real,dimension(:,:,:),intent(in) :: utend,vtend,ttend
     real,dimension(:,:),  intent(in) :: psfc
-    real,dimension(:),intent(inout) :: lev,corpar
+    real,dimension(:),intent(in) :: lev,corpar
     real,                 intent(in) :: dx,dy 
     real,dimension(:,:,:),intent(inout) :: z,q
 
     real,dimension(:,:,:,:),allocatable :: omega
-    real,dimension(:,:,:),allocatable :: sigmaraw,omegaan
-
+    real,dimension(:,:,:),allocatable :: sigmaraw,omegaan,zetaraw,dum6
+    real,dimension(:,:,:),allocatable :: dum4,dum5,dum2,dum1,lapl
+    real,dimension(:,:,:),allocatable :: dudp,dvdp,zetatend
        integer nlev,nlon,nlat,nlevmax,nlonmax,nlatmax,nresmax,max3d,max4d    
 !
 !      Maximum size of the WRF output grid. 
@@ -39,17 +40,13 @@ contains
        real laplome(max3d)
        real domedp2(max3d)
        real coeff(max3d),coeff1(max3d),coeff2(max3d)       
-       real df2dp2(max3d),lapl(max3d)
+       real df2dp2(max3d)
 
-       real zetaraw(max3d),zeta(max3d),d2zetadp(max3d)
-       real dudp(max3d) 
-       real dvdp(max3d) 
+       real zeta(max3d),d2zetadp(max3d)
        real feta(max3d)     ! coriolis * abs vorticity
-       real zetatend(max3d)  
        real fv(max3d),ft(max3d),ff(max3d),fq(max3d),fa(max3d)
-       real dum0(max3d),dum1(max3d),dum2(max3d)
-       real dum3(max3d),dum4(max3d),dum5(max3d)
-       real dum6(max3d)
+       real dum0(max3d)
+       real dum3(max3d)
        real resid(max3d),omega1(max3d)
        real mulfact(max3d)
 
@@ -64,7 +61,7 @@ contains
 !      ny2 = number of iterations for each grid when returning to finer grids
 !
        integer itermax,ny1,ny2
-       integer iunit,irec
+
 !
 !      Number of input fields (may need to be changed in the netCDF version) 
 !
@@ -151,7 +148,17 @@ contains
          stop
        endif
 
-       allocate(sigmaraw(nlon,nlat,nlev))
+       allocate(sigmaraw(nlon,nlat,nlev),zetaraw(nlon,nlat,nlev))
+       allocate(dum1(nlon,nlat,nlev))
+       allocate(dum2(nlon,nlat,nlev))
+!       allocate(dum3(nlon,nlat,nlev))
+       allocate(dum4(nlon,nlat,nlev))
+       allocate(dum5(nlon,nlat,nlev))
+       allocate(lapl(nlon,nlat,nlev))
+       allocate(dum6(nlon,nlat,nlev))
+       allocate(dvdp(nlon,nlat,nlev))
+       allocate(dudp(nlon,nlat,nlev))
+       allocate(zetatend(nlon,nlat,nlev))
        omegaan=w
 !
 !      Number of different resolutions in solving the equation = nres 
@@ -163,13 +170,13 @@ contains
        allocate(omega(nlon,nlat,nlev,nres))
 !      Coriolis parameter as a function of latitude
 !
-       do j=1,nlat
-         if(lfconst)then
-          corpar(j)=fconst
-         else
-          corpar(j)=f1+(j-1.)/(nlat-1.)*(f2-f1)
-         endif
-       enddo 
+!       do j=1,nlat
+!         if(lfconst)then
+!          corpar(j)=fconst
+!         else
+!          corpar(j)=f1+(j-1.)/(nlat-1.)*(f2-f1)
+!         endif
+!       enddo 
 !
 !      Pressure levels are converted from hPa to Pa  
 !
@@ -216,7 +223,7 @@ contains
 !
 !      Counter for writing output fields   
 !
-       irec=0
+!       irec=0
 !
 !************ The main time loop begins here ************************
 !
@@ -258,8 +265,8 @@ contains
 !
 !      Calculation of vorticity and vorticity tendency 
 !
-       call curl_cart(u,v,zetaraw,nlon,nlat,nlev,dx,dy)
-       if(mode.eq.'G')call curl_cart(utend,vtend,zetatend,nlon,nlat,nlev,dx,dy)
+       call curl_cart(u,v,dx,dy,zetaraw)
+       if(mode.eq.'G')call curl_cart(utend,vtend,dx,dy,zetatend)
 !
 !      Calculation of forcing terms 
 !
@@ -289,12 +296,12 @@ contains
 
 !      1. Pressure derivatives of wind components
 
-       call pder(u,dudp,nlon,nlat,nlev,dlev) 
-       call pder(v,dvdp,nlon,nlat,nlev,dlev) 
+       call pder(u,dlev,dudp) 
+       call pder(v,dlev,dvdp) 
 !
 !      2. Stability sigma
 !
-       call define_sigma(t,dum1,dum2,sigmaraw,nlon,nlat,nlev,lev,r,cp,dlev)
+       call define_sigma(t,lev,dlev,sigmaraw)
 !
 !      3. Modifying stability and vorticity on the LHS to keep
 !      the solution elliptic
@@ -339,19 +346,19 @@ contains
        do k=1,nlev
        do j=1,nlat
        do i=1,nlon
-          dum2(ijk)=sigma0(k)*omegaan(i,j,k)
+          dum2(i,j,k)=sigma0(k)*omegaan(i,j,k)
        enddo
        enddo
        enddo
 
        call p2der(omegaan,df2dp2,nlon,nlat,nlev,dlev)
-       call laplace_cart(omegaan,lapl,nlon,nlat,nlev,dx,dy)
+       call laplace_cart(omegaan,lapl,dx,dy)
 !
        do k=1,nlev
        do j=1,nlat       
        do i=1,nlon
          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-         ftest(ijk)=sigma(ijk)*lapl(ijk)+feta(ijk)*df2dp2(ijk) 
+         ftest(ijk)=sigma(ijk)*lapl(i,j,k)+feta(ijk)*df2dp2(ijk) 
        enddo
        enddo
        enddo
@@ -369,12 +376,12 @@ contains
        do i=1,nlon
           ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
           forcing(ijk)=omegaan(i,j,k)           
-          dum2(ijk)=sigmaraw(i,j,k)*omegaan(i,j,k)
+          dum2(i,j,k)=sigmaraw(i,j,k)*omegaan(i,j,k)
        enddo
        enddo
        enddo
 
-       call laplace_cart(dum2,dum1,nlon,nlat,nlev,dx,dy)
+       call laplace_cart(dum2,dum1,dx,dy)
        call p2der(omegaan,dum3,nlon,nlat,nlev,dlev)
        call p2der(zetaraw,dum5,nlon,nlat,nlev,dlev)
 
@@ -382,7 +389,7 @@ contains
        do j=1,nlat       
        do i=1,nlon
          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-         dum2(ijk)=(corpar(j)+zetaraw(ijk))*corpar(j)*dum3(ijk)
+         dum2(i,j,k)=(corpar(j)+zetaraw(i,j,k))*corpar(j)*dum3(ijk)
        enddo
        enddo
        enddo
@@ -391,29 +398,29 @@ contains
        do j=1,nlat       
        do i=1,nlon
          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-         dum3(ijk)=-corpar(j)*omegaan(i,j,k)*dum5(ijk)
+         dum3(ijk)=-corpar(j)*omegaan(i,j,k)*dum5(i,j,k)
        enddo
        enddo
        enddo
 
-       call xder_cart(omegaan,dum4,nlon,nlat,nlev,dx) 
-       call yder_cart(omegaan,dum5,nlon,nlat,nlev,dy) 
+       call xder_cart(omegaan,dx,dum4) 
+       call yder_cart(omegaan,dy,dum5) 
  
        do k=1,nlev
        do j=1,nlat
        do i=1,nlon
           ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-          dum6(ijk)=-corpar(j)*(dvdp(ijk)*dum4(ijk)-dudp(ijk)*dum5(ijk))
+          dum6(i,j,k)=-corpar(j)*(dvdp(i,j,k)*dum4(i,j,k)-dudp(i,j,k)*dum5(i,j,k))
        enddo
        enddo
        enddo        
-       call pder(dum6,dum4,nlon,nlat,nlev,dlev) 
+       call pder(dum6,dlev,dum4) 
 
        do k=1,nlev
        do j=1,nlat       
        do i=1,nlon
          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-         ftest(ijk)=dum1(ijk)+dum2(ijk)+dum3(ijk)+dum4(ijk) 
+         ftest(ijk)=dum1(i,j,k)+dum2(i,j,k)+dum3(ijk)+dum4(i,j,k) 
        enddo
        enddo
        enddo
@@ -481,7 +488,7 @@ contains
 !         (-> 2 + 1 = 3 terms for QG omega, 5 + 1 terms for generalized 
 !         omega) 
 !
-       iunit=1
+!       iunit=1
 
        if(mode.eq.'T')then
          call callsolvegen(ftest,boundaries2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
@@ -695,8 +702,8 @@ contains
        real dzdx(nlon,nlat,nlev),dzdy(nlon,nlat,nlev)
        real corpar(nlat),g,dx,dy
 
-       call xder_cart(z,dzdx,nlon,nlat,nlev,dx) 
-       call yder_cart(z,dzdy,nlon,nlat,nlev,dy) 
+       call xder_cart(z,dx,dzdx) 
+       call yder_cart(z,dy,dzdy) 
 
        do k=1,nlev
        do j=1,nlat
@@ -721,34 +728,34 @@ contains
        end subroutine gwinds
 
 
-      subroutine define_sigma(t,dum1,dum2,sigma,nlon,nlat,nlev,lev,r,cp,dlev)
+!      subroutine define_sigma(t,dum1,dum2,sigma,nlon,nlat,nlev,lev,r,cp,dlev)
 !
 !     Calculation of static stability (sigma) from t and the constants r and cp
 !
-      implicit none
-      integer i,j,k,nlon,nlat,nlev
-      real t(nlon,nlat,nlev),dum1(nlon,nlat,nlev),dum2(nlon,nlat,nlev),&
-           sigma(nlon,nlat,nlev),lev(nlev)
-      real r,cp,dlev
+!      implicit none
+!      integer i,j,k,nlon,nlat,nlev
+!      real t(nlon,nlat,nlev),dum1(nlon,nlat,nlev),dum2(nlon,nlat,nlev),&
+!           sigma(nlon,nlat,nlev),lev(nlev)
+!      real r,cp,dlev
 
-       do k=1,nlev
-       do j=1,nlat
-       do i=1,nlon
-         dum1(i,j,k)=log(t(i,j,k))-(r/cp)*log(lev(k)/1e5)
-       enddo
-       enddo
-       enddo
-       call pder(dum1,dum2,nlon,nlat,nlev,dlev) 
-       do k=1,nlev
-       do j=1,nlat
-       do i=1,nlon
-         sigma(i,j,k)=-R*t(i,j,k)/lev(k)*dum2(i,j,k)
-       enddo
-       enddo
-       enddo
+!       do k=1,nlev
+!       do j=1,nlat
+!       do i=1,nlon
+!         dum1(i,j,k)=log(t(i,j,k))-(r/cp)*log(lev(k)/1e5)
+!       enddo
+!       enddo
+!       enddo
+!       call pder(dum1,dum2,nlon,nlat,nlev,dlev) 
+!       do k=1,nlev
+!       do j=1,nlat
+!       do i=1,nlon
+!         sigma(i,j,k)=-R*t(i,j,k)/lev(k)*dum2(i,j,k)
+!       enddo
+!       enddo
+!       enddo
 
-      return
-      end subroutine define_sigma
+!      return
+!      end subroutine define_sigma
 
       subroutine modify(sigmaraw,sigma,sigmamin,etamin,nlon,nlat,nlev,zetaraw,&
                         zeta,feta,corpar,dudp,dvdp)      
@@ -810,28 +817,28 @@ contains
       return
       end subroutine aave
 
-      subroutine advect_cart(u,v,f,dfdx,dfdy,adv,nlon,nlat,nlev,dx,dy)
+!      subroutine advect_cart(u,v,f,dfdx,dfdy,adv,nlon,nlat,nlev,dx,dy)
 !
 !     Computing adv = u*dfdx + v*dfdy in cartesian coordinates
 !
-      implicit none
-      integer i,j,k,nlon,nlat,nlev
-      real u(nlon,nlat,nlev),v(nlon,nlat,nlev),f(nlon,nlat,nlev)       
-      real dfdx(nlon,nlat,nlev),dfdy(nlon,nlat,nlev),adv(nlon,nlat,nlev)
-      real dx,dy
-      call xder_cart(f,dfdx,nlon,nlat,nlev,dx)          
-      call yder_cart(f,dfdy,nlon,nlat,nlev,dy) 
+!      implicit none
+!      integer i,j,k,nlon,nlat,nlev
+!      real u(nlon,nlat,nlev),v(nlon,nlat,nlev),f(nlon,nlat,nlev)       
+!      real dfdx(nlon,nlat,nlev),dfdy(nlon,nlat,nlev),adv(nlon,nlat,nlev)
+!      real dx,dy
+!      call xder_cart(f,dfdx,nlon,nlat,nlev,dx)          
+!      call yder_cart(f,dfdy,nlon,nlat,nlev,dy) 
       
-      do k=1,nlev
-      do j=1,nlat
-      do i=1,nlon
-        adv(i,j,k)=u(i,j,k)*dfdx(i,j,k)+v(i,j,k)*dfdy(i,j,k)
-      enddo
-      enddo
-      enddo
+!      do k=1,nlev
+!      do j=1,nlat
+!      do i=1,nlon
+!        adv(i,j,k)=u(i,j,k)*dfdx(i,j,k)+v(i,j,k)*dfdy(i,j,k)
+!      enddo
+!      enddo
+!      enddo
 
-      return
-      end subroutine advect_cart
+!      return
+!      end subroutine advect_cart
 
       subroutine fvort(u,v,zeta,nlon,nlat,nlev,f,& 
                        dx,dy,dp,eta,detadx,detady,dadvdp,adv,&
@@ -858,9 +865,9 @@ contains
       enddo
       enddo
 
-      call advect_cart(u,v,eta,detadx,detady,adv,nlon,nlat,nlev,dx,dy)
+      call advect_cart(u,v,eta,dx,dy,adv)
       adv=adv*mulfact
-      call pder(adv,dadvdp,nlon,nlat,nlev,dp) 
+      call pder(adv,dp,dadvdp) 
 
       do k=1,nlev
       do j=1,nlat      
@@ -888,9 +895,9 @@ contains
       real dtdx(nlon,nlat,nlev),dtdy(nlon,nlat,nlev)
       real mulfact(nlon,nlat,nlev)
 
-      call advect_cart(u,v,t,dtdx,dtdy,adv,nlon,nlat,nlev,dx,dy)
+      call advect_cart(u,v,t,dx,dy,adv)
       adv=adv*mulfact
-      call laplace_cart(adv,lapladv,nlon,nlat,nlev,dx,dy)         
+      call laplace_cart(adv,lapladv,dx,dy)         
 
       do k=1,nlev
       do j=1,nlat      
@@ -917,9 +924,9 @@ contains
       real fcurl(nlon,nlat,nlev),dcurldp(nlon,nlat,nlev),res(nlon,nlat,nlev)
       real mulfact(nlon,nlat,nlev)
 
-      call curl_cart(fx,fy,fcurl,nlon,nlat,nlev,dx,dy)
+      call curl_cart(fx,fy,dx,dy,fcurl)
       fcurl=fcurl*mulfact
-      call pder(fcurl,dcurldp,nlon,nlat,nlev,dp) 
+      call pder(fcurl,dp,dcurldp) 
 
       do k=1,nlev
       do j=1,nlat      
@@ -945,7 +952,7 @@ contains
       real mulfact(nlon,nlat,nlev)
 
       q=q*mulfact
-      call laplace_cart(q,res,nlon,nlat,nlev,dx,dy)         
+      call laplace_cart(q,res,dx,dy)         
 
       do k=1,nlev
       do j=1,nlat      
@@ -975,8 +982,8 @@ contains
       dzetadt=dzetadt*mulfact
       dtdt=dtdt*mulfact
 
-      call pder(dzetadt,ddpdzetadt,nlon,nlat,nlev,dp) 
-      call laplace_cart(dtdt,lapldtdt,nlon,nlat,nlev,dx,dy)         
+      call pder(dzetadt,dp,ddpdzetadt) 
+      call laplace_cart(dtdt,lapldtdt,dx,dy)         
 
       do k=1,nlev
       do j=1,nlat      
@@ -1228,7 +1235,7 @@ contains
        real laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
        real dx,dy,dlev
 
-       call laplace_cart(omega,laplome,nlon,nlat,nlev,dx,dy)         
+       call laplace_cart(omega,laplome,dx,dy)         
        call p2der(omega,domedp2,nlon,nlat,nlev,dlev) 
  
        do k=1,nlev
@@ -1498,14 +1505,14 @@ contains
        enddo
        enddo
        enddo        
-       call laplace_cart(dum0,dum1,nlon,nlat,nlev,dx,dy)         
+       call laplace_cart(dum0,dum1,dx,dy)         
 !
 !      b) f*omega*(d2zetadp): explicitly, later
 !          
 !      c) tilting
 !
-       call xder_cart(omegaold,dum4,nlon,nlat,nlev,dx) 
-       call yder_cart(omegaold,dum5,nlon,nlat,nlev,dy) 
+       call xder_cart(omegaold,dx,dum4) 
+       call yder_cart(omegaold,dy,dum5) 
  
        do k=1,nlev
        do j=1,nlat
@@ -1514,7 +1521,7 @@ contains
        enddo
        enddo
        enddo        
-       call pder(dum6,dum3,nlon,nlat,nlev,dlev) 
+       call pder(dum6,dlev,dum3) 
 !
 !      Solving for omega 
 !      Old values are retained at y and z boundaries.
@@ -1577,7 +1584,7 @@ contains
 
        dum0=omega*sigma
 
-       call laplace_cart(dum0,dum1,nlon,nlat,nlev,dx,dy)         
+       call laplace_cart(dum0,dum1,dx,dy)         
 !
 !      f*eta*d2omegadp
 !       
@@ -1589,8 +1596,8 @@ contains
 !                  
 !      d) tilting
 !
-       call xder_cart(omega,dum4,nlon,nlat,nlev,dx) 
-       call yder_cart(omega,dum5,nlon,nlat,nlev,dy) 
+       call xder_cart(omega,dx,dum4) 
+       call yder_cart(omega,dy,dum5) 
  
        do k=1,nlev
        do j=1,nlat
@@ -1599,7 +1606,7 @@ contains
        enddo
        enddo
        enddo        
-       call pder(dum6,dum2,nlon,nlat,nlev,dlev) 
+       call pder(dum6,dlev,dum2) 
 
        do k=1,nlev
        do j=1,nlat
@@ -1613,72 +1620,72 @@ contains
        end subroutine residgen
 
 
-       subroutine curl_cart(u,v,zeta,nlon,nlat,nlev,dx,dy)
+!       subroutine curl_cart(u,v,zeta,nlon,nlat,nlev,dx,dy)
 !
 !      Relative vorticity in cartesian coordinates.
 !      
 !      The domain is assumed to be periodic in east-west-direction
 !      ** At the northern and southern boundaries, one-sided y derivatives are used.**
 !
-       integer i,i1,i2,j,k,nlon,nlat,nlev
-       real u(nlon,nlat,nlev),v(nlon,nlat,nlev),zeta(nlon,nlat,nlev)
-       real dudy,dvdx
-       real dx,dy
+!       integer i,i1,i2,j,k,nlon,nlat,nlev
+!       real u(nlon,nlat,nlev),v(nlon,nlat,nlev),zeta(nlon,nlat,nlev)
+!       real dudy,dvdx
+!       real dx,dy
 
-       do k=1,nlev
-       do i=1,nlon 
-         i1=i-1
-         i2=i+1
-         if(i1.lt.1)i1=i1+nlon
-         if(i2.gt.nlon)i2=i2-nlon
-         do j=1,nlat
-            if(j.gt.1.and.j.lt.nlat)then
-              dudy=(u(i,j+1,k)-u(i,j-1,k))/(2*dy)
-            else
-              if(j.eq.1)dudy=(u(i,j+1,k)-u(i,j,k))/dy
-              if(j.eq.nlat)dudy=(u(i,j,k)-u(i,j-1,k))/dy
-            endif
-            dvdx=(v(i2,j,k)-v(i1,j,k))/(2*dx)
-            zeta(i,j,k)=dvdx-dudy
-         enddo
-       enddo
-       enddo
+!       do k=1,nlev
+!       do i=1,nlon 
+!         i1=i-1
+!         i2=i+1
+!         if(i1.lt.1)i1=i1+nlon
+!         if(i2.gt.nlon)i2=i2-nlon
+!         do j=1,nlat
+!            if(j.gt.1.and.j.lt.nlat)then
+!              dudy=(u(i,j+1,k)-u(i,j-1,k))/(2*dy)
+!            else
+!              if(j.eq.1)dudy=(u(i,j+1,k)-u(i,j,k))/dy
+!              if(j.eq.nlat)dudy=(u(i,j,k)-u(i,j-1,k))/dy
+!            endif
+!            dvdx=(v(i2,j,k)-v(i1,j,k))/(2*dx)
+!            zeta(i,j,k)=dvdx-dudy
+!         enddo
+!       enddo
+!       enddo
 
-       return
-       end subroutine curl_cart
+!       return
+!       end subroutine curl_cart
 
-       subroutine laplace_cart(f,lapl,nlon,nlat,nlev,dx,dy)         
+!       subroutine laplace_cart(f,lapl,nlon,nlat,nlev,dx,dy)         
 !
 !      Laplace operator in cartesian coordinates
 !
 !      The domain is assumed to be periodic in east-west-direction
 !      ** At the northern and southern boundaries, second y derivative is assumed to be zero      
 !      
-       integer i,i1,i2,j,k,nlon,nlat,nlev
-       real f(nlon,nlat,nlev),lapl(nlon,nlat,nlev)
-       double precision d2fdy,d2fdx
-       real dx,dy
+!       integer i,i1,i2,j,k,nlon,nlat,nlev
+!       real f(nlon,nlat,nlev),lapl(nlon,nlat,nlev)
+!       double precision d2fdy,d2fdx
+!       real dx,dy
 
-       do k=1,nlev
-       do i=1,nlon 
-         i1=i-1
-         i2=i+1
-         if(i1.lt.1)i1=i1+nlon
-         if(i2.gt.nlon)i2=i2-nlon
-         do j=1,nlat
-            d2fdx=(f(i2,j,k)+f(i1,j,k)-2*f(i,j,k))/(dx**2.)
-            if(j.gt.1.and.j.lt.nlat)then
-              d2fdy=(f(i,j+1,k)+f(i,j-1,k)-2*f(i,j,k))/(dy**2.)
-              lapl(i,j,k)=d2fdx+d2fdy
-            else
-              lapl(i,j,k)=d2fdx
-            endif
-         enddo
-       enddo
-       enddo
+!       do k=1,nlev
+!       do i=1,nlon 
+!         i1=i-1
+!         i2=i+1
+!         if(i1.lt.1)i1=i1+nlon
+!         if(i2.gt.nlon)i2=i2-nlon
+!         do j=1,nlat
+!            d2fdx=(f(i2,j,k)+f(i1,j,k)-2*f(i,j,k))/(dx**2.)
+!            if(j.gt.1.and.j.lt.nlat)then
+!              d2fdy=(f(i,j+1,k)+f(i,j-1,k)-2*f(i,j,k))/(dy**2.)
+!              lapl(i,j,k)=d2fdx+d2fdy
+!            else
+!              lapl(i,j,k)=d2fdx
+!            endif
+!         enddo
+!       enddo
+!       enddo
 
-       return
-       end subroutine laplace_cart
+!       return
+!       end subroutine laplace_cart
 
        subroutine laplace2_cart(f,lapl2,coeff,nlon,nlat,nlev,dx,dy)
 !
@@ -1714,26 +1721,26 @@ contains
        return
        end subroutine laplace2_cart
 
-       subroutine pder(f,dfdp,nlon,nlat,nlev,dp) 
+!       subroutine pder(f,dfdp,nlon,nlat,nlev,dp) 
 !
 !      Estimation of pressure derivatives.
 !      One-sided derivatives are used at top and bottom levels
 !
-       implicit none
-       integer i,j,k,nlon,nlat,nlev
-       real f(nlon,nlat,nlev),dfdp(nlon,nlat,nlev),dp 
-       do i=1,nlon
-       do j=1,nlat
-       do k=2,nlev-1
-         dfdp(i,j,k)=(f(i,j,k+1)-f(i,j,k-1))/(2.*dp)
-       enddo
-       dfdp(i,j,1)=(f(i,j,2)-f(i,j,1))/dp
-       dfdp(i,j,nlev)=(f(i,j,nlev)-f(i,j,nlev-1))/dp
+!       implicit none
+!       integer i,j,k,nlon,nlat,nlev
+!       real f(nlon,nlat,nlev),dfdp(nlon,nlat,nlev),dp 
+!       do i=1,nlon
+!       do j=1,nlat
+!       do k=2,nlev-1
+!         dfdp(i,j,k)=(f(i,j,k+1)-f(i,j,k-1))/(2.*dp)
+!       enddo
+!       dfdp(i,j,1)=(f(i,j,2)-f(i,j,1))/dp
+!       dfdp(i,j,nlev)=(f(i,j,nlev)-f(i,j,nlev-1))/dp
  
-       enddo
-       enddo
-       return
-       end subroutine pder      
+!       enddo
+!       enddo
+!       return
+!       end subroutine pder      
 
 
        subroutine p2der(f,df2dp2,nlon,nlat,nlev,dp) 
@@ -1782,103 +1789,6 @@ contains
        return
        end subroutine p2der2      
 
-       subroutine xder_cart(f,dfdx,nlon,nlat,nlev,dx) 
-!
-!      Calculation of x derivatives. Periodic domain in x assumed
-!
-       implicit none
-       integer i,j,k,nlon,nlat,nlev,i1,i2
-       real f(nlon,nlat,nlev),dfdx(nlon,nlat,nlev),dx
- 
-       do k=1,nlev
-       do i=1,nlon
-         i1=max(i-1,1)
-         i2=min(i+1,nlon) 
-         if(i1.eq.i)i1=nlon
-         if(i2.eq.i)i2=1
-         do j=1,nlat
-           dfdx(i,j,k)=(f(i2,j,k)-f(i1,j,k))/(2.*dx)
-         enddo
-       enddo
-       enddo 
-
-       return
-       end subroutine xder_cart      
-
-       subroutine yder_cart(f,dfdy,nlon,nlat,nlev,dy) 
-!
-!      Calculation of y derivatives
-!      One-sided estimates are used at the southern and northern boundaries
-!
-       implicit none
-       integer i,j,k,nlon,nlat,nlev
-       real f(nlon,nlat,nlev),dfdy(nlon,nlat,nlev),dy 
-
-       do k=1,nlev
-     
-       do i=1,nlon
-         do j=2,nlat-1
-           dfdy(i,j,k)=(f(i,j+1,k)-f(i,j-1,k))/(2*dy)
-         enddo
-         dfdy(i,1,k)=(f(i,2,k)-f(i,1,k))/dy
-         dfdy(i,nlat,k)=(f(i,nlat,k)-f(i,nlat-1,k))/dy
-       enddo
-
-       enddo
-
-       return
-       end subroutine yder_cart      
-
-!      SUBROUTINE OPENFR(fname,iunit,iijj)
-!
-!     To open a grads file to be read.
-!
-!      character*140 fname
-!      integer iunit,irec,iijj,one,size
-!      one=4 
-!      size=one*iijj      
-!      OPEN(UNIT=iunit,FORM='UNFORMATTED',FILE=fname,ACCESS='DIRECT', &
-!            RECL=size,STATUS='OLD')  
-!      return
-!      end subroutine openfr
-
-!      SUBROUTINE OPENFW(fname,iunit,iijj)
-!
-!     To open a grads file to be read.
-!
-!      character*140 fname
-!      integer iunit,iijj,one,size
-!      one=4 
-!      size=one*iijj      
-!      OPEN(UNIT=iunit,FORM='UNFORMATTED',FILE=fname,ACCESS='DIRECT', &
-!            RECL=size,STATUS='UNKNOWN')  
-!      return
-!      end subroutine openfw
-
-
-!      SUBROUTINE REAGRA2(F,IDIM,IREC,IUNIT)
-!        
-!     Read the record number 'IREC' from a grads binary file.
-!        
-!      INTEGER II,JJ,IREC,IUNIT,idim
-!      REAL F(IDIM)
-
-!      READ(IUNIT,REC=IREC)F
-
-!      RETURN
-!      END subroutine reagra2
-
-!      SUBROUTINE WRIGRA2(F,IDIM,IREC,IUNIT)
-!        
-!     Write the record number 'IREC' to a grads binary file.
-!                   
-!      INTEGER II,JJ,IREC,IUNIT,idim
-!      REAL F(IDIM)
-
-!      WRITE(IUNIT,REC=IREC)F
-
-!      RETURN
-!      END subroutine wrigra2
 
 !************ SUBROUTINES NOT CURRENTLY USED ****************************************
 
