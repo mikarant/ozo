@@ -21,9 +21,13 @@ contains
     real,dimension(:,:,:),allocatable :: sigmaraw,omegaan,zetaraw,dum6
     real,dimension(:,:,:),allocatable :: dum4,dum5,dum2,dum1,lapl,dum3
     real,dimension(:,:,:),allocatable :: dudp,dvdp,zetatend,mulfact
-    real,dimension(:,:,:),allocatable :: forcing,ftest,zero
-    real,dimension(:,:,:),allocatable :: sigma
-       integer nlev,nlon,nlat,nlevmax,nlonmax,nlatmax,nresmax,max3d,max4d    
+    real,dimension(:,:,:),allocatable :: forcing,ftest,zero,coeff,feta
+    real,dimension(:,:,:),allocatable :: sigma,laplome,domedp2,coeff1
+    real,dimension(:,:,:),allocatable :: coeff2,df2dp2,zeta,d2zetadp
+    real,dimension(:,:,:,:),allocatable :: fv,ft,ff,fq,fa
+    real,dimension(:),allocatable :: sigma0
+
+    integer nlev,nlon,nlat,nlevmax,nlonmax,nlatmax,nresmax,max3d,max4d    
 !
 !      Maximum size of the WRF output grid. 
 !      nresmax = maximum number of resolutions used in the
@@ -32,17 +36,8 @@ contains
        parameter (nlonmax=160,nlatmax=320,nlevmax=40,nresmax=7)
        parameter (max3d=nlonmax*nlatmax*nlevmax)
        parameter (max4d=nresmax*max3d)
-
-       real sigma0(nlevmax)
-       real laplome(max3d)
-       real domedp2(max3d)
-       real coeff(max3d),coeff1(max3d),coeff2(max3d)       
-       real df2dp2(max3d)
-
-       real zeta(max3d),d2zetadp(max3d)
-       real feta(max3d)     ! coriolis * abs vorticity
-       real fv(max3d),ft(max3d),ff(max3d),fq(max3d),fa(max3d)
-       real dum0(max3d)
+!       real fv(max3d),ft(max3d),ff(max3d),fq(max3d),fa(max3d)
+        real dum0(max3d)
        real resid(max3d),omega1(max3d)
 
        logical lfconst,lzeromean,lcensor        
@@ -122,21 +117,23 @@ contains
          stop
        endif
 
+       allocate(sigma0(nlev))
        allocate(sigmaraw(nlon,nlat,nlev),zetaraw(nlon,nlat,nlev))
        allocate(dum1(nlon,nlat,nlev),sigma(nlon,nlat,nlev))
-       allocate(dum2(nlon,nlat,nlev))
-       allocate(dum3(nlon,nlat,nlev))
-       allocate(dum4(nlon,nlat,nlev))
-       allocate(dum5(nlon,nlat,nlev))
-       allocate(lapl(nlon,nlat,nlev))
-       allocate(dum6(nlon,nlat,nlev))
-       allocate(dvdp(nlon,nlat,nlev))
-       allocate(dudp(nlon,nlat,nlev))
-       allocate(zetatend(nlon,nlat,nlev))
-       allocate(mulfact(nlon,nlat,nlev))
-       allocate(forcing(nlon,nlat,nlev))
-       allocate(ftest(nlon,nlat,nlev))
-       allocate(zero(nlon,nlat,nlev))
+       allocate(dum2(nlon,nlat,nlev),laplome(nlon,nlat,nlev))
+       allocate(dum3(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
+       allocate(dum4(nlon,nlat,nlev),coeff(nlon,nlat,nlev))
+       allocate(dum5(nlon,nlat,nlev),coeff1(nlon,nlat,nlev))
+       allocate(lapl(nlon,nlat,nlev),coeff2(nlon,nlat,nlev))
+       allocate(dum6(nlon,nlat,nlev),df2dp2(nlon,nlat,nlev))
+       allocate(dvdp(nlon,nlat,nlev),zeta(nlon,nlat,nlev))
+       allocate(dudp(nlon,nlat,nlev),d2zetadp(nlon,nlat,nlev))
+       allocate(zetatend(nlon,nlat,nlev),feta(nlon,nlat,nlev))
+       allocate(mulfact(nlon,nlat,nlev))!,fv(nlon,nlat,nlev))
+       allocate(forcing(nlon,nlat,nlev))!,ft(nlon,nlat,nlev))
+       allocate(ftest(nlon,nlat,nlev))!,ff(nlon,nlat,nlev))
+       allocate(zero(nlon,nlat,nlev))!,fq(nlon,nlat,nlev))
+       !allocate(fa(nlon,nlat,nlev))
 
 
        omegaan=w
@@ -150,6 +147,11 @@ contains
 !
        allocate(omega(nlon,nlat,nlev,nres),omegaold(nlon,nlat,nlev,nres))
        allocate(boundaries(nlon,nlat,nlev,nres))
+       allocate(fv(nlon,nlat,nlev,nres))
+       allocate(ft(nlon,nlat,nlev,nres))
+       allocate(ff(nlon,nlat,nlev,nres))
+       allocate(fq(nlon,nlat,nlev,nres))
+       allocate(fa(nlon,nlat,nlev,nres))
        dlev=lev(2)-lev(1)
 
 !      Grid sizes for the different resolutions
@@ -259,7 +261,7 @@ contains
          do i=1,nlon
            ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
            sigma(i,j,k)=sigma0(k)
-           feta(ijk)=fconst**2.
+           feta(i,j,k)=fconst**2.
          enddo
          enddo
          enddo
@@ -286,7 +288,7 @@ contains
        do j=1,nlat       
        do i=1,nlon
          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-         ftest(i,j,k)=sigma(i,j,k)*lapl(i,j,k)+feta(ijk)*df2dp2(ijk) 
+         ftest(i,j,k)=sigma(i,j,k)*lapl(i,j,k)+feta(i,j,k)*df2dp2(i,j,k) 
        enddo
        enddo
        enddo
