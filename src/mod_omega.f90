@@ -17,11 +17,12 @@ contains
     real,                 intent(in) :: dx,dy 
     real,dimension(:,:,:),intent(inout) :: z,q
 
-    real,dimension(:,:,:,:),allocatable :: omega
+    real,dimension(:,:,:,:),allocatable :: omega,omegaold,boundaries
     real,dimension(:,:,:),allocatable :: sigmaraw,omegaan,zetaraw,dum6
-    real,dimension(:,:,:),allocatable :: dum4,dum5,dum2,dum1,lapl
+    real,dimension(:,:,:),allocatable :: dum4,dum5,dum2,dum1,lapl,dum3
     real,dimension(:,:,:),allocatable :: dudp,dvdp,zetatend,mulfact
-    real,dimension(:,:,:),allocatable :: forcing
+    real,dimension(:,:,:),allocatable :: forcing,ftest,zero
+    real,dimension(:,:,:),allocatable :: sigma
        integer nlev,nlon,nlat,nlevmax,nlonmax,nlatmax,nresmax,max3d,max4d    
 !
 !      Maximum size of the WRF output grid. 
@@ -32,11 +33,7 @@ contains
        parameter (max3d=nlonmax*nlatmax*nlevmax)
        parameter (max4d=nresmax*max3d)
 
-       real f1,f2 
-       real ftest(max3d)
-       real zero(max3d),boundaries(max3d)
-       real omegaold(max3d)
-       real sigma(max3d),sigma0(nlevmax)
+       real sigma0(nlevmax)
        real laplome(max3d)
        real domedp2(max3d)
        real coeff(max3d),coeff1(max3d),coeff2(max3d)       
@@ -46,7 +43,6 @@ contains
        real feta(max3d)     ! coriolis * abs vorticity
        real fv(max3d),ft(max3d),ff(max3d),fq(max3d),fa(max3d)
        real dum0(max3d)
-       real dum3(max3d)
        real resid(max3d),omega1(max3d)
 
        logical lfconst,lzeromean,lcensor        
@@ -100,8 +96,6 @@ contains
        itermax=1000 ! maximum number of iterations
        mode='G'   ! Mode = generalized omega equation
        fconst=1e-4 ! default of coriolis parameter, used in lfconst=.true.
-       f1=fconst ! coriolis parameter at southern boundary (if lfconst=.false.)
-       f2=fconst ! coriolis parameter at northern boundary (if lfconst=.false.)
        toler=5e-5  ! threshold for stopping iterations
        lfconst=.true.   ! Coriolis parameter treated as constant
        lzeromean=.true. ! Area means of omega are set to zero
@@ -119,8 +113,6 @@ contains
        nlev=size(t,3)
 
 
-       zero=0.
-
        if(mode.eq.'G')write(*,*)'Generalized omega equation'   
        if(mode.eq.'Q')write(*,*)'Quasi-geostrophic omega equation'   
        if(mode.eq.'T')write(*,*)'Generalized test version'   
@@ -131,9 +123,9 @@ contains
        endif
 
        allocate(sigmaraw(nlon,nlat,nlev),zetaraw(nlon,nlat,nlev))
-       allocate(dum1(nlon,nlat,nlev))
+       allocate(dum1(nlon,nlat,nlev),sigma(nlon,nlat,nlev))
        allocate(dum2(nlon,nlat,nlev))
-!       allocate(dum3(nlon,nlat,nlev))
+       allocate(dum3(nlon,nlat,nlev))
        allocate(dum4(nlon,nlat,nlev))
        allocate(dum5(nlon,nlat,nlev))
        allocate(lapl(nlon,nlat,nlev))
@@ -143,7 +135,12 @@ contains
        allocate(zetatend(nlon,nlat,nlev))
        allocate(mulfact(nlon,nlat,nlev))
        allocate(forcing(nlon,nlat,nlev))
+       allocate(ftest(nlon,nlat,nlev))
+       allocate(zero(nlon,nlat,nlev))
+
+
        omegaan=w
+       zero=0.
 !
 !      Number of different resolutions in solving the equation = nres 
 !      Choose so that the coarsest grid has at least 5 points
@@ -151,26 +148,8 @@ contains
        nres=1+int(log(max(nlon,nlat,nlev)/5.)/log(2.))
        write(*,*)'nres=',nres
 !
-       allocate(omega(nlon,nlat,nlev,nres))
-!      Coriolis parameter as a function of latitude
-!
-!       do j=1,nlat
-!         if(lfconst)then
-!          corpar(j)=fconst
-!         else
-!          corpar(j)=f1+(j-1.)/(nlat-1.)*(f2-f1)
-!         endif
-!       enddo 
-!
-!      Pressure levels are converted from hPa to Pa  
-!
-!       do k=1,nlev
-!         lev(k)=100*(lev1+(lev2-lev1)*(k-1.)/(nlev-1.))
-!       enddo
-!
-!      dlev will be negative, if lev2 > lev1. This is OK.
-!
-!       dlev=100*(lev2-lev1)/(nlev-1.)
+       allocate(omega(nlon,nlat,nlev,nres),omegaold(nlon,nlat,nlev,nres))
+       allocate(boundaries(nlon,nlat,nlev,nres))
        dlev=lev(2)-lev(1)
 
 !      Grid sizes for the different resolutions
@@ -279,7 +258,7 @@ contains
          do j=1,nlat       
          do i=1,nlon
            ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-           sigma(ijk)=sigma0(k)
+           sigma(i,j,k)=sigma0(k)
            feta(ijk)=fconst**2.
          enddo
          enddo
@@ -307,7 +286,7 @@ contains
        do j=1,nlat       
        do i=1,nlon
          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-         ftest(ijk)=sigma(ijk)*lapl(i,j,k)+feta(ijk)*df2dp2(ijk) 
+         ftest(i,j,k)=sigma(i,j,k)*lapl(i,j,k)+feta(ijk)*df2dp2(ijk) 
        enddo
        enddo
        enddo
@@ -338,7 +317,7 @@ contains
        do j=1,nlat       
        do i=1,nlon
          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-         dum2(i,j,k)=(corpar(j)+zetaraw(i,j,k))*corpar(j)*dum3(ijk)
+         dum2(i,j,k)=(corpar(j)+zetaraw(i,j,k))*corpar(j)*dum3(i,j,k)
        enddo
        enddo
        enddo
@@ -347,7 +326,7 @@ contains
        do j=1,nlat       
        do i=1,nlon
          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-         dum3(ijk)=-corpar(j)*omegaan(i,j,k)*dum5(i,j,k)
+         dum3(i,j,k)=-corpar(j)*omegaan(i,j,k)*dum5(i,j,k)
        enddo
        enddo
        enddo
@@ -369,7 +348,7 @@ contains
        do j=1,nlat       
        do i=1,nlon
          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-         ftest(ijk)=dum1(i,j,k)+dum2(i,j,k)+dum3(ijk)+dum4(i,j,k) 
+         ftest(i,j,k)=dum1(i,j,k)+dum2(i,j,k)+dum3(i,j,k)+dum4(i,j,k) 
        enddo
        enddo
        enddo
@@ -388,17 +367,17 @@ contains
        do j=1,nlat       
        do i=1,nlon
          ijk=i+(j-1)*nlon+(1-1)*nlon*nlat
-         boundaries(ijk)=iubound*omegaan(i,j,1)
+         boundaries(i,j,1,1)=iubound*omegaan(i,j,1)
          ijk=i+(j-1)*nlon+(nlev-1)*nlon*nlat
-         boundaries(ijk)=ilbound*omegaan(i,j,nlev)
+         boundaries(i,j,nlev,1)=ilbound*omegaan(i,j,nlev)
        enddo
        enddo      
        do k=2,nlev-1
        do i=1,nlon
          ijk=i+(1-1)*nlon+(k-1)*nlon*nlat        
-         boundaries(ijk)=iybound*omegaan(i,1,k)
+         boundaries(i,1,k,1)=iybound*omegaan(i,1,k)
          ijk=i+(nlat-1)*nlon+(k-1)*nlon*nlat        
-         boundaries(ijk)=iybound*omegaan(i,nlat,k)
+         boundaries(i,nlat,k,1)=iybound*omegaan(i,nlat,k)
        enddo
        enddo     
 
