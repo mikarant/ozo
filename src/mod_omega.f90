@@ -26,32 +26,27 @@ contains
 !      Maximum size of the WRF output grid. 
 !      nresmax = maximum number of resolutions used in the
 !                multigrid algorithm
-!
+
        parameter (nlonmax=160,nlatmax=320,nlevmax=40,nresmax=7)
        parameter (max3d=nlonmax*nlatmax*nlevmax)
        parameter (max4d=nresmax*max3d)
 
-       real lev1,lev2
        real f1,f2 
-       real dlon,dlat     
        real forcing(max3d),ftest(max3d)
        real zero(max3d),boundaries(max3d)
        real omegaold(max3d)
        real sigma(max3d),sigma0(nlevmax)
-       real etasq(max3d)
        real laplome(max3d)
        real domedp2(max3d)
        real coeff(max3d),coeff1(max3d),coeff2(max3d)       
-       real dfdx(max3d),dfdy(max3d),dfdp(max3d),df2dp2(max3d),lapl(max3d)
+       real df2dp2(max3d),lapl(max3d)
 
-       real logtheta(max3d)
        real zetaraw(max3d),zeta(max3d),d2zetadp(max3d)
-       real dudp(max3d),du2dp(max3d) 
-       real dvdp(max3d),dv2dp(max3d)  
-       real feta(max3d),fetaraw(max3d)     ! coriolis * abs vorticity
+       real dudp(max3d) 
+       real dvdp(max3d) 
+       real feta(max3d)     ! coriolis * abs vorticity
        real zetatend(max3d)  
-       real fv(max3d),ft(max3d),ff(max3d),fq(max3d),fa(max3d),ftot(max3d)
-       real omev(max3d),omet(max3d),omef(max3d),omeq(max3d),omea(max3d)
+       real fv(max3d),ft(max3d),ff(max3d),fq(max3d),fa(max3d)
        real dum0(max3d),dum1(max3d),dum2(max3d)
        real dum3(max3d),dum4(max3d),dum5(max3d)
        real dum6(max3d)
@@ -62,15 +57,14 @@ contains
        real fconst   ! constant value for coriolis parameter
        real alfa     ! relaxation coefficient
         
-       integer i,j,k,ijk,iter
+       integer i,j,k,ijk
 !
 !      itermax = maximum number of multigrid cycles
 !      ny1 = number of iterations for each grid when going to coarser grids
 !      ny2 = number of iterations for each grid when returning to finer grids
 !
        integer itermax,ny1,ny2
-       integer time,t1,t2
-       integer iunit,irec,irecin,nfieldout
+       integer iunit,irec
 !
 !      Number of input fields (may need to be changed in the netCDF version) 
 !
@@ -80,18 +74,10 @@ contains
 !
        real, parameter :: a = 6371e3,pii=3.1415926536,r = 287.,cp = 1004.,&
              omg=7.292e-5,g=9.80665
-       real maxdiff
 !
 !      Threshold values to keep the generalized omega equation elliptic.
 !
        real,parameter :: sigmamin=2e-7,etamin=2e-6
-
-!      Main input file
-       character*140 :: infile
-!      File for surface pressure (for censoring forcing below surface)
-       character*140 :: psfile
-!      Output file
-       character*140 :: outfile       
 
 !      For iubound, ilbound and iybound are 0, horizontal boundary
 !      conditions are used at the upper, lower and north/south boundaries  
@@ -110,10 +96,10 @@ contains
 !      Tables for administrating the different resolutions 
 !      (***CHANGED SUBSTANTIALLY FOR THE MULTIGRID VERSION ***)
 !
-       integer nres,iresout
+       integer nres
        integer nlonx(nresmax),nlatx(nresmax),nlevx(nresmax)
        real dx2(nresmax),dy2(nresmax),dlev2(nresmax)
-       real rhs2(max4d),boundaries2(max4d),omega2(max4d),omegaold2(max4d)
+       real boundaries2(max4d)
        real zero2(max4d) ! (this is really stupid)
        real sigma2(max4d),feta2(max4d),corpar2(nlatmax*nresmax)
        real d2zetadp2(max4d),dudp2(max4d),dvdp2(max4d)
@@ -237,8 +223,6 @@ contains
 !       do time=t1,t2
 !          write(*,*)'Time=',time
 !
-write(*,*)'psfc',shape(psfc)
-write(*,*)'u',shape(u)
 !      Read the input files (to be completely revised with netCDF!)
 !
 !       irecin=(time-1)*nfieldin
@@ -284,14 +268,14 @@ write(*,*)'u',shape(u)
        call fvort(u,v,zetaraw,nlon,nlat,nlev,corpar,& 
                        dx,dy,dlev,dum1,dum2,dum3,dum4,fv,mulfact)     
        call ftemp(u,v,t,nlon,nlat,nlev,lev,r,& 
-                       dx,dy,dlev,dum1,dum2,dum3,ft,mulfact)
+                       dx,dy,dum1,dum2,dum3,ft,mulfact)
        endif
 
        if(mode.eq.'G')then
 
        call ffrict(xfrict,yfrict,dum1,dum2,nlon,nlat,nlev,corpar,&
                    dx,dy,dlev,ff,mulfact)
-       call fdiab(q,nlon,nlat,nlev,lev,r,dx,dy,dlev,fq,mulfact)
+       call fdiab(q,nlon,nlat,nlev,lev,r,dx,dy,fq,mulfact)
 
        call fimbal(zetatend,ttend,nlon,nlat,nlev,corpar,& 
                    r,lev,dx,dy,dlev,dum1,dum2,fa,mulfact)
@@ -325,7 +309,7 @@ write(*,*)'u',shape(u)
 !      5. Area mean of static stability over the whole grid
 !
        do k=1,nlev
-       call aave(sigmaraw(:,:,k),nlon,nlat,nlev,sigma0(k))                      
+       call aave(sigmaraw(:,:,k),nlon,nlat,sigma0(k))                      
        enddo
        write(*,*)'Area mean static stability'
        do k=1,nlev
@@ -503,14 +487,14 @@ write(*,*)'u',shape(u)
          call callsolvegen(ftest,boundaries2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
               sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
               coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              itermax,ny1,ny2,alfa,IUNIT,IREC, &
+              itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
        endif 
 
        if(mode.eq.'t')then
          call callsolveQG(ftest,boundaries2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
               sigma02,feta2,laplome,domedp2,dum1,&
-              coeff1,coeff2,coeff,resid,omega1,itermax,ny1,ny2,alfa,IUNIT,IREC,&
+              coeff1,coeff2,coeff,resid,omega1,itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
        endif 
 
@@ -519,7 +503,7 @@ write(*,*)'u',shape(u)
          call callsolvegen(fv,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
               sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
               coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              itermax,ny1,ny2,alfa,IUNIT,IREC,&
+              itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
          omegas(:,:,:,termV)=omega(:,:,:,1)
 
@@ -527,7 +511,7 @@ write(*,*)'u',shape(u)
          call callsolvegen(ft,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
               sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
               coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              itermax,ny1,ny2,alfa,IUNIT,IREC,&
+              itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
          omegas(:,:,:,termT)=omega(:,:,:,1)
 
@@ -535,7 +519,7 @@ write(*,*)'u',shape(u)
          call callsolvegen(ff,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
               sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
               coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              itermax,ny1,ny2,alfa,IUNIT,IREC,&
+              itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
          omegas(:,:,:,termF)=omega(:,:,:,1)
 
@@ -543,7 +527,7 @@ write(*,*)'u',shape(u)
          call callsolvegen(fq,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
               sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
               coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              itermax,ny1,ny2,alfa,IUNIT,IREC,&
+              itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
          omegas(:,:,:,termQ)=omega(:,:,:,1)
 
@@ -551,7 +535,7 @@ write(*,*)'u',shape(u)
          call callsolvegen(fa,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
               sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
               coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              itermax,ny1,ny2,alfa,IUNIT,IREC,&
+              itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
          omegas(:,:,:,termA)=omega(:,:,:,1)
 
@@ -559,7 +543,7 @@ write(*,*)'u',shape(u)
          call callsolvegen(zero2,boundaries,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
               sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
               coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              itermax,ny1,ny2,alfa,IUNIT,IREC,&
+              itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
          omegas(:,:,:,termB)=omega(:,:,:,1)
                   
@@ -569,18 +553,18 @@ write(*,*)'u',shape(u)
          Write(*,*)'Vorticity advection'
          call callsolveQG(fv,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
               sigma02,feta2,laplome,domedp2,dum1,&
-              coeff1,coeff2,coeff,resid,omega1,itermax,ny1,ny2,alfa,IUNIT,IREC,&
+              coeff1,coeff2,coeff,resid,omega1,itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
 
          Write(*,*)'Thermal advection'
          call callsolveQG(ft,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
               sigma02,feta2,laplome,domedp2,dum1,&
-              coeff1,coeff2,coeff,resid,omega1,itermax,ny1,ny2,alfa,IUNIT,IREC,&
+              coeff1,coeff2,coeff,resid,omega1,itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
          Write(*,*)'Boundary conditions'        
          call callsolveQG(zero2,boundaries,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
               sigma02,feta2,laplome,domedp2,dum1,&
-              coeff1,coeff2,coeff,resid,omega1,itermax,ny1,ny2,alfa,IUNIT,IREC,&
+              coeff1,coeff2,coeff,resid,omega1,itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
        endif 
 !       enddo 
@@ -676,7 +660,6 @@ write(*,*)'u',shape(u)
        integer nlon1,nlat1,nlev1,nlon2,nlat2,nlev2
        real f(nlon2,nlat2,nlev2),g(nlon1,nlat1,nlev1)
        integer i,i2,j,j2,k,k2,imin,imax,jmin,jmax,kmin,kmax
-       real fsum
 
        do i2=1,nlon2
          imin=nint((i2-1)*real(nlon1)/real(nlon2)+1)
@@ -805,13 +788,13 @@ write(*,*)'u',shape(u)
       return
       end subroutine modify
 
-      subroutine aave(f,nlon,nlat,nlev,res)                      
+      subroutine aave(f,nlon,nlat,res)                      
 !
 !     Calculation of area mean (res) of field f in cartesian coordinates. Simplest possible way.
 !
       implicit none
-      integer i,j,k,nlon,nlat,nlev
-      real f(nlon,nlat),res,lat(nlat),sum,wsum
+      integer i,j,nlon,nlat
+      real f(nlon,nlat),res,sum,wsum
 !      do k=1,nlev
       sum=0
       wsum=0
@@ -835,7 +818,7 @@ write(*,*)'u',shape(u)
       integer i,j,k,nlon,nlat,nlev
       real u(nlon,nlat,nlev),v(nlon,nlat,nlev),f(nlon,nlat,nlev)       
       real dfdx(nlon,nlat,nlev),dfdy(nlon,nlat,nlev),adv(nlon,nlat,nlev)
-      real dx,dy,nsum,ssum 
+      real dx,dy
       call xder_cart(f,dfdx,nlon,nlat,nlev,dx)          
       call yder_cart(f,dfdy,nlon,nlat,nlev,dy) 
       
@@ -891,7 +874,7 @@ write(*,*)'u',shape(u)
       end subroutine fvort
 
       subroutine ftemp(u,v,t,nlon,nlat,nlev,lev,r,& 
-                       dx,dy,dp,dtdx,dtdy,lapladv,adv,mulfact)
+                       dx,dy,dtdx,dtdy,lapladv,adv,mulfact)
 !
 !     Calculation of temperature advection forcing
 !     Input: u,v,t
@@ -899,7 +882,7 @@ write(*,*)'u',shape(u)
 !
       implicit none
       integer i,j,k,nlon,nlat,nlev
-      real dx,dy,dp,r,lev(nlev)
+      real dx,dy,r,lev(nlev)
       real u(nlon,nlat,nlev),v(nlon,nlat,nlev)
       real t(nlon,nlat,nlev),adv(nlon,nlat,nlev),lapladv(nlon,nlat,nlev)
       real dtdx(nlon,nlat,nlev),dtdy(nlon,nlat,nlev)
@@ -929,7 +912,7 @@ write(*,*)'u',shape(u)
 !
       implicit none
       integer i,j,k,nlon,nlat,nlev
-      real dx,dy,dp,a
+      real dx,dy,dp
       real fx(nlon,nlat,nlev),fy(nlon,nlat,nlev),f(nlat)
       real fcurl(nlon,nlat,nlev),dcurldp(nlon,nlat,nlev),res(nlon,nlat,nlev)
       real mulfact(nlon,nlat,nlev)
@@ -949,7 +932,7 @@ write(*,*)'u',shape(u)
       return
       end subroutine ffrict
 
-      subroutine fdiab(q,nlon,nlat,nlev,lev,r,dx,dy,dp,res,mulfact)
+      subroutine fdiab(q,nlon,nlat,nlev,lev,r,dx,dy,res,mulfact)
 !
 !     Calculation of diabatic heaging forcing
 !     Input: q = diabatic temperature tendency (already normalized by cp)
@@ -957,7 +940,7 @@ write(*,*)'u',shape(u)
 !
       implicit none
       integer i,j,k,nlon,nlat,nlev
-      real dx,dy,dp,r,lev(nlev)
+      real dx,dy,r,lev(nlev)
       real q(nlon,nlat,nlev),res(nlon,nlat,nlev)
       real mulfact(nlon,nlat,nlev)
 
@@ -1009,7 +992,7 @@ write(*,*)'u',shape(u)
 
        subroutine callsolveQG(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
               dx,dy,dlev,sigma0,feta,laplome,domedp2,dum1,&
-              coeff1,coeff2,coeff,resid,omega1,itermax,ny1,ny2,alfa,iunit,irec, &
+              coeff1,coeff2,coeff,resid,omega1,itermax,ny1,ny2,alfa, &
               nres,toler,lzeromean)
 !
 !      Calling solveQG + writing out omega. Multigrid algorithm.
@@ -1025,7 +1008,7 @@ write(*,*)'u',shape(u)
        real coeff1(nlon(1),nlat(1),nlev(1)),coeff2(nlon(1),nlat(1),nlev(1)),coeff(nlon(1),nlat(1),nlev(1))
        real resid(nlon(1),nlat(1),nlev(1)),omega1(nlon(1),nlat(1),nlev(1))      
        real alfa,maxdiff,toler
-       integer itermax,ny1,ny2,iunit,irec,ires
+       integer itermax,ny1,ny2,ires
        logical lzeromean
        real aomega
        integer iter
@@ -1098,7 +1081,7 @@ write(*,*)'u',shape(u)
 !
          if(lzeromean)then
            do k=1,nlev(1) 
-           call aave(omega(1,1,k,1),nlon(1),nlat(1),1,aomega)
+           call aave(omega(1,1,k,1),nlon(1),nlat(1),aomega)
            do j=1,nlat(1)
            do i=1,nlon(1)
              omega(i,j,k,1)=omega(i,j,k,1)-aomega
@@ -1107,8 +1090,8 @@ write(*,*)'u',shape(u)
            enddo 
          endif
 
-        irec=irec+1
-        call WRIGRA2(omega,nlon(1)*nlat(1)*nlev(1),irec,iunit)
+!        irec=irec+1
+!        call WRIGRA2(omega,nlon(1)*nlat(1)*nlev(1),irec,iunit)
 
        return
        end subroutine callsolveQG
@@ -1128,8 +1111,8 @@ write(*,*)'u',shape(u)
        real sigma0(nlev),feta(nlon,nlat,nlev),rhs(nlon,nlat,nlev) 
        real laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
        real coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
-       real a,dx,dy,dlev,maxdiff,alfa,tol
-       integer niter,iunit,irec
+       real dx,dy,dlev,maxdiff,alfa
+       integer niter
        logical lres
        real resid(nlon,nlat,nlev)       
 
@@ -1179,7 +1162,7 @@ write(*,*)'u',shape(u)
        real sigma(nlev),etasq(nlon,nlat,nlev),rhs(nlon,nlat,nlev) 
        real lapl2(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
        real coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
-       real a,dx,dy,dlev,maxdiff,alfa
+       real dx,dy,dlev,maxdiff,alfa
 !
 !      Top and bottom levels: omega directly from the boundary conditions,
 !      does not need to be solved.
@@ -1264,7 +1247,7 @@ write(*,*)'u',shape(u)
        subroutine callsolvegen(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
               dx,dy,dlev,sigma0,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
               laplome,domedp2,coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,&
-              dum4,dum5,dum6,resid,omega1,itermax,ny1,ny2,alfa,iunit,irec, &
+              dum4,dum5,dum6,resid,omega1,itermax,ny1,ny2,alfa,&
               nres,toler,lzeromean)
 !
 !      Calling solvegen + writing out omega. Multigrid algorithm
@@ -1284,7 +1267,7 @@ write(*,*)'u',shape(u)
        real dum6(nlon(1),nlat(1),nlev(1))      
        real resid(nlon(1),nlat(1),nlev(1)),omega1(nlon(1),nlat(1),nlev(1))      
        real alfa,maxdiff,toler
-       integer itermax,ny1,ny2,iunit,irec,ires,iter
+       integer itermax,ny1,ny2,ires,iter
        logical lzeromean
        real aomega
  
@@ -1363,7 +1346,7 @@ write(*,*)'u',shape(u)
 !       Subtracting area mean of omega
          if(lzeromean)then
            do k=1,nlev(1) 
-           call aave(omega(1,1,k,1),nlon(1),nlat(1),1,aomega)
+           call aave(omega(1,1,k,1),nlon(1),nlat(1),aomega)
            do j=1,nlat(1)
            do i=1,nlon(1)
              omega(i,j,k,1)=omega(i,j,k,1)-aomega
@@ -1415,13 +1398,13 @@ write(*,*)'u',shape(u)
        real d2zetadp(nlon,nlat,nlev),dudp(nlon,nlat,nlev),dvdp(nlon,nlat,nlev)
        real laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
        real coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
-       real a,dx,dy,dlev,maxdiff
+       real dx,dy,dlev,maxdiff
        real dum0(nlon,nlat,nlev),dum1(nlon,nlat,nlev),dum2(nlon,nlat,nlev)
        real dum3(nlon,nlat,nlev),dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev)
        real dum6(nlon,nlat,nlev)    
        real resid(nlon,nlat,nlev)  
        real alfa
-       integer niter,iunit,irec
+       integer niter
        logical lres
 
 !       omegaold=boundaries
@@ -1447,7 +1430,7 @@ write(*,*)'u',shape(u)
        call updategen(omegaold,omega,sigma0,sigma,feta,corpar,&
             d2zetadp,dudp,dvdp,rhs,nlon,nlat,nlev, &
             dx,dy,dlev,maxdiff,laplome,domedp2,&
-            coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,alfa)
+            coeff1,coeff2,coeff,dum0,dum1,dum3,dum4,dum5,dum6,alfa)
        enddo
 !
 !      Calculate the residual = RHS - L(omega)
@@ -1464,7 +1447,7 @@ write(*,*)'u',shape(u)
        subroutine updategen(omegaold,omega, &
             sigma0,sigma,feta,f,d2zetadp,dudp,dvdp,rhs,nlon,nlat,nlev, &
             dx,dy,dlev,maxdiff,lapl2,domedp2,coeff1,coeff2,coeff, &
-            dum0,dum1,dum2,dum3,dum4,dum5,dum6,alfa)
+            dum0,dum1,dum3,dum4,dum5,dum6,alfa)
 !
 !      Calculating new local values of omega, based on omega in the
 !      surrounding points and the right-hand-side forcing (rhs).
@@ -1492,8 +1475,8 @@ write(*,*)'u',shape(u)
        real d2zetadp(nlon,nlat,nlev),dudp(nlon,nlat,nlev),dvdp(nlon,nlat,nlev)
        real lapl2(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
        real coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
-       real a,dx,dy,dlev,maxdiff
-       real dum0(nlon,nlat,nlev),dum1(nlon,nlat,nlev),dum2(nlon,nlat,nlev)
+       real dx,dy,dlev,maxdiff
+       real dum0(nlon,nlat,nlev),dum1(nlon,nlat,nlev)
        real dum3(nlon,nlat,nlev),dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev)
        real dum6(nlon,nlat,nlev)      
        real alfa
@@ -1638,10 +1621,9 @@ write(*,*)'u',shape(u)
 !      ** At the northern and southern boundaries, one-sided y derivatives are used.**
 !
        integer i,i1,i2,j,k,nlon,nlat,nlev
-       real u(nlon,nlat,nlev),v(nlon,nlat,nlev),zeta(nlon,nlat,nlev),a
+       real u(nlon,nlat,nlev),v(nlon,nlat,nlev),zeta(nlon,nlat,nlev)
        real dudy,dvdx
        real dx,dy
-       real fsouth,fnorth,fspole,fnpole
 
        do k=1,nlev
        do i=1,nlon 
@@ -1674,10 +1656,8 @@ write(*,*)'u',shape(u)
 !      
        integer i,i1,i2,j,k,nlon,nlat,nlev
        real f(nlon,nlat,nlev),lapl(nlon,nlat,nlev)
-       real dfdlat,d2fdlat,d2fdlon
        double precision d2fdy,d2fdx
        real dx,dy
-       real fsouth,fnorth,fspole,fnpole
 
        do k=1,nlev
        do i=1,nlon 
@@ -1707,10 +1687,9 @@ write(*,*)'u',shape(u)
 !        - coeff is the coefficient for the local value
 !
        integer i,i1,i2,j,k,nlon,nlat,nlev
-       real f(nlon,nlat,nlev),lapl2(nlon,nlat,nlev),coeff(nlon,nlat,nlev),a
+       real f(nlon,nlat,nlev),lapl2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
        double precision d2fdy,d2fdx
        real dx,dy
-       real fsouth,fnorth,fspole,fnpole,cosi
 
        do k=1,nlev
        do i=1,nlon 
@@ -1832,7 +1811,7 @@ write(*,*)'u',shape(u)
 !      One-sided estimates are used at the southern and northern boundaries
 !
        implicit none
-       integer i,j,k,nlon,nlat,nlev,i1,i2
+       integer i,j,k,nlon,nlat,nlev
        real f(nlon,nlat,nlev),dfdy(nlon,nlat,nlev),dy 
 
        do k=1,nlev
@@ -1850,56 +1829,56 @@ write(*,*)'u',shape(u)
        return
        end subroutine yder_cart      
 
-      SUBROUTINE OPENFR(fname,iunit,iijj)
+!      SUBROUTINE OPENFR(fname,iunit,iijj)
 !
 !     To open a grads file to be read.
 !
-      character*140 fname
-      integer iunit,irec,iijj,one,size
-      one=4 
-      size=one*iijj      
-      OPEN(UNIT=iunit,FORM='UNFORMATTED',FILE=fname,ACCESS='DIRECT', &
-            RECL=size,STATUS='OLD')  
-      return
-      end subroutine openfr
+!      character*140 fname
+!      integer iunit,irec,iijj,one,size
+!      one=4 
+!      size=one*iijj      
+!      OPEN(UNIT=iunit,FORM='UNFORMATTED',FILE=fname,ACCESS='DIRECT', &
+!            RECL=size,STATUS='OLD')  
+!      return
+!      end subroutine openfr
 
-      SUBROUTINE OPENFW(fname,iunit,iijj)
+!      SUBROUTINE OPENFW(fname,iunit,iijj)
 !
 !     To open a grads file to be read.
 !
-      character*140 fname
-      integer iunit,iijj,one,size
-      one=4 
-      size=one*iijj      
-      OPEN(UNIT=iunit,FORM='UNFORMATTED',FILE=fname,ACCESS='DIRECT', &
-            RECL=size,STATUS='UNKNOWN')  
-      return
-      end subroutine openfw
+!      character*140 fname
+!      integer iunit,iijj,one,size
+!      one=4 
+!      size=one*iijj      
+!      OPEN(UNIT=iunit,FORM='UNFORMATTED',FILE=fname,ACCESS='DIRECT', &
+!            RECL=size,STATUS='UNKNOWN')  
+!      return
+!      end subroutine openfw
 
 
-      SUBROUTINE REAGRA2(F,IDIM,IREC,IUNIT)
+!      SUBROUTINE REAGRA2(F,IDIM,IREC,IUNIT)
 !        
 !     Read the record number 'IREC' from a grads binary file.
 !        
-      INTEGER II,JJ,IREC,IUNIT,idim
-      REAL F(IDIM)
+!      INTEGER II,JJ,IREC,IUNIT,idim
+!      REAL F(IDIM)
 
-      READ(IUNIT,REC=IREC)F
+!      READ(IUNIT,REC=IREC)F
 
-      RETURN
-      END subroutine reagra2
+!      RETURN
+!      END subroutine reagra2
 
-      SUBROUTINE WRIGRA2(F,IDIM,IREC,IUNIT)
+!      SUBROUTINE WRIGRA2(F,IDIM,IREC,IUNIT)
 !        
 !     Write the record number 'IREC' to a grads binary file.
 !                   
-      INTEGER II,JJ,IREC,IUNIT,idim
-      REAL F(IDIM)
+!      INTEGER II,JJ,IREC,IUNIT,idim
+!      REAL F(IDIM)
 
-      WRITE(IUNIT,REC=IREC)F
+!      WRITE(IUNIT,REC=IREC)F
 
-      RETURN
-      END subroutine wrigra2
+!      RETURN
+!      END subroutine wrigra2
 
 !************ SUBROUTINES NOT CURRENTLY USED ****************************************
 
