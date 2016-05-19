@@ -1,6 +1,7 @@
 module mod_time_step_loop
   use mod_wrf_file
   use mod_subrs
+  use mod_omega
   implicit none
 
 contains
@@ -13,7 +14,7 @@ contains
          dT_dt, du_dt, dv_dt, dz_dt, fx, fy, q, w
     real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends
-    logical, parameter :: calc_omegas=.false., calc_htends=.true.
+    logical, parameter :: calc_omegas=.true., calc_htends=.true.
 
     integer :: time
 
@@ -27,6 +28,7 @@ contains
          corpar => wrfin_file % corpar )
 
       allocate ( hTends ( nlon, nlat, nlev, n_terms ) )
+      allocate ( omegas ( nlon, nlat, nlev, n_terms ) )
 
       call read_T_u_v_z ( wrfin_file, time_1 - 2 )
       call read_T_u_v_z ( wrfin_file, time_1 - 1 )
@@ -41,8 +43,8 @@ contains
          w      = real3d ( wrfin_file, time, [ 'WW' ]  )
          
          if ( calc_omegas ) then
-            call calculate_omegas( T, u, v, z, p_levs, dx, dy, &
-                 corpar, q, fx, fy, dz_dt, du_dt, dv_dt, dT_dt,&
+            call calculate_omegas( T, u, v, w, z, p_levs, dx, dy, &
+                 corpar, q, fx, fy, du_dt, dv_dt, dT_dt,&
                  p_sfc, omegas)
          else
             omegas = read_omegas ( wrfin_file, time )
