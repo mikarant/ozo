@@ -1,5 +1,4 @@
 module mod_omega
-!  use mod_subrs
   use mod_const
   use mod_wrf_file
   use mod_common_subrs
@@ -21,7 +20,8 @@ contains
     real,dimension(:,:,:,:),allocatable :: omega
     real,dimension(:,:,:),allocatable :: sigmaraw,omegaan,zetaraw,dum6
     real,dimension(:,:,:),allocatable :: dum4,dum5,dum2,dum1,lapl
-    real,dimension(:,:,:),allocatable :: dudp,dvdp,zetatend
+    real,dimension(:,:,:),allocatable :: dudp,dvdp,zetatend,mulfact
+    real,dimension(:,:,:),allocatable :: forcing
        integer nlev,nlon,nlat,nlevmax,nlonmax,nlatmax,nresmax,max3d,max4d    
 !
 !      Maximum size of the WRF output grid. 
@@ -33,7 +33,7 @@ contains
        parameter (max4d=nresmax*max3d)
 
        real f1,f2 
-       real forcing(max3d),ftest(max3d)
+       real ftest(max3d)
        real zero(max3d),boundaries(max3d)
        real omegaold(max3d)
        real sigma(max3d),sigma0(nlevmax)
@@ -48,7 +48,6 @@ contains
        real dum0(max3d)
        real dum3(max3d)
        real resid(max3d),omega1(max3d)
-       real mulfact(max3d)
 
        logical lfconst,lzeromean,lcensor        
        real fconst   ! constant value for coriolis parameter
@@ -62,16 +61,6 @@ contains
 !
        integer itermax,ny1,ny2
 
-!
-!      Number of input fields (may need to be changed in the netCDF version) 
-!
-       integer, parameter :: nfieldin = 11
-!
-!      Some natural constants
-!
-       real, parameter :: a = 6371e3,pii=3.1415926536,r = 287.,cp = 1004.,&
-             omg=7.292e-5,g=9.80665
-!
 !      Threshold values to keep the generalized omega equation elliptic.
 !
        real,parameter :: sigmamin=2e-7,etamin=2e-6
@@ -104,11 +93,6 @@ contains
 
        real toler                     
 
-!       namelist/PARAM/infile,outfile,psfile,&
-!               alfa,dx,dy,iubound,ilbound,iybound,itermax,&
-!               f1,f2,nlon,nlat,nlev,lev1,lev2,t1,t2, &
-!               fconst,lfconst,mode,toler,lzeromean,lcensor,ny1,ny2
-
        iubound=1 ! 1 for "real" omega as upper-boundary condition
        ilbound=1 ! 1 for "real" omega as upper-boundary condition
        iybound=1 ! 1 for "real" omega as north/south boundary condtion
@@ -137,8 +121,6 @@ contains
 
        zero=0.
 
-!       read(*,nml=PARAM)
-
        if(mode.eq.'G')write(*,*)'Generalized omega equation'   
        if(mode.eq.'Q')write(*,*)'Quasi-geostrophic omega equation'   
        if(mode.eq.'T')write(*,*)'Generalized test version'   
@@ -159,6 +141,8 @@ contains
        allocate(dvdp(nlon,nlat,nlev))
        allocate(dudp(nlon,nlat,nlev))
        allocate(zetatend(nlon,nlat,nlev))
+       allocate(mulfact(nlon,nlat,nlev))
+       allocate(forcing(nlon,nlat,nlev))
        omegaan=w
 !
 !      Number of different resolutions in solving the equation = nres 
@@ -215,39 +199,6 @@ contains
          lfconst=.true.
        endif
 !
-!      Open output and input files.
-!
-!       call OPENFW(outfile,1,nlon*nlat*nlev)
-!       call OPENFR(infile,11,nlon*nlat*nlev)
-!       if(lcensor)call OPENFR(psfile,12,nlon*nlat)
-!
-!      Counter for writing output fields   
-!
-!       irec=0
-!
-!************ The main time loop begins here ************************
-!
-!       do time=t1,t2
-!          write(*,*)'Time=',time
-!
-!      Read the input files (to be completely revised with netCDF!)
-!
-!       irecin=(time-1)*nfieldin
-
-!       call reagra2(t,nlon*nlat*nlev,irecin+1,11)         
-!       if(mode.eq.'G'.or.mode.eq.'T') call reagra2(u,nlon*nlat*nlev,irecin+2,11) 
-!       if(mode.eq.'G'.or.mode.eq.'T') call reagra2(v,nlon*nlat*nlev,irecin+3,11)
-!       call reagra2(omegaan,nlon*nlat*nlev,irecin+4,11)  
-!       if(mode.eq.'Q')call reagra2(z,nlon*nlat*nlev,irecin+5,11)                  
-!       if(mode.eq.'G')then
-!         call reagra2(q,nlon*nlat*nlev,irecin+6,11)
-!         call reagra2(xfrict,nlon*nlat*nlev,irecin+7,11)
-!         call reagra2(yfrict,nlon*nlat*nlev,irecin+8,11)
-!         call reagra2(ttend,nlon*nlat*nlev,irecin+9,11)
-!         call reagra2(utend,nlon*nlat*nlev,irecin+10,11)
-!         call reagra2(vtend,nlon*nlat*nlev,irecin+11,11)
-!       endif
-!
 !      For quasi-geostrophic equation: calculation of geostrophic winds
 !
        if(mode.eq.'Q')then
@@ -257,10 +208,8 @@ contains
 !      Multiplication factor for forcing: 
 !      1 above the ground, smaller (or 0) below the ground
 !
-       mulfact=1.
        if(lcensor)then         
-!         call reagra2(psfc,nlon*nlat,time,12)
-         call calmul(psfc,lev,nlon,nlat,nlev,mulfact) 
+         call calmul(psfc,lev,nlev,mulfact) 
        endif     
 !
 !      Calculation of vorticity and vorticity tendency 
@@ -273,9 +222,9 @@ contains
        if(mode.eq.'G'.or.mode.eq.'Q')then
 
        call fvort(u,v,zetaraw,nlon,nlat,nlev,corpar,& 
-                       dx,dy,dlev,dum1,dum2,dum3,dum4,fv,mulfact)     
+                       dx,dy,dlev,dum1,dum4,fv,mulfact)     
        call ftemp(u,v,t,nlon,nlat,nlev,lev,r,& 
-                       dx,dy,dum1,dum2,dum3,ft,mulfact)
+                       dx,dy,dum3,ft,mulfact)
        endif
 
        if(mode.eq.'G')then
@@ -375,7 +324,7 @@ contains
        do j=1,nlat
        do i=1,nlon
           ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
-          forcing(ijk)=omegaan(i,j,k)           
+          forcing(i,j,k)=omegaan(i,j,k)           
           dum2(i,j,k)=sigmaraw(i,j,k)*omegaan(i,j,k)
        enddo
        enddo
@@ -587,33 +536,6 @@ contains
 !****************** SUBROUTINES **************************************************
 !
 
-       subroutine calmul(psfc,lev,nlon,nlat,nlev,mulfact) 
-!
-!      Calculation of multiplication factors to attenuate below-surface forcing.
-!      (mulfact = 1 if above surface)
-!
-      implicit none
-       integer i,j,k,nlon,nlat,nlev 
-       real psfc(nlon,nlat),lev(nlev),mulfact(nlon,nlat,nlev)
-
-       mulfact=1.
-       do i=1,nlon
-       do j=1,nlat
-       do k=2,nlev
-         if(psfc(i,j).le.lev(k-1))then
-             mulfact(i,j,k)=0.
-         else
-           if(psfc(i,j).le.lev(k))then
-             mulfact(i,j,k)=(psfc(i,j)-lev(k-1))/(lev(k)-lev(k-1))             ! 
-           endif
-         endif   
-       enddo
-       enddo
-       enddo 
-       return
-       end subroutine calmul
-
-
        subroutine coarsen3D(f,g,nlon1,nlat1,nlev1,nlon2,nlat2,nlev2)
 !
 !      Averages the values of field f (grid size nlon1 x nlat1 x nlev1) over larger
@@ -727,36 +649,6 @@ contains
        return
        end subroutine gwinds
 
-
-!      subroutine define_sigma(t,dum1,dum2,sigma,nlon,nlat,nlev,lev,r,cp,dlev)
-!
-!     Calculation of static stability (sigma) from t and the constants r and cp
-!
-!      implicit none
-!      integer i,j,k,nlon,nlat,nlev
-!      real t(nlon,nlat,nlev),dum1(nlon,nlat,nlev),dum2(nlon,nlat,nlev),&
-!           sigma(nlon,nlat,nlev),lev(nlev)
-!      real r,cp,dlev
-
-!       do k=1,nlev
-!       do j=1,nlat
-!       do i=1,nlon
-!         dum1(i,j,k)=log(t(i,j,k))-(r/cp)*log(lev(k)/1e5)
-!       enddo
-!       enddo
-!       enddo
-!       call pder(dum1,dum2,nlon,nlat,nlev,dlev) 
-!       do k=1,nlev
-!       do j=1,nlat
-!       do i=1,nlon
-!         sigma(i,j,k)=-R*t(i,j,k)/lev(k)*dum2(i,j,k)
-!       enddo
-!       enddo
-!       enddo
-
-!      return
-!      end subroutine define_sigma
-
       subroutine modify(sigmaraw,sigma,sigmamin,etamin,nlon,nlat,nlev,zetaraw,&
                         zeta,feta,corpar,dudp,dvdp)      
 !
@@ -817,31 +709,8 @@ contains
       return
       end subroutine aave
 
-!      subroutine advect_cart(u,v,f,dfdx,dfdy,adv,nlon,nlat,nlev,dx,dy)
-!
-!     Computing adv = u*dfdx + v*dfdy in cartesian coordinates
-!
-!      implicit none
-!      integer i,j,k,nlon,nlat,nlev
-!      real u(nlon,nlat,nlev),v(nlon,nlat,nlev),f(nlon,nlat,nlev)       
-!      real dfdx(nlon,nlat,nlev),dfdy(nlon,nlat,nlev),adv(nlon,nlat,nlev)
-!      real dx,dy
-!      call xder_cart(f,dfdx,nlon,nlat,nlev,dx)          
-!      call yder_cart(f,dfdy,nlon,nlat,nlev,dy) 
-      
-!      do k=1,nlev
-!      do j=1,nlat
-!      do i=1,nlon
-!        adv(i,j,k)=u(i,j,k)*dfdx(i,j,k)+v(i,j,k)*dfdy(i,j,k)
-!      enddo
-!      enddo
-!      enddo
-
-!      return
-!      end subroutine advect_cart
-
       subroutine fvort(u,v,zeta,nlon,nlat,nlev,f,& 
-                       dx,dy,dp,eta,detadx,detady,dadvdp,adv,&
+                       dx,dy,dp,eta,dadvdp,adv,&
                        mulfact)
 !
 !     Calculation of vorticity advection forcing
@@ -853,7 +722,6 @@ contains
       real dx,dy,dp
       real u(nlon,nlat,nlev),v(nlon,nlat,nlev),f(nlat)
       real zeta(nlon,nlat,nlev),eta(nlon,nlat,nlev),adv(nlon,nlat,nlev)
-      real detadx(nlon,nlat,nlev),detady(nlon,nlat,nlev)
       real dadvdp(nlon,nlat,nlev)
       real mulfact(nlon,nlat,nlev)
 
@@ -881,7 +749,7 @@ contains
       end subroutine fvort
 
       subroutine ftemp(u,v,t,nlon,nlat,nlev,lev,r,& 
-                       dx,dy,dtdx,dtdy,lapladv,adv,mulfact)
+                       dx,dy,lapladv,adv,mulfact)
 !
 !     Calculation of temperature advection forcing
 !     Input: u,v,t
@@ -892,7 +760,6 @@ contains
       real dx,dy,r,lev(nlev)
       real u(nlon,nlat,nlev),v(nlon,nlat,nlev)
       real t(nlon,nlat,nlev),adv(nlon,nlat,nlev),lapladv(nlon,nlat,nlev)
-      real dtdx(nlon,nlat,nlev),dtdy(nlon,nlat,nlev)
       real mulfact(nlon,nlat,nlev)
 
       call advect_cart(u,v,t,dx,dy,adv)
@@ -1619,74 +1486,6 @@ contains
        return
        end subroutine residgen
 
-
-!       subroutine curl_cart(u,v,zeta,nlon,nlat,nlev,dx,dy)
-!
-!      Relative vorticity in cartesian coordinates.
-!      
-!      The domain is assumed to be periodic in east-west-direction
-!      ** At the northern and southern boundaries, one-sided y derivatives are used.**
-!
-!       integer i,i1,i2,j,k,nlon,nlat,nlev
-!       real u(nlon,nlat,nlev),v(nlon,nlat,nlev),zeta(nlon,nlat,nlev)
-!       real dudy,dvdx
-!       real dx,dy
-
-!       do k=1,nlev
-!       do i=1,nlon 
-!         i1=i-1
-!         i2=i+1
-!         if(i1.lt.1)i1=i1+nlon
-!         if(i2.gt.nlon)i2=i2-nlon
-!         do j=1,nlat
-!            if(j.gt.1.and.j.lt.nlat)then
-!              dudy=(u(i,j+1,k)-u(i,j-1,k))/(2*dy)
-!            else
-!              if(j.eq.1)dudy=(u(i,j+1,k)-u(i,j,k))/dy
-!              if(j.eq.nlat)dudy=(u(i,j,k)-u(i,j-1,k))/dy
-!            endif
-!            dvdx=(v(i2,j,k)-v(i1,j,k))/(2*dx)
-!            zeta(i,j,k)=dvdx-dudy
-!         enddo
-!       enddo
-!       enddo
-
-!       return
-!       end subroutine curl_cart
-
-!       subroutine laplace_cart(f,lapl,nlon,nlat,nlev,dx,dy)         
-!
-!      Laplace operator in cartesian coordinates
-!
-!      The domain is assumed to be periodic in east-west-direction
-!      ** At the northern and southern boundaries, second y derivative is assumed to be zero      
-!      
-!       integer i,i1,i2,j,k,nlon,nlat,nlev
-!       real f(nlon,nlat,nlev),lapl(nlon,nlat,nlev)
-!       double precision d2fdy,d2fdx
-!       real dx,dy
-
-!       do k=1,nlev
-!       do i=1,nlon 
-!         i1=i-1
-!         i2=i+1
-!         if(i1.lt.1)i1=i1+nlon
-!         if(i2.gt.nlon)i2=i2-nlon
-!         do j=1,nlat
-!            d2fdx=(f(i2,j,k)+f(i1,j,k)-2*f(i,j,k))/(dx**2.)
-!            if(j.gt.1.and.j.lt.nlat)then
-!              d2fdy=(f(i,j+1,k)+f(i,j-1,k)-2*f(i,j,k))/(dy**2.)
-!              lapl(i,j,k)=d2fdx+d2fdy
-!            else
-!              lapl(i,j,k)=d2fdx
-!            endif
-!         enddo
-!       enddo
-!       enddo
-
-!       return
-!       end subroutine laplace_cart
-
        subroutine laplace2_cart(f,lapl2,coeff,nlon,nlat,nlev,dx,dy)
 !
 !      As laplace_cart but
@@ -1720,28 +1519,6 @@ contains
  
        return
        end subroutine laplace2_cart
-
-!       subroutine pder(f,dfdp,nlon,nlat,nlev,dp) 
-!
-!      Estimation of pressure derivatives.
-!      One-sided derivatives are used at top and bottom levels
-!
-!       implicit none
-!       integer i,j,k,nlon,nlat,nlev
-!       real f(nlon,nlat,nlev),dfdp(nlon,nlat,nlev),dp 
-!       do i=1,nlon
-!       do j=1,nlat
-!       do k=2,nlev-1
-!         dfdp(i,j,k)=(f(i,j,k+1)-f(i,j,k-1))/(2.*dp)
-!       enddo
-!       dfdp(i,j,1)=(f(i,j,2)-f(i,j,1))/dp
-!       dfdp(i,j,nlev)=(f(i,j,nlev)-f(i,j,nlev-1))/dp
- 
-!       enddo
-!       enddo
-!       return
-!       end subroutine pder      
-
 
        subroutine p2der(f,df2dp2,nlon,nlat,nlev,dp) 
 !
