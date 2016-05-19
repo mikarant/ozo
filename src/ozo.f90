@@ -3,7 +3,7 @@ program zo
   use mod_time_step_loop
   implicit none
 
-  character ( * ), parameter :: wrf_name = '../../Documents/wrf/data/wrf_omega_100km.nc'
+  character ( * ), parameter :: wrf_name = 'wrf_omega_100km.nc'
   integer, parameter :: time_1 = 118, time_n = 120
   type ( wrf_file ) :: wrfin_file
 
