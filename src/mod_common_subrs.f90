@@ -7,6 +7,36 @@ contains
 ! generalized omega equation and Zwack-okossi equation. 
 !-------------------------------------------------------------------------------
 
+  subroutine calmul(psfc,lev,nlev,mulfact) 
+!
+!   Calculation of multiplication factors (1 if above surface)
+!
+    implicit none
+    real,dimension(:,:),  intent(in) :: psfc
+    real,dimension(:),    intent(in) :: lev 
+    integer,              intent(in) :: nlev
+    real,dimension(:,:,:),intent(inout) :: mulfact
+
+    integer :: i,j,k,nlon,nlat 
+    nlon=size(psfc,1); nlat=size(psfc,2)
+
+    mulfact=1.
+    do i=1,nlon
+       do j=1,nlat
+          do k=2,nlev
+             if(psfc(i,j).le.lev(k-1))then
+                mulfact(i,j,k)=0.
+             else
+                if(psfc(i,j).le.lev(k))then
+                   mulfact(i,j,k)=(psfc(i,j)-lev(k-1))/(lev(k)-lev(k-1))              
+                endif
+             endif
+          enddo
+       enddo
+    enddo
+        
+  end subroutine calmul
+
   subroutine nondivergentWind(zeta,dx,dy,uPsi,vPsi)
 !   This subroutine calculates nondivergent wind components (uPsi,vPsi) by using
 !   streamfunction (psi).

@@ -185,36 +185,6 @@ contains
 
   end subroutine ht_correction
       
-  subroutine calmul(psfc,lev,nlev,mulfact) 
-!
-!   Calculation of multiplication factors (1 if above surface)
-!
-    implicit none
-    real,dimension(:,:),  intent(in) :: psfc
-    real,dimension(:),    intent(in) :: lev 
-    integer,              intent(in) :: nlev
-    real,dimension(:,:,:),intent(inout) :: mulfact
-
-    integer :: i,j,k,nlon,nlat 
-    nlon=size(psfc,1); nlat=size(psfc,2)
-
-    mulfact=1.
-    do i=1,nlon
-       do j=1,nlat
-          do k=2,nlev
-             if(psfc(i,j).le.lev(k-1))then
-                mulfact(i,j,k)=0.
-             else
-                if(psfc(i,j).le.lev(k))then
-                   mulfact(i,j,k)=(psfc(i,j)-lev(k-1))/(lev(k)-lev(k-1))              
-                endif
-             endif
-          enddo
-       enddo
-    enddo
-        
-  end subroutine calmul
-
   subroutine vorticity_tendencies(omegas,u,v,w,uKhi,vKhi,zeta,zetatend,&
                                   dx,dy,corpar,dlev,xfrict,yfrict,ztend,&
                                   vortTends,mulfact,vorTend_omegaWRF)
