@@ -11,11 +11,11 @@ contains
 
     real,dimension(:,:,:,:),intent(inout) :: omegas
     real,dimension(:,:,:),intent(in) :: t,w,xfrict,yfrict
-    real,dimension(:,:,:),intent(in) :: utend,vtend,ttend
+    real,dimension(:,:,:),intent(in) :: utend,vtend
     real,dimension(:,:),  intent(in) :: psfc
     real,dimension(:),intent(in) :: lev,corpar
     real,                 intent(in) :: dx,dy 
-    real,dimension(:,:,:),intent(inout) :: z,q,u,v
+    real,dimension(:,:,:),intent(inout) :: z,q,u,v,ttend
 
     real,dimension(:,:,:,:),allocatable :: omega,omegaold,boundaries
     real,dimension(:,:,:),allocatable :: sigmaraw,omegaan,zetaraw,dum6
@@ -169,13 +169,9 @@ contains
        if(mode.eq.'G')then
 
        call ffrict(xfrict,yfrict,corpar,dx,dy,dlev,mulfact,ff(:,:,:,1))
-       call fdiab(q,nlon,nlat,nlev,lev,r,dx,dy,fq,mulfact)
-
-       call fimbal(zetatend,ttend,nlon,nlat,nlev,corpar,& 
-                   r,lev,dx,dy,dlev,dum1,dum2,fa,mulfact)
-
+       call fdiab(q,lev,dx,dy,mulfact,fq(:,:,:,1))
+       call fimbal(zetatend,ttend,corpar,lev,dx,dy,dlev,mulfact,fa(:,:,:,1))
        endif 
-!
 !
 !      Deriving quantities needed for the LHS of the 
 !      QG and/or generalised omega equation.
@@ -361,8 +357,7 @@ contains
 
        if(mode.eq.'t')then
          call callsolveQG(ftest,boundaries2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,feta2,laplome,domedp2,dum1,&
-              coeff1,coeff2,coeff,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
+              sigma02,feta2,dum1,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
        endif 
 
        if(mode.eq.'G')then            
@@ -414,16 +409,13 @@ contains
        if(mode.eq.'Q')then
          Write(*,*)'Vorticity advection'
          call callsolveQG(fv,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,feta2,laplome,domedp2,dum1,&
-              coeff1,coeff2,coeff,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
+              sigma02,feta2,dum1,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
          Write(*,*)'Thermal advection'
          call callsolveQG(ft,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,feta2,laplome,domedp2,dum1,&
-              coeff1,coeff2,coeff,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
+              sigma02,feta2,dum1,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
          Write(*,*)'Boundary conditions'        
          call callsolveQG(zero2,boundaries,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,feta2,laplome,domedp2,dum1,&
-              coeff1,coeff2,coeff,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
+              sigma02,feta2,dum1,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
        endif 
 
      end subroutine calculate_omegas

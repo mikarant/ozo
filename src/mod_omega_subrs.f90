@@ -270,104 +270,108 @@ contains
 
   end subroutine ftemp
 
-      subroutine ffrict(fx,fy,corpar,dx,dy,dp,mulfact,ff)
+  subroutine ffrict(fx,fy,corpar,dx,dy,dp,mulfact,ff)
 !
 !     Calculation of friction forcing
 !     Input: fx,fy = x and y components of "friction force"
 !     Output: res 
 !
-      implicit none
-      real,dimension(:,:,:),intent(in) :: fx,fy,mulfact
-      real,dimension(:),intent(in) :: corpar
-      real,dimension(:,:,:),intent(out) :: ff
-      real,dimension(:,:,:),allocatable :: fcurl,dcurldp
-      real,intent(in) :: dx,dy,dp
-      integer :: i,j,k,nlon,nlat,nlev
+    implicit none
+    real,dimension(:,:,:),intent(in) :: fx,fy,mulfact
+    real,dimension(:),intent(in) :: corpar
+    real,dimension(:,:,:),intent(out) :: ff
+    real,dimension(:,:,:),allocatable :: fcurl,dcurldp
+    real,intent(in) :: dx,dy,dp
+    integer :: i,j,k,nlon,nlat,nlev
 
-!       real fcurl(nlon,nlat,nlev),dcurldp(nlon,nlat,nlev),res(nlon,nlat,nlev)
-!      real mulfact(nlon,nlat,nlev)
-
-      nlon=size(fx,1)
+    nlon=size(fx,1)
     nlat=size(fx,2)
     nlev=size(fx,3)
     allocate(fcurl(nlon,nlat,nlev),dcurldp(nlon,nlat,nlev))
 
-      call curl_cart(fx,fy,dx,dy,fcurl)
-      fcurl=fcurl*mulfact
-      call pder(fcurl,dp,dcurldp) 
+    call curl_cart(fx,fy,dx,dy,fcurl)
+    fcurl=fcurl*mulfact
+    call pder(fcurl,dp,dcurldp) 
 
-      do k=1,nlev
-      do j=1,nlat      
-      do i=1,nlon
-          ff(i,j,k)=-corpar(j)*dcurldp(i,j,k)
-      enddo
-      enddo
-      enddo
+    do k=1,nlev
+       do j=1,nlat      
+          do i=1,nlon
+             ff(i,j,k)=-corpar(j)*dcurldp(i,j,k)
+          enddo
+       enddo
+    enddo
 
-      return
-      end subroutine ffrict
+  end subroutine ffrict
 
-      subroutine fdiab(q,nlon,nlat,nlev,lev,r,dx,dy,res,mulfact)
+  subroutine fdiab(q,lev,dx,dy,mulfact,fq)
 !
 !     Calculation of diabatic heaging forcing
 !     Input: q = diabatic temperature tendency (already normalized by cp)
-!     Output: slightly illogically stored in "adv"
+!     Output: stored in "fq"
 !
-      implicit none
-      integer i,j,k,nlon,nlat,nlev
-      real dx,dy,r,lev(nlev)
-      real q(nlon,nlat,nlev),res(nlon,nlat,nlev)
-      real mulfact(nlon,nlat,nlev)
+    implicit none
+    real,dimension(:,:,:),intent(inout) :: q,mulfact
+    real,dimension(:,:,:),intent(out) :: fq
+    real,dimension(:),intent(in) :: lev
+    real,intent(in) :: dx,dy      
+    integer :: i,j,k,nlon,nlat,nlev
 
-      q=q*mulfact
-      call laplace_cart(q,res,dx,dy)         
+    nlon=size(q,1)
+    nlat=size(q,2)
+    nlev=size(q,3)
+    
+    q=q*mulfact
+    call laplace_cart(q,fq,dx,dy)         
 
-      do k=1,nlev
-      do j=1,nlat      
-      do i=1,nlon
-          res(i,j,k)=-r*res(i,j,k)/lev(k)
-      enddo
-      enddo
-      enddo
+    do k=1,nlev
+       do j=1,nlat      
+          do i=1,nlon
+             fq(i,j,k)=-r*fq(i,j,k)/lev(k)
+          enddo
+       enddo
+    enddo
+    
+  end subroutine fdiab
 
-      return
-      end subroutine fdiab
-
-      subroutine fimbal(dzetadt,dtdt,nlon,nlat,nlev,f,& 
-                       r,lev,dx,dy,dp,ddpdzetadt,lapldtdt,res,mulfact)
+  subroutine fimbal(dzetadt,dtdt,corpar,lev,dx,dy,dp,mulfact,fa)
 !
 !     Calculation of the FA ("imbalance") forcing term
 !     Input: dzetadt, dtdt = vorticity & temperature tendencies
-!     Output: res 
+!     Output: fa
 !
-      implicit none
-      integer i,j,k,nlon,nlat,nlev
-      real dx,dy,dp,r,lev(nlev)
-      real dzetadt(nlon,nlat,nlev),dtdt(nlon,nlat,nlev),f(nlat)
-      real ddpdzetadt(nlon,nlat,nlev),lapldtdt(nlon,nlat,nlev),res(nlon,nlat,nlev)
-      real mulfact(nlon,nlat,nlev)
+    implicit none
+    real,dimension(:,:,:),intent(inout) :: dzetadt,dtdt
+    real,dimension(:,:,:),intent(in) ::  mulfact
+    real,dimension(:,:,:),intent(out) :: fa
+    real,dimension(:),intent(in) :: lev,corpar
+    real,intent(in) :: dx,dy,dp
+    real,dimension(:,:,:),allocatable :: ddpdzetadt,lapldtdt
+    integer i,j,k,nlon,nlat,nlev
 
-      dzetadt=dzetadt*mulfact
-      dtdt=dtdt*mulfact
+    nlon=size(dtdt,1)
+    nlat=size(dtdt,2)
+    nlev=size(dtdt,3)
+    allocate(ddpdzetadt(nlon,nlat,nlev),lapldtdt(nlon,nlat,nlev))
 
-      call pder(dzetadt,dp,ddpdzetadt) 
-      call laplace_cart(dtdt,lapldtdt,dx,dy)         
+    dzetadt=dzetadt*mulfact
+    dtdt=dtdt*mulfact
 
-      do k=1,nlev
-      do j=1,nlat      
-      do i=1,nlon
-        ddpdzetadt(i,j,k)=f(j)*ddpdzetadt(i,j,k)
-        res(i,j,k)=ddpdzetadt(i,j,k)+lapldtdt(i,j,k)*r/lev(k)
-      enddo
-      enddo
-      enddo
+    call pder(dzetadt,dp,ddpdzetadt) 
+    call laplace_cart(dtdt,lapldtdt,dx,dy)         
 
-      return
-      end subroutine fimbal
+    do k=1,nlev
+       do j=1,nlat      
+          do i=1,nlon
+             ddpdzetadt(i,j,k)=corpar(j)*ddpdzetadt(i,j,k)
+             fa(i,j,k)=ddpdzetadt(i,j,k)+lapldtdt(i,j,k)*r/lev(k)
+          enddo
+       enddo
+    enddo
+    
+  end subroutine fimbal
 
        subroutine callsolveQG(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
-              dx,dy,dlev,sigma0,feta,laplome,domedp2,dum1,&
-              coeff1,coeff2,coeff,resid,omega1,ny1,ny2,alfa, &
+              dx,dy,dlev,sigma0,feta,dum1,resid,omega1,ny1,ny2,alfa, &
               nres,lzeromean)
 !
 !      Calling solveQG + writing out omega. Multigrid algorithm.
@@ -379,10 +383,8 @@ contains
        real boundaries(nlon(1),nlat(1),nlev(1),nres)
        real omega(nlon(1),nlat(1),nlev(1),nres),omegaold(nlon(1),nlat(1),nlev(1),nres) 
        real sigma0(nlev(1),nres)
-       real feta(nlon(1),nlat(1),nlev(1),nres),coeff(nlon(1),nlat(1),nlev(1))
-       real laplome(nlon(1),nlat(1),nlev(1))
-       real domedp2(nlon(1),nlat(1),nlev(1)),dum1(nlon(1),nlat(1),nlev(1))              
-       real coeff1(nlon(1),nlat(1),nlev(1)),coeff2(nlon(1),nlat(1),nlev(1))
+       real feta(nlon(1),nlat(1),nlev(1),nres)
+       real dum1(nlon(1),nlat(1),nlev(1))              
        real resid(nlon(1),nlat(1),nlev(1)),omega1(nlon(1),nlat(1),nlev(1))      
        real alfa,maxdiff,toler
        integer itermax,ny1,ny2,ires
@@ -407,7 +409,6 @@ contains
          call solveQG(rhs(1,1,1,ires),boundaries(1,1,1,ires),& 
              omega(1,1,1,ires),omegaold(1,1,1,ires),nlon(ires),nlat(ires),nlev(ires),&
              dx(ires),dy(ires),dlev(ires),sigma0(1,ires),feta(1,1,1,ires),&
-             laplome,domedp2,coeff1,coeff2,coeff,&
              ny1,alfa,.true.,resid)
          if(ires.eq.1)omega1(:,:,:)=omega(:,:,:,1)
          if(ires.lt.nres)then
@@ -433,7 +434,6 @@ contains
          call solveQG(rhs(1,1,1,ires),boundaries(1,1,1,ires),& 
              omega(1,1,1,ires),omegaold(1,1,1,ires),nlon(ires),nlat(ires),nlev(ires),&
              dx(ires),dy(ires),dlev(ires),sigma0(1,ires),feta(1,1,1,ires),&
-             laplome,domedp2,coeff1,coeff2,coeff,&
              ny2,alfa,.false.,resid)
        enddo  
 
@@ -477,9 +477,7 @@ contains
        end subroutine callsolveQG
 
        subroutine solveQG(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
-              dx,dy,dlev,sigma0,feta,&
-              laplome,domedp2,coeff1,coeff2,coeff,&
-              niter,alfa,lres,resid)
+              dx,dy,dlev,sigma0,feta,niter,alfa,lres,resid)
 !
 !      Solving the QG omega equation using 'niter' iterations.
 !
@@ -489,9 +487,7 @@ contains
        integer i,j,k,nlon,nlat,nlev
        real omegaold(nlon,nlat,nlev),omega(nlon,nlat,nlev)
        real boundaries(nlon,nlat,nlev) 
-       real sigma0(nlev),feta(nlon,nlat,nlev)!,rhs(nlon,nlat,nlev) 
-       real laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
-       real coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
+       real sigma0(nlev),feta(nlon,nlat,nlev)
        real dx,dy,dlev,maxdiff,alfa
        integer niter
        logical lres
@@ -514,21 +510,19 @@ contains
 
        do i=1,niter
        call updateQG(omegaold,omega,sigma0,feta,&
-            rhs,nlon,nlat,nlev, &
-            dx,dy,dlev,maxdiff,laplome,domedp2,&
-            coeff1,coeff2,coeff,alfa)
+            rhs,nlon,nlat,nlev,dx,dy,dlev,maxdiff,alfa)
        enddo
 
        if(lres)then
              call residQG(rhs,omega,resid,sigma0,feta,&
-             nlon,nlat,nlev,dx,dy,dlev,laplome,domedp2)
+             nlon,nlat,nlev,dx,dy,dlev)
        endif
 
        return
        end subroutine solveQG
 
        subroutine updateQG(omegaold,omega,sigma,etasq,rhs,nlon,nlat,nlev, &
-            dx,dy,dlev,maxdiff,lapl2,domedp2,coeff1,coeff2,coeff,alfa)
+            dx,dy,dlev,maxdiff,alfa)
 !
 !      New estimate for the local value of omega, using omega in the 
 !      surrounding points and the right-hand-side forcing (rhs)
@@ -541,16 +535,19 @@ contains
        real :: rhs(nlon,nlat,nlev)
        integer i,j,k,nlon,nlat,nlev
        real omegaold(nlon,nlat,nlev),omega(nlon,nlat,nlev) 
-       real sigma(nlev),etasq(nlon,nlat,nlev)!,rhs(nlon,nlat,nlev) 
-       real lapl2(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
-       real coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
+       real sigma(nlev),etasq(nlon,nlat,nlev)
        real dx,dy,dlev,maxdiff,alfa
-!
+       real,dimension(:,:,:),allocatable :: lapl2,coeff1,coeff2,coeff,domedp2
+
+       allocate(lapl2(nlon,nlat,nlev),coeff1(nlon,nlat,nlev))
+       allocate(coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev))
+       allocate(domedp2(nlon,nlat,nlev))
+
 !      Top and bottom levels: omega directly from the boundary conditions,
 !      does not need to be solved.
 !
-       call laplace2_cart(omegaold,lapl2,coeff1,nlon,nlat,nlev,dx,dy)
-       call p2der2(omegaold,domedp2,coeff2,nlon,nlat,nlev,dlev) 
+       call laplace2_cart(omegaold,dx,dy,lapl2,coeff1)
+       call p2der2(omegaold,dlev,domedp2,coeff2) 
 
 !       write(*,*)'Calculate the coefficients'
 !       write(*,*)nlon,nlat,nlev
@@ -588,7 +585,7 @@ contains
 
 
        subroutine residQG(rhs,omega,resid,sigma,etasq,nlon,nlat,nlev,&
-            dx,dy,dlev,laplome,domedp2)
+            dx,dy,dlev)
 !
 !      Calculating the residual RHS - LQG(omega)
 !      
@@ -608,8 +605,9 @@ contains
        integer i,j,k,nlon,nlat,nlev
        real omega(nlon,nlat,nlev),resid(nlon,nlat,nlev) 
        real sigma(nlev),etasq(nlon,nlat,nlev)
-       real laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
        real dx,dy,dlev
+       real,dimension(:,:,:),allocatable :: laplome,domedp2
+       allocate(laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
 
        call laplace_cart(omega,laplome,dx,dy)         
        call p2der(omega,dlev,domedp2) 
@@ -870,8 +868,8 @@ contains
 !      Top and bottom levels: omega directly from the boundary conditions,
 !      does not need to be solved.
 !
-       call laplace2_cart(omegaold,lapl2,coeff1,nlon,nlat,nlev,dx,dy)
-       call p2der2(omegaold,domedp2,coeff2,nlon,nlat,nlev,dlev) 
+       call laplace2_cart(omegaold,dx,dy,lapl2,coeff1)
+       call p2der2(omegaold,dlev,domedp2,coeff2) 
 !
 !      Calculate non-constant terms on the left-hand-side, based on 'omegaold'
 !
@@ -998,39 +996,43 @@ contains
        return
        end subroutine residgen
 
-       subroutine laplace2_cart(f,lapl2,coeff,nlon,nlat,nlev,dx,dy)
+  subroutine laplace2_cart(f,dx,dy,lapl2,coeff)
 !
 !      As laplace_cart but
 !        - the contribution of the local value to the Laplacian is left out
 !        - coeff is the coefficient for the local value
 !
-       integer i,i1,i2,j,k,nlon,nlat,nlev
-       real f(nlon,nlat,nlev),lapl2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
-       double precision d2fdy,d2fdx
-       real dx,dy
+    real,dimension(:,:,:),intent(in) :: f
+    real,dimension(:,:,:),intent(out) :: lapl2,coeff
+    real,intent(in) :: dx,dy
+    integer :: i,i1,i2,j,k,nlon,nlat,nlev
+    double precision :: d2fdy,d2fdx
+    
+    nlon=size(f,1)
+    nlat=size(f,2)
+    nlev=size(f,3)
 
-       do k=1,nlev
+    do k=1,nlev
        do i=1,nlon 
-         i1=i-1
-         i2=i+1
-         if(i1.lt.1)i1=i1+nlon
-         if(i2.gt.nlon)i2=i2-nlon
-         do j=2,nlat-1
-            d2fdx=(f(i2,j,k)+f(i1,j,k))/(dx**2.)
-            if(j.gt.1.and.j.lt.nlat)then
-               d2fdy=(f(i,j+1,k)+f(i,j-1,k))/(dy**2.)
-               lapl2(i,j,k)=d2fdx+d2fdy
-               coeff(i,j,k)=-2/(dy**2.)-2/(dx**2.)
-            else
-               lapl2(i,j,k)=d2fdx
-               coeff(i,j,k)=-2/(dx**2.)
-            endif
-         enddo
-       enddo 
+          i1=i-1
+          i2=i+1
+          if(i1.lt.1)i1=i1+nlon
+          if(i2.gt.nlon)i2=i2-nlon
+          do j=2,nlat-1
+             d2fdx=(f(i2,j,k)+f(i1,j,k))/(dx**2.)
+             if(j.gt.1.and.j.lt.nlat)then
+                d2fdy=(f(i,j+1,k)+f(i,j-1,k))/(dy**2.)
+                lapl2(i,j,k)=d2fdx+d2fdy
+                coeff(i,j,k)=-2/(dy**2.)-2/(dx**2.)
+             else
+                lapl2(i,j,k)=d2fdx
+                coeff(i,j,k)=-2/(dx**2.)
+             endif
+          enddo
        enddo
- 
-       return
-       end subroutine laplace2_cart
+    enddo
+   
+  end subroutine laplace2_cart
 
   subroutine p2der(f,dp,df2dp2) 
 !
@@ -1059,30 +1061,36 @@ contains
 
  end subroutine p2der
 
-       subroutine p2der2(f,df2dp22,coeff,nlon,nlat,nlev,dp) 
+ subroutine p2der2(f,dp,df2dp22,coeff) 
 !
 !      As p2der, but
 !        - the contribution of the local value is left out
 !        - the coefficient 'coeff' of the local value is also calculated        
 !
-       implicit none
-       integer i,j,k,nlon,nlat,nlev
-       real f(nlon,nlat,nlev),df2dp22(nlon,nlat,nlev),coeff(nlon,nlat,nlev),dp 
-       do i=1,nlon
-       do j=1,nlat
-       do k=2,nlev-1
-         df2dp22(i,j,k)=(f(i,j,k+1)+f(i,j,k-1))/(dp*dp)
-         coeff(i,j,k)=-2/(dp*dp)
-       enddo
-       df2dp22(i,j,1)=0.
-       df2dp22(i,j,nlev)=0.
-       coeff(i,j,1)=0.
-       coeff(i,j,nlev)=0.
- 
-       enddo
-       enddo
-       return
-       end subroutine p2der2      
+   implicit none
+   real,dimension(:,:,:),intent(in) :: f
+   real,dimension(:,:,:),intent(out) :: df2dp22,coeff
+   real,intent(in) :: dp
+   integer :: i,j,k,nlon,nlat,nlev
+
+   nlon=size(f,1)
+   nlat=size(f,2)
+   nlev=size(f,3)
+   
+   do i=1,nlon
+      do j=1,nlat
+         do k=2,nlev-1
+            df2dp22(i,j,k)=(f(i,j,k+1)+f(i,j,k-1))/(dp*dp)
+            coeff(i,j,k)=-2/(dp*dp)
+         enddo
+         df2dp22(i,j,1)=0.
+         df2dp22(i,j,nlev)=0.
+         coeff(i,j,1)=0.
+         coeff(i,j,nlev)=0.
+      enddo
+   enddo
+       
+ end subroutine p2der2
 
 
 !************ SUBROUTINES NOT CURRENTLY USED ****************************************
