@@ -9,7 +9,7 @@ contains
 !****************** SUBROUTINES **************************************************
 !
 
-       subroutine coarsen3D(f,g,nlon1,nlat1,nlev1,nlon2,nlat2,nlev2)
+  subroutine coarsen3D(f,g,nlon1,nlat1,nlev1,nlon2,nlat2,nlev2)
 !
 !      Averages the values of field f (grid size nlon1 x nlat1 x nlev1) over larger
 !      grid boxes (grid size nlon2 x nlat2 x nlev2), to field g
@@ -18,14 +18,14 @@ contains
 !      simple, only 0/1 weights are used -> works only well if
 !      div(nlon1/nlon2)=div(nlat1/nlat2)=div(nlev1/nlev2)
 !
-       implicit none
-       integer nlon1,nlat1,nlon2,nlat2,nlev1,nlev2
-       real f(nlon1,nlat1,nlev1),g(nlon2,nlat2,nlev2)
-       integer i,i2,j,j2,k,k2,imin,imax,jmin,jmax,kmin,kmax
-       real fsum
- 
-       do i2=1,nlon2
-         imin=nint((i2-1)*real(nlon1)/real(nlon2)+1)
+    implicit none
+    integer nlon1,nlat1,nlon2,nlat2,nlev1,nlev2
+    real f(nlon1,nlat1,nlev1),g(nlon2,nlat2,nlev2)
+    integer i,i2,j,j2,k,k2,imin,imax,jmin,jmax,kmin,kmax
+    real fsum
+    
+    do i2=1,nlon2
+       imin=nint((i2-1)*real(nlon1)/real(nlon2)+1)
          imax=nint(i2*real(nlon1)/real(nlon2))
          do j2=1,nlat2
            jmin=nint((j2-1)*real(nlat1)/real(nlat2)+1)
@@ -49,7 +49,7 @@ contains
        return
        end subroutine coarsen3D
 
-       subroutine finen3D(f,g,nlon1,nlat1,nlev1,nlon2,nlat2,nlev2)
+  subroutine finen3D(f,g,nlon1,nlat1,nlev1,nlon2,nlat2,nlev2)
 !
 !      Distributes the values of field f (grid size nlon2 x nlat2 x nlev2) to a
 !      finer grid g (grid size nlon1 x nlat1 x nlev1), assuming that f is
@@ -86,83 +86,95 @@ contains
        return
        end subroutine finen3D
 
-       subroutine gwinds(z,u,v,nlon,nlat,nlev,dx,dy,corpar,g,dzdx,dzdy)
+  subroutine gwinds(z,dx,dy,corpar,u,v)
 !
 !      Calculation of geostrophic winds (u,v) from z. At the equator, mean of
 !      the two neighbouring latitudes is used (should not be a relevant case).
 !
-       implicit none
-       integer i,j,k,nlon,nlat,nlev
-       real z(nlon,nlat,nlev),u(nlon,nlat,nlev),v(nlon,nlat,nlev)
-       real dzdx(nlon,nlat,nlev),dzdy(nlon,nlat,nlev)
-       real corpar(nlat),g,dx,dy
+    implicit none
 
-       call xder_cart(z,dx,dzdx) 
-       call yder_cart(z,dy,dzdy) 
+    real,dimension(:,:,:),intent(in) :: z
+    real,dimension(:,:,:),intent(out) :: u,v
+    real,dimension(:),intent(in) :: corpar
+    real,intent(in) :: dx,dy
+    integer :: nlon,nlat,nlev,i,j,k
+    real,dimension(:,:,:),allocatable :: dzdx,dzdy
 
-       do k=1,nlev
+    nlon=size(u,1)
+    nlat=size(u,2)
+    nlev=size(u,3)
+    allocate(dzdx(nlon,nlat,nlev),dzdy(nlon,nlat,nlev))
+
+    call xder_cart(z,dx,dzdx) 
+    call yder_cart(z,dy,dzdy) 
+
+    do k=1,nlev
        do j=1,nlat
-         if(abs(corpar(j)).gt.1e-7)then
-         do i=1,nlon
-           u(i,j,k)=-g*dzdy(i,j,k)/corpar(j) 
-           v(i,j,k)=g*dzdx(i,j,k)/corpar(j) 
-         enddo
-         endif
+          if(abs(corpar(j)).gt.1e-7)then
+             do i=1,nlon
+                u(i,j,k)=-g*dzdy(i,j,k)/corpar(j) 
+                v(i,j,k)=g*dzdx(i,j,k)/corpar(j) 
+             enddo
+          endif
        enddo
        do j=1,nlat
-         if(abs(corpar(j)).lt.1e-7)then
-         do i=1,nlon
-           u(i,j,k)=(u(i,j+1,k)+u(i,j-1,k))/2.
-           v(i,j,k)=(v(i,j+1,k)+v(i,j-1,k))/2.
-         enddo
-         endif
+          if(abs(corpar(j)).lt.1e-7)then
+             do i=1,nlon
+                u(i,j,k)=(u(i,j+1,k)+u(i,j-1,k))/2.
+                v(i,j,k)=(v(i,j+1,k)+v(i,j-1,k))/2.
+             enddo
+          endif
        enddo
-       enddo
+    enddo
 
-       return
-       end subroutine gwinds
+  end subroutine gwinds
 
-      subroutine modify(sigmaraw,sigma,sigmamin,etamin,nlon,nlat,nlev,zetaraw,&
-                        zeta,feta,corpar,dudp,dvdp)      
+  subroutine modify(sigmaraw,sigmamin,etamin,zetaraw,&
+                        corpar,dudp,dvdp,sigma,feta,zeta)      
 !
 !      Modifying stability and vorticity to keep the LHS of the genearlized
 !      omega equation elliptic
 !
-      implicit none
-      integer i,j,k,nlon,nlat,nlev
-      real sigmaraw(nlon,nlat,nlev),sigma(nlon,nlat,nlev)
-      real etamin,sigmamin,corpar(nlat)
-      real zeta(nlon,nlat,nlev),zetaraw(nlon,nlat,nlev),feta(nlon,nlat,nlev)
-      real dudp(nlon,nlat,nlev),dvdp(nlon,nlat,nlev)
-     
-       do k=1,nlev
-       do j=1,nlat
-       do i=1,nlon
-         sigma(i,j,k)=max(sigmaraw(i,j,k),sigmamin)
-         zeta(i,j,k)=0.
-!
-!         Northern Hemisphere
-!
-          if(corpar(j).gt.1e-7)then
-            zeta(i,j,k)=max(zetaraw(i,j,k),etamin+corpar(j)/(4*sigma(i,j,k))*(dudp(i,j,k)**2.+dvdp(i,j,k)**2.)-corpar(j))
-          endif
-!
-!         Southern Hemisphere
-!
-          if(corpar(j).lt.-1e-7)then
-            zeta(i,j,k)=min(zetaraw(i,j,k),-etamin+corpar(j)/(4*sigma(i,j,k))*(dudp(i,j,k)**2.+dvdp(i,j,k)**2.)-corpar(j))
-          endif
-          feta(i,j,k)=(zeta(i,j,k)+corpar(j))*corpar(j)
-       enddo
-       enddo
-       enddo
+    implicit none
 
-      return
-      end subroutine modify
+    real,dimension(:,:,:),intent(in) :: sigmaraw,zetaraw,dudp,dvdp
+    real,dimension(:),intent(in) :: corpar
+    real,dimension(:,:,:),intent(inout) :: zeta,feta,sigma
+    real,intent(in) :: sigmamin,etamin
+    integer :: nlon,nlat,nlev,i,j,k
+    
+    nlon=size(sigmaraw,1)
+    nlat=size(sigmaraw,2)
+    nlev=size(sigmaraw,3)
+     
+    do k=1,nlev
+       do j=1,nlat
+          do i=1,nlon
+             sigma(i,j,k)=max(sigmaraw(i,j,k),sigmamin)
+             zeta(i,j,k)=0.
+             ! Northern Hemisphere
+             if(corpar(j).gt.1e-7)then
+                zeta(i,j,k)=max(zetaraw(i,j,k),etamin+corpar(j)/ &
+                            (4*sigma(i,j,k))*(dudp(i,j,k)**2.+dvdp(i,j,k)**2.) &
+                            -corpar(j))
+             endif
+             ! Southern Hemisphere
+             if(corpar(j).lt.-1e-7)then
+                zeta(i,j,k)=min(zetaraw(i,j,k),-etamin+corpar(j)/ &
+                            (4*sigma(i,j,k))*(dudp(i,j,k)**2.+dvdp(i,j,k)**2.) &
+                            -corpar(j))
+             endif
+             feta(i,j,k)=(zeta(i,j,k)+corpar(j))*corpar(j)
+          enddo
+       enddo
+    enddo
+
+  end subroutine modify
 
       subroutine aave(f,nlon,nlat,res)                      
 !
-!     Calculation of area mean (res) of field f in cartesian coordinates. Simplest possible way.
+!     Calculation of area mean (res) of field f in cartesian coordinates.
+!     Simplest possible way.
 !
       implicit none
       integer i,j,nlon,nlat
@@ -182,87 +194,103 @@ contains
       return
       end subroutine aave
 
-      subroutine fvort(u,v,zeta,nlon,nlat,nlev,f,& 
-                       dx,dy,dp,eta,dadvdp,adv,&
-                       mulfact)
+  subroutine fvort(u,v,zeta,corpar,dx,dy,dp,mulfact,fv)
 !
 !     Calculation of vorticity advection forcing
 !     Input: u,v,zeta
-!     Output: stored in "adv" (bad style ...)
+!     Output: stored in "fv"
 !
-      implicit none
-      integer i,j,k,nlon,nlat,nlev
-      real dx,dy,dp
-      real u(nlon,nlat,nlev),v(nlon,nlat,nlev),f(nlat)
-      real zeta(nlon,nlat,nlev),eta(nlon,nlat,nlev),adv(nlon,nlat,nlev)
-      real dadvdp(nlon,nlat,nlev)
-      real mulfact(nlon,nlat,nlev)
+    implicit none
+    real,dimension(:,:,:),intent(in) :: u,v,zeta,mulfact
+    real,dimension(:,:,:),intent(out) :: fv
+    real,dimension(:),intent(in) :: corpar
+    real,dimension(:,:,:),allocatable :: eta,adv,dadvdp
+    real,intent(in) :: dx,dy,dp
+    integer :: i,j,k,nlon,nlat,nlev
 
-      do k=1,nlev
-      do j=1,nlat
-      do i=1,nlon
-        eta(i,j,k)=zeta(i,j,k)+f(j)
-      enddo
-      enddo
-      enddo
+    nlon=size(u,1)
+    nlat=size(u,2)
+    nlev=size(u,3)
+    allocate(eta(nlon,nlat,nlev),adv(nlon,nlat,nlev))
+    allocate(dadvdp(nlon,nlat,nlev))
 
-      call advect_cart(u,v,eta,dx,dy,adv)
-      adv=adv*mulfact
-      call pder(adv,dp,dadvdp) 
+    do k=1,nlev
+       do j=1,nlat
+          do i=1,nlon
+             eta(i,j,k)=zeta(i,j,k)+corpar(j)
+          enddo
+       enddo
+    enddo
 
-      do k=1,nlev
-      do j=1,nlat      
-      do i=1,nlon
-         adv(i,j,k)=f(j)*dadvdp(i,j,k)
-      enddo
-      enddo
-      enddo
+    call advect_cart(u,v,eta,dx,dy,adv)
+    adv=adv*mulfact
+    call pder(adv,dp,dadvdp) 
 
-      return
-      end subroutine fvort
+    do k=1,nlev
+       do j=1,nlat      
+          do i=1,nlon
+             fv(i,j,k)=corpar(j)*dadvdp(i,j,k)
+          enddo
+       enddo
+    enddo
 
-      subroutine ftemp(u,v,t,nlon,nlat,nlev,lev,r,& 
-                       dx,dy,lapladv,adv,mulfact)
+  end subroutine fvort
+
+  subroutine ftemp(u,v,t,lev,dx,dy,mulfact,ft)
 !
 !     Calculation of temperature advection forcing
 !     Input: u,v,t
 !     Output: stored in "adv" (bad style ...)
 !
-      implicit none
-      integer i,j,k,nlon,nlat,nlev
-      real dx,dy,r,lev(nlev)
-      real u(nlon,nlat,nlev),v(nlon,nlat,nlev)
-      real t(nlon,nlat,nlev),adv(nlon,nlat,nlev),lapladv(nlon,nlat,nlev)
-      real mulfact(nlon,nlat,nlev)
+    implicit none
+    real,dimension(:,:,:),intent(in) :: u,v,t,mulfact
+    real,dimension(:,:,:),intent(out) :: ft
+    real,dimension(:),intent(in) :: lev
+    real,intent(in) :: dx,dy
+    real,dimension(:,:,:),allocatable :: adv,lapladv
 
-      call advect_cart(u,v,t,dx,dy,adv)
-      adv=adv*mulfact
-      call laplace_cart(adv,lapladv,dx,dy)         
+    integer :: i,j,k,nlon,nlat,nlev
 
-      do k=1,nlev
-      do j=1,nlat      
-      do i=1,nlon
-          adv(i,j,k)=lapladv(i,j,k)*r/lev(k)
-      enddo
-      enddo
-      enddo
+    nlon=size(u,1)
+    nlat=size(u,2)
+    nlev=size(u,3)
+    allocate(adv(nlon,nlat,nlev),lapladv(nlon,nlat,nlev))
 
-      return
-      end subroutine ftemp
+    call advect_cart(u,v,t,dx,dy,adv)
+    adv=adv*mulfact
+    call laplace_cart(adv,lapladv,dx,dy)         
 
-      subroutine ffrict(fx,fy,fcurl,dcurldp,nlon,nlat,nlev,f,& 
-                       dx,dy,dp,res,mulfact)
+    do k=1,nlev
+       do j=1,nlat      
+          do i=1,nlon
+             ft(i,j,k)=lapladv(i,j,k)*r/lev(k)
+          enddo
+       enddo
+    enddo
+
+  end subroutine ftemp
+
+      subroutine ffrict(fx,fy,corpar,dx,dy,dp,mulfact,ff)
 !
 !     Calculation of friction forcing
 !     Input: fx,fy = x and y components of "friction force"
 !     Output: res 
 !
       implicit none
-      integer i,j,k,nlon,nlat,nlev
-      real dx,dy,dp
-      real fx(nlon,nlat,nlev),fy(nlon,nlat,nlev),f(nlat)
-      real fcurl(nlon,nlat,nlev),dcurldp(nlon,nlat,nlev),res(nlon,nlat,nlev)
-      real mulfact(nlon,nlat,nlev)
+      real,dimension(:,:,:),intent(in) :: fx,fy,mulfact
+      real,dimension(:),intent(in) :: corpar
+      real,dimension(:,:,:),intent(out) :: ff
+      real,dimension(:,:,:),allocatable :: fcurl,dcurldp
+      real,intent(in) :: dx,dy,dp
+      integer :: i,j,k,nlon,nlat,nlev
+
+!       real fcurl(nlon,nlat,nlev),dcurldp(nlon,nlat,nlev),res(nlon,nlat,nlev)
+!      real mulfact(nlon,nlat,nlev)
+
+      nlon=size(fx,1)
+    nlat=size(fx,2)
+    nlev=size(fx,3)
+    allocate(fcurl(nlon,nlat,nlev),dcurldp(nlon,nlat,nlev))
 
       call curl_cart(fx,fy,dx,dy,fcurl)
       fcurl=fcurl*mulfact
@@ -271,7 +299,7 @@ contains
       do k=1,nlev
       do j=1,nlat      
       do i=1,nlon
-          res(i,j,k)=-f(j)*dcurldp(i,j,k)
+          ff(i,j,k)=-corpar(j)*dcurldp(i,j,k)
       enddo
       enddo
       enddo
@@ -339,20 +367,22 @@ contains
 
        subroutine callsolveQG(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
               dx,dy,dlev,sigma0,feta,laplome,domedp2,dum1,&
-              coeff1,coeff2,coeff,resid,omega1,itermax,ny1,ny2,alfa, &
+              coeff1,coeff2,coeff,resid,omega1,ny1,ny2,alfa, &
               nres,lzeromean)
 !
 !      Calling solveQG + writing out omega. Multigrid algorithm.
 !
        implicit none
        integer i,j,k,nres,nlon(nres),nlat(nres),nlev(nres)
+       real,intent(in) :: rhs(nlon(1),nlat(1),nlev(1),nres)
        real dx(nres),dy(nres),dlev(nres)       
-       real rhs(nlon(1),nlat(1),nlev(1),nres),boundaries(nlon(1),nlat(1),nlev(1),nres)
+       real boundaries(nlon(1),nlat(1),nlev(1),nres)
        real omega(nlon(1),nlat(1),nlev(1),nres),omegaold(nlon(1),nlat(1),nlev(1),nres) 
        real sigma0(nlev(1),nres)
-       real feta(nlon(1),nlat(1),nlev(1),nres)
-       real laplome(nlon(1),nlat(1),nlev(1)),domedp2(nlon(1),nlat(1),nlev(1)),dum1(nlon(1),nlat(1),nlev(1))              
-       real coeff1(nlon(1),nlat(1),nlev(1)),coeff2(nlon(1),nlat(1),nlev(1)),coeff(nlon(1),nlat(1),nlev(1))
+       real feta(nlon(1),nlat(1),nlev(1),nres),coeff(nlon(1),nlat(1),nlev(1))
+       real laplome(nlon(1),nlat(1),nlev(1))
+       real domedp2(nlon(1),nlat(1),nlev(1)),dum1(nlon(1),nlat(1),nlev(1))              
+       real coeff1(nlon(1),nlat(1),nlev(1)),coeff2(nlon(1),nlat(1),nlev(1))
        real resid(nlon(1),nlat(1),nlev(1)),omega1(nlon(1),nlat(1),nlev(1))      
        real alfa,maxdiff,toler
        integer itermax,ny1,ny2,ires
@@ -361,6 +391,7 @@ contains
        integer iter
 
        toler=5e-5 ! threshold for stopping iterations
+       itermax=1000
        omega=0.
        omegaold=boundaries
 !
@@ -454,10 +485,11 @@ contains
 !
        implicit none
 
+       real :: rhs(nlon,nlat,nlev)
        integer i,j,k,nlon,nlat,nlev
        real omegaold(nlon,nlat,nlev),omega(nlon,nlat,nlev)
        real boundaries(nlon,nlat,nlev) 
-       real sigma0(nlev),feta(nlon,nlat,nlev),rhs(nlon,nlat,nlev) 
+       real sigma0(nlev),feta(nlon,nlat,nlev)!,rhs(nlon,nlat,nlev) 
        real laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
        real coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
        real dx,dy,dlev,maxdiff,alfa
@@ -506,9 +538,10 @@ contains
 ! 
        implicit none
 
+       real :: rhs(nlon,nlat,nlev)
        integer i,j,k,nlon,nlat,nlev
        real omegaold(nlon,nlat,nlev),omega(nlon,nlat,nlev) 
-       real sigma(nlev),etasq(nlon,nlat,nlev),rhs(nlon,nlat,nlev) 
+       real sigma(nlev),etasq(nlon,nlat,nlev)!,rhs(nlon,nlat,nlev) 
        real lapl2(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
        real coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
        real dx,dy,dlev,maxdiff,alfa
@@ -571,14 +604,15 @@ contains
 !
        implicit none
 
+       real:: rhs(nlon,nlat,nlev)
        integer i,j,k,nlon,nlat,nlev
-       real rhs(nlon,nlat,nlev),omega(nlon,nlat,nlev),resid(nlon,nlat,nlev) 
+       real omega(nlon,nlat,nlev),resid(nlon,nlat,nlev) 
        real sigma(nlev),etasq(nlon,nlat,nlev)
        real laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
        real dx,dy,dlev
 
        call laplace_cart(omega,laplome,dx,dy)         
-       call p2der(omega,domedp2,nlon,nlat,nlev,dlev) 
+       call p2der(omega,dlev,domedp2) 
  
        do k=1,nlev
        do j=1,nlat
@@ -596,7 +630,7 @@ contains
        subroutine callsolvegen(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
               dx,dy,dlev,sigma0,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
               laplome,domedp2,coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,&
-              dum4,dum5,dum6,resid,omega1,itermax,ny1,ny2,alfa,&
+              dum4,dum5,dum6,resid,omega1,ny1,ny2,alfa,&
               nres,lzeromean)
 !
 !      Calling solvegen + writing out omega. Multigrid algorithm
@@ -621,6 +655,7 @@ contains
        real aomega
  
        toler=5e-5 ! threshold for stopping iterations
+       itermax=1000
        omega=0.
        omegaold=boundaries
 !
@@ -932,7 +967,7 @@ contains
 !
 !      f*eta*d2omegadp
 !       
-       call p2der(omega,dum2,nlon,nlat,nlev,dlev) 
+       call p2der(omega,dlev,dum2) 
 !
        dum3=feta*dum2
 !
@@ -997,26 +1032,32 @@ contains
        return
        end subroutine laplace2_cart
 
-       subroutine p2der(f,df2dp2,nlon,nlat,nlev,dp) 
+  subroutine p2der(f,dp,df2dp2) 
 !
 !      Estimation of second pressure derivatives.
 !      At top and bottom levels, these are set to zero
 !
-       implicit none
-       integer i,j,k,nlon,nlat,nlev
-       real f(nlon,nlat,nlev),df2dp2(nlon,nlat,nlev),dp 
-       do i=1,nlon
-       do j=1,nlat
-       do k=2,nlev-1
-         df2dp2(i,j,k)=(f(i,j,k+1)+f(i,j,k-1)-2*f(i,j,k))/(dp*dp)
-       enddo
-       df2dp2(i,j,1)=0.
-       df2dp2(i,j,nlev)=0.
- 
-       enddo
-       enddo
-       return
-       end subroutine p2der      
+    implicit none
+    real,dimension(:,:,:),intent(in) :: f
+    real,dimension(:,:,:),intent(out) :: df2dp2
+    real,intent(in) :: dp
+    integer :: i,j,k,nlon,nlat,nlev
+
+    nlon=size(f,1)
+    nlat=size(f,2)
+    nlev=size(f,3)
+    
+   do i=1,nlon
+      do j=1,nlat
+         do k=2,nlev-1
+            df2dp2(i,j,k)=(f(i,j,k+1)+f(i,j,k-1)-2*f(i,j,k))/(dp*dp)
+         enddo
+         df2dp2(i,j,1)=0.
+         df2dp2(i,j,nlev)=0.
+      enddo
+   enddo
+
+ end subroutine p2der
 
        subroutine p2der2(f,df2dp22,coeff,nlon,nlat,nlev,dp) 
 !
