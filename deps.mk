@@ -1,7 +1,8 @@
 mod_common_subrs.o : src/mod_common_subrs.f90 mod_const.o 
 mod_const.o : src/mod_const.f90 
 mod_omega_broken.o : src/mod_omega_broken.f90 mod_common_subrs.o mod_wrf_file.o mod_const.o mod_subrs.o 
-mod_omega.o : src/mod_omega.f90 mod_common_subrs.o mod_wrf_file.o mod_const.o 
+mod_omega.o : src/mod_omega.f90 mod_omega_subrs.o mod_common_subrs.o mod_wrf_file.o 
+mod_omega_subrs.o : src/mod_omega_subrs.f90 mod_common_subrs.o mod_const.o 
 mod_poisson_DFT.o : src/mod_poisson_DFT.f90 mod_poisson_interp.o mkl_poisson.o mod_poisson_green.o 
 mod_poisson_green.o : src/mod_poisson_green.f90 
 mod_poisson_interp.o : src/mod_poisson_interp.f90 
