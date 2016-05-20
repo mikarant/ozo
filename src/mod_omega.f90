@@ -24,27 +24,26 @@ contains
     real,dimension(:,:,:),allocatable :: forcing,ftest,zero,coeff,feta
     real,dimension(:,:,:),allocatable :: sigma,laplome,domedp2,coeff1
     real,dimension(:,:,:),allocatable :: coeff2,df2dp2,zeta,d2zetadp
-    real,dimension(:,:,:,:),allocatable :: fv,ft,ff,fq,fa
+    real,dimension(:,:,:,:),allocatable :: fv,ft,ff,fq,fa,boundaries2
+    real,dimension(:,:,:,:),allocatable :: zero2,sigma2,feta2,d2zetadp2
+    real,dimension(:,:,:,:),allocatable :: dudp2,dvdp2
+    real,dimension(:,:,:),allocatable :: dum0,resid,omega1
+    real,dimension(:,:),allocatable :: corpar2,sigma02
     real,dimension(:),allocatable :: sigma0
+    integer,dimension(:),allocatable :: nlonx,nlatx,nlevx
+    real,dimension(:),allocatable :: dx2,dy2,dlev2
 
-    integer nlev,nlon,nlat,nlevmax,nlonmax,nlatmax,nresmax,max3d,max4d    
+    integer nlev,nlon,nlat
 !
 !      Maximum size of the WRF output grid. 
 !      nresmax = maximum number of resolutions used in the
 !                multigrid algorithm
 
-       parameter (nlonmax=160,nlatmax=320,nlevmax=40,nresmax=7)
-       parameter (max3d=nlonmax*nlatmax*nlevmax)
-       parameter (max4d=nresmax*max3d)
-!       real fv(max3d),ft(max3d),ff(max3d),fq(max3d),fa(max3d)
-        real dum0(max3d)
-       real resid(max3d),omega1(max3d)
-
        logical lfconst,lzeromean,lcensor        
        real fconst   ! constant value for coriolis parameter
        real alfa     ! relaxation coefficient
         
-       integer i,j,k,ijk
+       integer i,j,k
 !
 !      itermax = maximum number of multigrid cycles
 !      ny1 = number of iterations for each grid when going to coarser grids
@@ -74,13 +73,6 @@ contains
 !      (***CHANGED SUBSTANTIALLY FOR THE MULTIGRID VERSION ***)
 !
        integer nres
-       integer nlonx(nresmax),nlatx(nresmax),nlevx(nresmax)
-       real dx2(nresmax),dy2(nresmax),dlev2(nresmax)
-       real boundaries2(max4d)
-       real zero2(max4d) ! (this is really stupid)
-       real sigma2(max4d),feta2(max4d),corpar2(nlatmax*nresmax)
-       real d2zetadp2(max4d),dudp2(max4d),dvdp2(max4d)
-       real sigma02(nlevmax*nresmax)
 
        real toler                     
 
@@ -129,9 +121,9 @@ contains
        allocate(dvdp(nlon,nlat,nlev),zeta(nlon,nlat,nlev))
        allocate(dudp(nlon,nlat,nlev),d2zetadp(nlon,nlat,nlev))
        allocate(zetatend(nlon,nlat,nlev),feta(nlon,nlat,nlev))
-       allocate(mulfact(nlon,nlat,nlev))!,fv(nlon,nlat,nlev))
-       allocate(forcing(nlon,nlat,nlev))!,ft(nlon,nlat,nlev))
-       allocate(ftest(nlon,nlat,nlev))!,ff(nlon,nlat,nlev))
+       allocate(mulfact(nlon,nlat,nlev),dum0(nlon,nlat,nlev))
+       allocate(forcing(nlon,nlat,nlev),resid(nlon,nlat,nlev))
+       allocate(ftest(nlon,nlat,nlev),omega1(nlon,nlat,nlev))
        allocate(zero(nlon,nlat,nlev))!,fq(nlon,nlat,nlev))
        !allocate(fa(nlon,nlat,nlev))
 
@@ -152,6 +144,16 @@ contains
        allocate(ff(nlon,nlat,nlev,nres))
        allocate(fq(nlon,nlat,nlev,nres))
        allocate(fa(nlon,nlat,nlev,nres))
+       allocate(boundaries2(nlon,nlat,nlev,nres))
+       allocate(zero2(nlon,nlat,nlev,nres))
+       allocate(sigma2(nlon,nlat,nlev,nres))
+       allocate(feta2(nlon,nlat,nlev,nres))
+       allocate(d2zetadp2(nlon,nlat,nlev,nres))
+       allocate(dudp2(nlon,nlat,nlev,nres))
+       allocate(dvdp2(nlon,nlat,nlev,nres))
+       allocate(corpar2(nlat,nres),sigma02(nlev,nres))
+       allocate(nlonx(nres),nlatx(nres),nlevx(nres))
+       allocate(dx2(nres),dy2(nres),dlev2(nres))
        dlev=lev(2)-lev(1)
 
 !      Grid sizes for the different resolutions
@@ -259,7 +261,7 @@ contains
          do k=1,nlev
          do j=1,nlat       
          do i=1,nlon
-           ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
+!           ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
            sigma(i,j,k)=sigma0(k)
            feta(i,j,k)=fconst**2.
          enddo
@@ -287,7 +289,7 @@ contains
        do k=1,nlev
        do j=1,nlat       
        do i=1,nlon
-         ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
+!         ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
          ftest(i,j,k)=sigma(i,j,k)*lapl(i,j,k)+feta(i,j,k)*df2dp2(i,j,k) 
        enddo
        enddo
@@ -304,7 +306,7 @@ contains
        do k=1,nlev
        do j=1,nlat
        do i=1,nlon
-          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
+!          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
           forcing(i,j,k)=omegaan(i,j,k)           
           dum2(i,j,k)=sigmaraw(i,j,k)*omegaan(i,j,k)
        enddo
@@ -318,7 +320,7 @@ contains
        do k=1,nlev
        do j=1,nlat       
        do i=1,nlon
-         ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
+!         ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
          dum2(i,j,k)=(corpar(j)+zetaraw(i,j,k))*corpar(j)*dum3(i,j,k)
        enddo
        enddo
@@ -327,7 +329,7 @@ contains
        do k=1,nlev
        do j=1,nlat       
        do i=1,nlon
-         ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
+!         ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
          dum3(i,j,k)=-corpar(j)*omegaan(i,j,k)*dum5(i,j,k)
        enddo
        enddo
@@ -339,7 +341,7 @@ contains
        do k=1,nlev
        do j=1,nlat
        do i=1,nlon
-          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
+!          ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
           dum6(i,j,k)=-corpar(j)*(dvdp(i,j,k)*dum4(i,j,k)-dudp(i,j,k)*dum5(i,j,k))
        enddo
        enddo
@@ -349,7 +351,7 @@ contains
        do k=1,nlev
        do j=1,nlat       
        do i=1,nlon
-         ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
+!         ijk=i+(j-1)*nlon+(k-1)*nlon*nlat
          ftest(i,j,k)=dum1(i,j,k)+dum2(i,j,k)+dum3(i,j,k)+dum4(i,j,k) 
        enddo
        enddo
@@ -368,17 +370,17 @@ contains
 !
        do j=1,nlat       
        do i=1,nlon
-         ijk=i+(j-1)*nlon+(1-1)*nlon*nlat
+!         ijk=i+(j-1)*nlon+(1-1)*nlon*nlat
          boundaries(i,j,1,1)=iubound*omegaan(i,j,1)
-         ijk=i+(j-1)*nlon+(nlev-1)*nlon*nlat
+!         ijk=i+(j-1)*nlon+(nlev-1)*nlon*nlat
          boundaries(i,j,nlev,1)=ilbound*omegaan(i,j,nlev)
        enddo
        enddo      
        do k=2,nlev-1
        do i=1,nlon
-         ijk=i+(1-1)*nlon+(k-1)*nlon*nlat        
+!         ijk=i+(1-1)*nlon+(k-1)*nlon*nlat        
          boundaries(i,1,k,1)=iybound*omegaan(i,1,k)
-         ijk=i+(nlat-1)*nlon+(k-1)*nlon*nlat        
+!         ijk=i+(nlat-1)*nlon+(k-1)*nlon*nlat        
          boundaries(i,nlat,k,1)=iybound*omegaan(i,nlat,k)
        enddo
        enddo     
@@ -390,21 +392,39 @@ contains
 !      'residual omega' is solved at lower resolutions)
 
        do i=1,nres
-         ijk=1+nlon*nlat*nlev*(i-1)
+!         ijk=1+nlon*nlat*nlev*(i-1)
          if(i.eq.1)then
-           call coarsen3d(boundaries,boundaries2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+           call coarsen3d(boundaries,boundaries2(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
          else
-           call coarsen3d(zero,boundaries2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+           call coarsen3d(zero,boundaries2(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
          endif 
-         call coarsen3d(zero,zero2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-         call coarsen3d(sigma,sigma2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-         call coarsen3d(feta,feta2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-         call coarsen3d(d2zetadp,d2zetadp2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-         call coarsen3d(dudp,dudp2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-         call coarsen3d(dvdp,dvdp2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-         call coarsen3d(sigma0,sigma02(1+(i-1)*nlev),1,1,nlev,1,1,nlevx(i))
-         call coarsen3d(corpar,corpar2(1+(i-1)*nlat),1,nlat,1,1,nlatx(i),1)
-       enddo   
+         call coarsen3d(zero,zero2(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+         call coarsen3d(sigma,sigma2(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+         call coarsen3d(feta,feta2(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+         call coarsen3d(d2zetadp,d2zetadp2(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+         call coarsen3d(dudp,dudp2(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+         call coarsen3d(dvdp,dvdp2(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+         call coarsen3d(sigma0,sigma02(:,i),1,1,nlev,1,1,nlevx(i))
+         call coarsen3d(corpar,corpar2(:,i),1,nlat,1,1,nlatx(i),1)
+       enddo
+
+!       do i=1,nres
+!         ijk=1+nlon*nlat*nlev*(i-1)
+!         if(i.eq.1)then
+!           call coarsen3d(boundaries,boundaries2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+!         else
+!           call coarsen3d(zero,boundaries2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+!         endif 
+!         call coarsen3d(zero,zero2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+!         call coarsen3d(sigma,sigma2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+!         call coarsen3d(feta,feta2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+!         call coarsen3d(d2zetadp,d2zetadp2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+!         call coarsen3d(dudp,dudp2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+!         call coarsen3d(dvdp,dvdp2(ijk),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+!         call coarsen3d(sigma0,sigma02(1+(i-1)*nlev),1,1,nlev,1,1,nlevx(i))
+!         call coarsen3d(corpar,corpar2(1+(i-1)*nlat),1,nlat,1,1,nlatx(i),1)
+!       enddo   
+   
 !
 ! *************************************************************************
 ! ***** Solving for omega, using the forcing and the LHS coefficients *****    
