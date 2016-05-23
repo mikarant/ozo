@@ -6,47 +6,38 @@ module mod_omega
 
 contains
 
-  subroutine calculate_omegas( t, u, v, w, z, lev, dx, dy, corpar, q, &
+  subroutine calculate_omegas( t, u, v, omegaan, z, lev, dx, dy, corpar, q, &
        xfrict, yfrict, utend, vtend, ttend, psfc, omegas)
 
     real,dimension(:,:,:,:),intent(inout) :: omegas
-    real,dimension(:,:,:),intent(in) :: t,w,xfrict,yfrict
-    real,dimension(:,:,:),intent(in) :: utend,vtend
-    real,dimension(:,:),  intent(in) :: psfc
-    real,dimension(:),intent(in) :: lev,corpar
-    real,                 intent(in) :: dx,dy 
-    real,dimension(:,:,:),intent(inout) :: z,q,u,v,ttend
+    real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend
+    real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict,utend,vtend
+    real,dimension(:,:),    intent(in) :: psfc
+    real,dimension(:),      intent(in) :: lev,corpar
+    real,                   intent(in) :: dx,dy 
 
-    real,dimension(:,:,:,:),allocatable :: omega,omegaold
-    real,dimension(:,:,:),allocatable :: sigmaraw,omegaan,zetaraw,dum6
-    real,dimension(:,:,:),allocatable :: dum4,dum5,dum2,dum1,lapl,dum3
-    real,dimension(:,:,:),allocatable :: zetatend,mulfact
-    real,dimension(:,:,:),allocatable :: df2dp2,zeta
-    real,dimension(:,:,:,:),allocatable :: fv,ft,ff,fq,fa,boundaries
-    real,dimension(:,:,:,:),allocatable :: zero,sigma,feta,d2zetadp
-    real,dimension(:,:,:,:),allocatable :: dudp,dvdp,ftest
-    real,dimension(:,:,:),allocatable :: dum0,resid,omega1
-    real,dimension(:,:),allocatable :: corpar2,sigma0
-    integer,dimension(:),allocatable :: nlonx,nlatx,nlevx
-    real,dimension(:),allocatable :: dx2,dy2,dlev2
+    real,dimension(:,:,:,:),allocatable :: omega,fv,ft,ff,fq,fa
+    real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta
+    real,dimension(:,:,:,:),allocatable :: dudp,dvdp,ftest,d2zetadp
+    real,dimension(:,:,:),  allocatable :: sigmaraw,zetaraw,zetatend,zeta
+    real,dimension(:,:,:),  allocatable :: mulfact
+    real,dimension(:,:),    allocatable :: corpar2,sigma0
+    real,dimension(:),      allocatable :: dx2,dy2,dlev2
+    integer,dimension(:),   allocatable :: nlonx,nlatx,nlevx
 
-    integer :: nlev,nlon,nlat,nres,i,j,k
+    integer :: nlev,nlon,nlat,nres,i,k
     real :: dlev
     logical :: lcensor
     character :: mode
 
-    ! itermax = maximum number of multigrid cycles
-    ! ny1 = number of iterations for each grid when going to coarser grids
-    ! ny2 = number of iterations for each grid when returning to finer grids
-    !
-    ! Threshold values to keep the generalized omega equation elliptic.
+!   Threshold values to keep the generalized omega equation elliptic.
     real,parameter :: sigmamin=2e-7,etamin=2e-6
 
-!      For iubound, ilbound and iybound are 0, horizontal boundary
-!      conditions are used at the upper, lower and north/south boundaries  
-!      A value of 1 for any of these parameters means that the boundary
-!      condition is taken directly from the "real" WRF omega. In practice,
-!      only the lower boundary condition (ilbound) is important.
+!   For iubound, ilbound and iybound are 0, horizontal boundary
+!   conditions are used at the upper, lower and north/south boundaries  
+!   A value of 1 for any of these parameters means that the boundary
+!   condition is taken directly from the "real" WRF omega. In practice,
+!   only the lower boundary condition (ilbound) is important.
     integer :: iubound,ilbound,iybound
 
     iubound=1 ! 1 for "real" omega as upper-boundary condition
@@ -69,41 +60,22 @@ contains
     endif
 
     allocate(sigmaraw(nlon,nlat,nlev),zetaraw(nlon,nlat,nlev))
-    allocate(dum1(nlon,nlat,nlev))
-    allocate(dum2(nlon,nlat,nlev))
-    allocate(dum3(nlon,nlat,nlev))
-    allocate(dum4(nlon,nlat,nlev))
-    allocate(dum5(nlon,nlat,nlev))
-    allocate(lapl(nlon,nlat,nlev))
-    allocate(dum6(nlon,nlat,nlev),df2dp2(nlon,nlat,nlev))
-    allocate(zeta(nlon,nlat,nlev))
-    allocate(zetatend(nlon,nlat,nlev))
-    allocate(mulfact(nlon,nlat,nlev),dum0(nlon,nlat,nlev))
-    allocate(resid(nlon,nlat,nlev))
-    allocate(omega1(nlon,nlat,nlev))
-    allocate(omegaan(nlon,nlat,nlev))
+    allocate(zeta(nlon,nlat,nlev),zetatend(nlon,nlat,nlev))
+    allocate(mulfact(nlon,nlat,nlev))
  
-    omegaan=w
-
-!      Number of different resolutions in solving the equation = nres 
-!      Choose so that the coarsest grid has at least 5 points
+!   Number of different resolutions in solving the equation = nres 
+!   Choose so that the coarsest grid has at least 5 points
 !
     nres=1+int(log(max(nlon,nlat,nlev)/5.)/log(2.))
     write(*,*)'nres=',nres
 !
-    allocate(omega(nlon,nlat,nlev,nres),omegaold(nlon,nlat,nlev,nres))
-    allocate(fv(nlon,nlat,nlev,nres))
-    allocate(ft(nlon,nlat,nlev,nres))
-    allocate(ff(nlon,nlat,nlev,nres))
-    allocate(fq(nlon,nlat,nlev,nres))
-    allocate(fa(nlon,nlat,nlev,nres))
+    allocate(omega(nlon,nlat,nlev,nres),fv(nlon,nlat,nlev,nres))
+    allocate(ft(nlon,nlat,nlev,nres),ff(nlon,nlat,nlev,nres))
+    allocate(fq(nlon,nlat,nlev,nres),fa(nlon,nlat,nlev,nres))
     allocate(boundaries(nlon,nlat,nlev,nres))
-    allocate(zero(nlon,nlat,nlev,nres))
-    allocate(sigma(nlon,nlat,nlev,nres))
-    allocate(feta(nlon,nlat,nlev,nres))
-    allocate(d2zetadp(nlon,nlat,nlev,nres))
-    allocate(dudp(nlon,nlat,nlev,nres))
-    allocate(dvdp(nlon,nlat,nlev,nres))
+    allocate(zero(nlon,nlat,nlev,nres),sigma(nlon,nlat,nlev,nres))
+    allocate(d2zetadp(nlon,nlat,nlev,nres),feta(nlon,nlat,nlev,nres))
+    allocate(dudp(nlon,nlat,nlev,nres),dvdp(nlon,nlat,nlev,nres))
     allocate(ftest(nlon,nlat,nlev,nres))
     allocate(corpar2(nlat,nres),sigma0(nlev,nres))
     allocate(nlonx(nres),nlatx(nres),nlevx(nres))
@@ -111,7 +83,8 @@ contains
 
     dlev=lev(2)-lev(1)
     zero=0.
-!      Grid sizes for the different resolutions
+
+!   Grid sizes for the different resolutions
 !
     nlonx(1)=nlon
     nlatx(1)=nlat
@@ -151,13 +124,11 @@ contains
 !   Calculation of forcing terms 
 !
     if(mode.eq.'G'.or.mode.eq.'Q')then
-
        call fvort(u,v,zetaraw,corpar,dx,dy,dlev,mulfact,fv(:,:,:,1))
        call ftemp(u,v,t,lev,dx,dy,mulfact,ft(:,:,:,1))
     endif
 
     if(mode.eq.'G')then
-
        call ffrict(xfrict,yfrict,corpar,dx,dy,dlev,mulfact,ff(:,:,:,1))
        call fdiab(q,lev,dx,dy,mulfact,fq(:,:,:,1))
        call fimbal(zetatend,ttend,corpar,lev,dx,dy,dlev,mulfact,fa(:,:,:,1))
@@ -210,12 +181,7 @@ contains
 !   and substituting it to the RHS
 !
     if(mode.eq.'t')then
-
-       call p2der(omegaan,dlev,df2dp2)
-       call laplace_cart(omegaan,lapl,dx,dy)
-!
-       ftest(:,:,:,1)=sigma(:,:,:,1)*lapl+feta(:,:,:,1)*df2dp2 
-
+       call QG_test(omegaan,sigma,feta,dx,dy,dlev,ftest)
     endif ! mode.eq.'t'   
 !
 !   Forcing for the general test case
@@ -223,31 +189,7 @@ contains
 !   and substituting it to the RHS
        
     if(mode.eq.'T')then
-
-       dum2=sigmaraw*omegaan
-          
-       call laplace_cart(dum2,dum1,dx,dy)
-       call p2der(omegaan,dlev,dum3)
-       call p2der(zetaraw,dlev,dum5)
-
-       do j=1,nlat       
-          dum2(:,j,:)=(corpar(j)+zetaraw(:,j,:))*corpar(j)*dum3(:,j,:)
-       enddo
-
-       do j=1,nlat       
-         dum3(:,j,:)=-corpar(j)*omegaan(:,j,:)*dum5(:,j,:)
-       enddo
-
-       call xder_cart(omegaan,dx,dum4) 
-       call yder_cart(omegaan,dy,dum5) 
-       
-       do j=1,nlat
-          dum6(:,j,:)=-corpar(j)*(dvdp(:,j,:,1)*dum4(:,j,:)-dudp(:,j,:,1)*dum5(:,j,:))
-       enddo
-       call pder(dum6,dlev,dum4) 
-
-       ftest(:,:,:,1)=dum1+dum2+dum3+dum4 
-
+       call gen_test(sigmaraw,omegaan,zetaraw,corpar,dx,dy,dlev,ftest)
     endif ! (forcing for the general test case if mode.eq.'T')
 
 !   Boundary conditions from WRF omega?  

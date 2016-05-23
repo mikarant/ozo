@@ -8,6 +8,83 @@ contains
 !
 !****************** SUBROUTINES **************************************************
 !
+  subroutine QG_test(omegaan,sigma,feta,dx,dy,dlev,ftest)
+!   Forcing for quasigeostrophic test case ('t')
+!   In essence: calculating the LHS from the WRF omega (omegaan) 
+!   and substituting it to the RHS
+
+    implicit none
+
+    real,dimension(:,:,:,:),intent(in) :: sigma,feta
+    real,dimension(:,:,:),intent(in) :: omegaan
+    real,intent(in) :: dx,dy,dlev
+    real,dimension(:,:,:,:),intent(out) :: ftest 
+
+    real,dimension(:,:,:),allocatable :: df2dp2,lapl
+    integer :: nlon,nlat,nlev
+
+    nlon=size(omegaan,1)
+    nlat=size(omegaan,2)
+    nlev=size(omegaan,3)
+    allocate(df2dp2(nlon,nlat,nlev),lapl(nlon,nlat,nlev))
+
+    call p2der(omegaan,dlev,df2dp2)
+    call laplace_cart(omegaan,lapl,dx,dy)
+
+    ftest(:,:,:,1)=sigma(:,:,:,1)*lapl+feta(:,:,:,1)*df2dp2 
+
+  end subroutine QG_test
+
+  subroutine gen_test(sigmaraw,omegaan,zetaraw,corpar,dx,dy,dlev,ftest)
+
+!   Forcing for the general test case
+!   In essence: calculating the LHS from the WRF omega (omegaan) 
+!   and substituting it to the RHS
+
+    implicit none
+
+    real,dimension(:,:,:),intent(in) :: sigmaraw,omegaan,zetaraw
+    real,dimension(:),intent(in) :: corpar
+    real,intent(in) :: dx,dy,dlev
+    real,dimension(:,:,:,:),intent(out) :: ftest 
+    real,dimension(:,:,:),allocatable :: dum2,dum1,dum3,dum4,dum5,dum6
+    real,dimension(:,:,:),allocatable :: dvdp,dudp
+
+    integer :: nlon,nlat,nlev,j
+    nlon=size(omegaan,1)
+    nlat=size(omegaan,2)
+    nlev=size(omegaan,3)
+
+    allocate(dum2(nlon,nlat,nlev),dum1(nlon,nlat,nlev))
+    allocate(dum3(nlon,nlat,nlev),dum4(nlon,nlat,nlev))
+    allocate(dum5(nlon,nlat,nlev),dum6(nlon,nlat,nlev))
+    allocate(dvdp(nlon,nlat,nlev),dudp(nlon,nlat,nlev))
+
+    dum2=sigmaraw*omegaan
+          
+    call laplace_cart(dum2,dum1,dx,dy)
+    call p2der(omegaan,dlev,dum3)
+    call p2der(zetaraw,dlev,dum5)
+    
+    do j=1,nlat       
+       dum2(:,j,:)=(corpar(j)+zetaraw(:,j,:))*corpar(j)*dum3(:,j,:)
+    enddo
+    
+    do j=1,nlat       
+       dum3(:,j,:)=-corpar(j)*omegaan(:,j,:)*dum5(:,j,:)
+    enddo
+    
+    call xder_cart(omegaan,dx,dum4) 
+    call yder_cart(omegaan,dy,dum5) 
+    
+    do j=1,nlat
+       dum6(:,j,:)=-corpar(j)*(dvdp(:,j,:)*dum4(:,j,:)-dudp(:,j,:)*dum5(:,j,:))
+    enddo
+    call pder(dum6,dlev,dum4) 
+    
+    ftest(:,:,:,1)=dum1+dum2+dum3+dum4 
+
+  end subroutine gen_test
 
   subroutine coarsen3D(f,g,nlon1,nlat1,nlev1,nlon2,nlat2,nlev2)
 !
