@@ -19,35 +19,35 @@ contains
 !      div(nlon1/nlon2)=div(nlat1/nlat2)=div(nlev1/nlev2)
 !
     implicit none
-    integer nlon1,nlat1,nlon2,nlat2,nlev1,nlev2
-    real f(nlon1,nlat1,nlev1),g(nlon2,nlat2,nlev2)
-    integer i,i2,j,j2,k,k2,imin,imax,jmin,jmax,kmin,kmax
-    real fsum
+    integer,intent(in) :: nlon1,nlat1,nlon2,nlat2,nlev1,nlev2
+    real,intent(in) :: f(nlon1,nlat1,nlev1)
+    real,intent(out) :: g(nlon2,nlat2,nlev2)
+    integer :: i,i2,j,j2,k,k2,imin,imax,jmin,jmax,kmin,kmax
+    real :: fsum
     
     do i2=1,nlon2
        imin=nint((i2-1)*real(nlon1)/real(nlon2)+1)
-         imax=nint(i2*real(nlon1)/real(nlon2))
-         do j2=1,nlat2
-           jmin=nint((j2-1)*real(nlat1)/real(nlat2)+1)
-           jmax=nint(j2*real(nlat1)/real(nlat2))
-           do k2=1,nlev2
-              kmin=nint((k2-1)*real(nlev1)/real(nlev2)+1)
-              kmax=nint(k2*real(nlev1)/real(nlev2))
-              fsum=0.
-              do i=imin,imax
-              do j=jmin,jmax
-              do k=kmin,kmax
-                 fsum=fsum+f(i,j,k)
-              enddo
-              enddo 
-              enddo
-              g(i2,j2,k2)=fsum/((imax-imin+1)*(jmax-jmin+1)*(kmax-kmin+1))
-           enddo
-         enddo 
+       imax=nint(i2*real(nlon1)/real(nlon2))
+       do j2=1,nlat2
+          jmin=nint((j2-1)*real(nlat1)/real(nlat2)+1)
+          jmax=nint(j2*real(nlat1)/real(nlat2))
+          do k2=1,nlev2
+             kmin=nint((k2-1)*real(nlev1)/real(nlev2)+1)
+             kmax=nint(k2*real(nlev1)/real(nlev2))
+             fsum=0.
+             do i=imin,imax
+                do j=jmin,jmax
+                   do k=kmin,kmax
+                      fsum=fsum+f(i,j,k)
+                   enddo
+                enddo
+             enddo
+             g(i2,j2,k2)=fsum/((imax-imin+1)*(jmax-jmin+1)*(kmax-kmin+1))
+          enddo
        enddo
-
-       return
-       end subroutine coarsen3D
+    enddo
+    
+  end subroutine coarsen3D
 
   subroutine finen3D(f,g,nlon1,nlat1,nlev1,nlon2,nlat2,nlev2)
 !
@@ -58,33 +58,33 @@ contains
 !      ** PERHAPS THIS SHOULD BE REPLACED BY BILINEAR INTERPOLATION 
 !      ** TO AVOID ARTIFICIAL JUMPS
 
-       implicit none
-       integer nlon1,nlat1,nlev1,nlon2,nlat2,nlev2
-       real f(nlon2,nlat2,nlev2),g(nlon1,nlat1,nlev1)
-       integer i,i2,j,j2,k,k2,imin,imax,jmin,jmax,kmin,kmax
+    implicit none
+    integer,intent(in) :: nlon1,nlat1,nlev1,nlon2,nlat2,nlev2
+    real,intent(in) :: f(nlon2,nlat2,nlev2)
+    real,intent(out) :: g(nlon1,nlat1,nlev1)
+    integer :: i,i2,j,j2,k,k2,imin,imax,jmin,jmax,kmin,kmax
 
-       do i2=1,nlon2
-         imin=nint((i2-1)*real(nlon1)/real(nlon2)+1)
-         imax=nint(i2*real(nlon1)/real(nlon2))
-         do j2=1,nlat2
-           jmin=nint((j2-1)*real(nlat1)/real(nlat2)+1)
-           jmax=nint(j2*real(nlat1)/real(nlat2))
-           do k2=1,nlev2
+    do i2=1,nlon2
+       imin=nint((i2-1)*real(nlon1)/real(nlon2)+1)
+       imax=nint(i2*real(nlon1)/real(nlon2))
+       do j2=1,nlat2
+          jmin=nint((j2-1)*real(nlat1)/real(nlat2)+1)
+          jmax=nint(j2*real(nlat1)/real(nlat2))
+          do k2=1,nlev2
              kmin=nint((k2-1)*real(nlev1)/real(nlev2)+1)
              kmax=nint(k2*real(nlev1)/real(nlev2))
-              do i=imin,imax
-              do j=jmin,jmax
-              do k=kmin,kmax
-                 g(i,j,k)=f(i2,j2,k2)
-              enddo 
-              enddo
-              enddo
-           enddo
-         enddo 
+             do i=imin,imax
+                do j=jmin,jmax
+                   do k=kmin,kmax
+                      g(i,j,k)=f(i2,j2,k2)
+                   enddo
+                enddo
+             enddo
+          enddo
        enddo
-
-       return
-       end subroutine finen3D
+    enddo
+    
+  end subroutine finen3D
 
   subroutine gwinds(z,dx,dy,corpar,u,v)
 !
@@ -171,28 +171,30 @@ contains
 
   end subroutine modify
 
-      subroutine aave(f,nlon,nlat,res)                      
+  subroutine aave(f,res)                      
 !
 !     Calculation of area mean (res) of field f in cartesian coordinates.
 !     Simplest possible way.
 !
-      implicit none
-      integer i,j,nlon,nlat
-      real f(nlon,nlat),res,sum,wsum
-!      do k=1,nlev
-      sum=0
-      wsum=0
-      do j=1,nlat
-      do i=1,nlon
-        sum=sum+f(i,j)
-        wsum=wsum+1.
-      enddo 
-      enddo
-      res=sum/wsum
-!      enddo
+    implicit none
 
-      return
-      end subroutine aave
+    real,dimension(:,:),intent(in) :: f
+    real :: res,sum,wsum
+    integer :: i,j,nlon,nlat
+    nlon=size(f,1)
+    nlat=size(f,2)
+
+    sum=0
+    wsum=0
+    do j=1,nlat
+       do i=1,nlon
+          sum=sum+f(i,j)
+          wsum=wsum+1.
+       enddo
+    enddo
+    res=sum/wsum
+
+  end subroutine aave
 
   subroutine fvort(u,v,zeta,corpar,dx,dy,dp,mulfact,fv)
 !
@@ -370,111 +372,111 @@ contains
     
   end subroutine fimbal
 
-       subroutine callsolveQG(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
-              dx,dy,dlev,sigma0,feta,dum1,resid,omega1,ny1,ny2,alfa, &
-              nres,lzeromean)
+  subroutine callsolveQG(rhs,boundaries,omega,nlonx,nlatx,nlevx,&
+                         dx,dy,dlev,sigma0,feta,nres)
 !
-!      Calling solveQG + writing out omega. Multigrid algorithm.
+!   Calling solveQG + writing out omega. Multigrid algorithm.
 !
-       implicit none
-       integer i,j,k,nres,nlon(nres),nlat(nres),nlev(nres)
-       real,intent(in) :: rhs(nlon(1),nlat(1),nlev(1),nres)
-       real dx(nres),dy(nres),dlev(nres)       
-       real boundaries(nlon(1),nlat(1),nlev(1),nres)
-       real omega(nlon(1),nlat(1),nlev(1),nres),omegaold(nlon(1),nlat(1),nlev(1),nres) 
-       real sigma0(nlev(1),nres)
-       real feta(nlon(1),nlat(1),nlev(1),nres)
-       real dum1(nlon(1),nlat(1),nlev(1))              
-       real resid(nlon(1),nlat(1),nlev(1)),omega1(nlon(1),nlat(1),nlev(1))      
-       real alfa,maxdiff,toler
-       integer itermax,ny1,ny2,ires
-       logical lzeromean
-       real aomega
-       integer iter
+    implicit none
+    integer,intent(in) :: nres
+    integer,dimension(:),intent(in) :: nlonx,nlatx,nlevx
+    real,dimension(:),intent(in) :: dx,dy,dlev
+    real,dimension(:,:,:,:),intent(inout) :: rhs,omega
+    real,dimension(:,:,:,:),intent(in) :: boundaries,feta
+    real,dimension(:,:),intent(in) :: sigma0
+    real,dimension(:,:,:,:),allocatable :: omegaold
+    real,dimension(:,:,:),allocatable :: omega1,dum1,resid
+    real :: maxdiff,aomega
+    integer :: iter,i,j,k,ires
+    real,parameter :: toler=5e-5 ! threshold for stopping iterations
+    real,parameter :: alfa=0.2 ! relaxation coefficient
+    integer,parameter :: itermax=1000
+    integer,parameter :: ny1=2,ny2=2 ! number of iterations at each grid 
+                                     ! resolution when proceeding to coarser 
+                                     ! (ny1) and when returning to finer (ny2)
+    logical,parameter :: lzeromean=.true. ! Area means of omega are set to zero
 
-       toler=5e-5 ! threshold for stopping iterations
-       itermax=1000
-       omega=0.
-       omegaold=boundaries
+    allocate(omegaold(nlonx(1),nlatx(1),nlevx(1),nres))
+    allocate(omega1(nlonx(1),nlatx(1),nlevx(1)))
+    allocate(dum1(nlonx(1),nlatx(1),nlevx(1)))
+    allocate(resid(nlonx(1),nlatx(1),nlevx(1)))
+    omega=0.
+    omegaold=boundaries
 !
-!      The whole multigrid cycle is written explicitly here. Better as a separate subroutine?  
+!   The whole multigrid cycle is written explicitly here. Better as a separate subroutine?  
 !
 !----------------------------------------------------------------------------------------
-       do iter=1,itermax  ! Each iteration = one (fine->coarse->fine) multigrid cycle
+    do iter=1,itermax  ! Each iteration = one (fine->coarse->fine) multigrid cycle
 !
-!      Loop from finer to coarser resolutions
+!   Loop from finer to coarser resolutions
 !
        do ires=1,nres
 !         write(*,*)'fine-coarse:iter,ires',iter,ires
-         call solveQG(rhs(1,1,1,ires),boundaries(1,1,1,ires),& 
-             omega(1,1,1,ires),omegaold(1,1,1,ires),nlon(ires),nlat(ires),nlev(ires),&
-             dx(ires),dy(ires),dlev(ires),sigma0(1,ires),feta(1,1,1,ires),&
-             ny1,alfa,.true.,resid)
-         if(ires.eq.1)omega1(:,:,:)=omega(:,:,:,1)
-         if(ires.lt.nres)then
-            call coarsen3d(resid,rhs(1,1,1,ires+1),nlon(ires),nlat(ires),nlev(ires),&
-                 nlon(ires+1),nlat(ires+1),nlev(ires+1))          
-         endif  
-       enddo         
+          call solveQG(rhs(:,:,:,ires),boundaries(:,:,:,ires),& 
+               omega(:,:,:,ires),omegaold(:,:,:,ires),nlonx(ires),nlatx(ires),nlevx(ires),&
+               dx(ires),dy(ires),dlev(ires),sigma0(:,ires),feta(:,:,:,ires),&
+               ny1,alfa,.true.,resid)
+          if(ires.eq.1)omega1(:,:,:)=omega(:,:,:,1)
+          if(ires.lt.nres)then
+             call coarsen3d(resid,rhs(:,:,:,ires+1),nlonx(ires),nlatx(ires),nlevx(ires),&
+                  nlonx(ires+1),nlatx(ires+1),nlevx(ires+1))          
+          endif
+       enddo
 !
 !      Loop from coarser to finer resolutions
 !
        do ires=nres-1,1,-1
 !        write(*,*)'coarse-fine:iter,ires',iter,ires
-         call finen3D(omega(1,1,1,ires+1),dum1,nlon(ires),nlat(ires),nlev(ires),& 
-              nlon(ires+1),nlat(ires+1),nlev(ires+1))          
+          call finen3D(omega(:,:,:,ires+1),dum1,nlonx(ires),nlatx(ires),nlevx(ires),& 
+               nlonx(ires+1),nlatx(ires+1),nlevx(ires+1))          
 !        Without the underrelaxation (coefficient alfa), the solution diverges
-         omegaold(:,:,:,ires)=omega(:,:,:,ires)+alfa*dum1(:,:,:)
+          omegaold(:,:,:,ires)=omega(:,:,:,ires)+alfa*dum1(:,:,:)
 !         if(ires.eq.1)then
 !         write(*,*)'omega',ires,omega(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2,ires)
 !         write(*,*)'dum1',ires,dum1(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2)
 !         write(*,*)'omegaold',ires,omegaold(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2,ires)
 !         endif
 
-         call solveQG(rhs(1,1,1,ires),boundaries(1,1,1,ires),& 
-             omega(1,1,1,ires),omegaold(1,1,1,ires),nlon(ires),nlat(ires),nlev(ires),&
-             dx(ires),dy(ires),dlev(ires),sigma0(1,ires),feta(1,1,1,ires),&
-             ny2,alfa,.false.,resid)
-       enddo  
+          call solveQG(rhs(:,:,:,ires),boundaries(:,:,:,ires),& 
+               omega(:,:,:,ires),omegaold(:,:,:,ires),nlonx(ires),nlatx(ires),nlevx(ires),&
+               dx(ires),dy(ires),dlev(ires),sigma0(:,ires),feta(:,:,:,ires),&
+               ny2,alfa,.false.,resid)
+       enddo
 
-        maxdiff=0.
-        do k=1,nlev(1)  
-        do j=1,nlat(1)  
-        do i=1,nlon(1)  
-           maxdiff=max(maxdiff,abs(omega(i,j,k,1)-omega1(i,j,k)))
-        enddo
-        enddo
-        enddo
-        print*,iter,maxdiff
-        if(maxdiff.lt.toler.or.iter.eq.itermax)then
+       maxdiff=0.
+       do k=1,nlevx(1)  
+          do j=1,nlatx(1)  
+             do i=1,nlonx(1)  
+                maxdiff=max(maxdiff,abs(omega(i,j,k,1)-omega1(i,j,k)))
+             enddo
+          enddo
+       enddo
+       print*,iter,maxdiff
+       if(maxdiff.lt.toler.or.iter.eq.itermax)then
           write(*,*)'iter,maxdiff',iter,maxdiff
           goto 10
-        endif
-
-        omegaold=omega
+       endif
+       
+       omegaold=omega
           
-        enddo ! iter=1,itermax
- 10     continue         
+    enddo ! iter=1,itermax
+10  continue         
 !----------------------------------------------------------------------------------------
 !
 !       Subtract the area mean of omega
 !
-         if(lzeromean)then
-           do k=1,nlev(1) 
-           call aave(omega(1,1,k,1),nlon(1),nlat(1),aomega)
-           do j=1,nlat(1)
-           do i=1,nlon(1)
-             omega(i,j,k,1)=omega(i,j,k,1)-aomega
-           enddo 
-           enddo 
-           enddo 
-         endif
-
-!        irec=irec+1
-!        call WRIGRA2(omega,nlon(1)*nlat(1)*nlev(1),irec,iunit)
-
-       return
-       end subroutine callsolveQG
+    if(lzeromean)then
+       do k=1,nlevx(1) 
+          call aave(omega(:,:,k,1),aomega)
+          do j=1,nlatx(1)
+             do i=1,nlonx(1)
+                omega(i,j,k,1)=omega(i,j,k,1)-aomega
+             enddo
+          enddo
+       enddo
+    endif
+    
+  end subroutine callsolveQG
 
        subroutine solveQG(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
               dx,dy,dlev,sigma0,feta,niter,alfa,lres,resid)
@@ -625,61 +627,66 @@ contains
        end subroutine residQG
 
 
-       subroutine callsolvegen(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
-              dx,dy,dlev,sigma0,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
-              laplome,domedp2,coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,&
-              dum4,dum5,dum6,resid,omega1,ny1,ny2,alfa,&
-              nres,lzeromean)
+  subroutine callsolvegen(rhs,boundaries,omega,nlon,nlat,nlev,&
+       dx,dy,dlev,sigma0,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
+       nres)
 !
 !      Calling solvegen + writing out omega. Multigrid algorithm
 !            
-       implicit none
-       integer i,j,k,nres,nlon(nres),nlat(nres),nlev(nres)
-       real dx(nres),dy(nres),dlev(nres)       
-       real rhs(nlon(1),nlat(1),nlev(1),nres),boundaries(nlon(1),nlat(1),nlev(1),nres)
-       real omega(nlon(1),nlat(1),nlev(1),nres),omegaold(nlon(1),nlat(1),nlev(1),nres) 
-       real sigma0(nlev(1),nres),sigma(nlon(1),nlat(1),nlev(1),nres)
-       real feta(nlon(1),nlat(1),nlev(1),nres),corpar(nlat(1),nres)
-       real d2zetadp(nlon(1),nlat(1),nlev(1),nres),dudp(nlon(1),nlat(1),nlev(1),nres),dvdp(nlon(1),nlat(1),nlev(1),nres)
-       real laplome(nlon(1),nlat(1),nlev(1)),domedp2(nlon(1),nlat(1),nlev(1))        
-       real coeff1(nlon(1),nlat(1),nlev(1)),coeff2(nlon(1),nlat(1),nlev(1)),coeff(nlon(1),nlat(1),nlev(1))
-       real dum0(nlon(1),nlat(1),nlev(1)),dum1(nlon(1),nlat(1),nlev(1)),dum2(nlon(1),nlat(1),nlev(1))
-       real dum3(nlon(1),nlat(1),nlev(1)),dum4(nlon(1),nlat(1),nlev(1)),dum5(nlon(1),nlat(1),nlev(1))
-       real dum6(nlon(1),nlat(1),nlev(1))      
-       real resid(nlon(1),nlat(1),nlev(1)),omega1(nlon(1),nlat(1),nlev(1))      
-       real alfa,maxdiff,toler
-       integer itermax,ny1,ny2,ires,iter
-       logical lzeromean
-       real aomega
+    implicit none
+
+    real,dimension(:,:,:,:),intent(inout) :: rhs,omega
+    real,dimension(:,:,:,:),intent(in) :: boundaries,sigma,feta,d2zetadp
+    real,dimension(:,:,:,:),intent(in) :: dudp,dvdp
+    real,dimension(:,:),    intent(in) :: sigma0,corpar
+    real,dimension(:),      intent(in) :: dx,dy,dlev
+    integer,dimension(:),   intent(in) :: nlon,nlat,nlev
+    integer,                intent(in) :: nres
+
+    real,dimension(:,:,:,:),allocatable :: omegaold
+    real,dimension(:,:,:),allocatable :: dum1,resid,omega1
+
+    real :: maxdiff,aomega
+    integer :: ires,iter,i,j,k
+
+    real,parameter :: toler=5e-5 ! threshold for stopping iterations
+    real,parameter :: alfa=0.2 ! relaxation coefficient
+    integer,parameter :: itermax=1000
+    integer,parameter :: ny1=2,ny2=2 ! number of iterations at each grid 
+                                     ! resolution when proceeding to coarser 
+                                     ! (ny1) and when returning to finer (ny2)
+    logical,parameter :: lzeromean=.true.,& ! Area means of omega are set to zero
+                         lres=.true.
  
-       toler=5e-5 ! threshold for stopping iterations
-       itermax=1000
-       omega=0.
-       omegaold=boundaries
+    allocate(dum1(nlon(1),nlat(1),nlev(1)))
+    allocate(resid(nlon(1),nlat(1),nlev(1)))
+    allocate(omega1(nlon(1),nlat(1),nlev(1)))
+
+    omega=0.
+    omegaold=boundaries
 !
 !      This far: the whole multigrid cycle is written explicitly here  
 !
 !------------------------------------------------------------------------------------------
 !
-       do iter=1,itermax  ! Each iteration = one (fine->coarse->fine) multigrid cycle
+    do iter=1,itermax  ! Each iteration = one (fine->coarse->fine) multigrid cycle
 !
 !      Loop from finer to coarser resolutions
 !
        do ires=1,nres
 !         write(*,*)'fine-coarse:iter,ires',iter,ires
-         call solvegen(rhs(1,1,1,ires),boundaries(1,1,1,ires),& 
-             omega(1,1,1,ires),omegaold(1,1,1,ires),nlon(ires),nlat(ires),nlev(ires),&
-             dx(ires),dy(ires),dlev(ires),sigma0(1,ires),sigma(1,1,1,ires),&
-             feta(1,1,1,ires),corpar(1,ires),&
-             d2zetadp(1,1,1,ires),dudp(1,1,1,ires),dvdp(1,1,1,ires),&
-             laplome,domedp2,coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,&
-             dum4,dum5,dum6,ny1,alfa,.true.,resid)
+          call solvegen(rhs(:,:,:,ires),boundaries(:,:,:,ires),&
+               omega(:,:,:,ires),omegaold(1,1,1,ires),nlon(ires),&
+               nlat(ires),nlev(ires),dx(ires),dy(ires),dlev(ires),&
+               sigma0(:,ires),sigma(:,:,:,ires),feta(:,:,:,ires),&
+               corpar(:,ires),d2zetadp(:,:,:,ires),dudp(:,:,:,ires),&
+               dvdp(:,:,:,ires),ny1,alfa,lres,resid)
 !             write(*,*)'ires,omega',ires,omega(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2,1)
 !             write(*,*)'ires,resid',ires,resid(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2)
          if(ires.eq.1)omega1(:,:,:)=omega(:,:,:,1)
          if(ires.lt.nres)then
-            call coarsen3d(resid,rhs(1,1,1,ires+1),nlon(ires),nlat(ires),nlev(ires),&
-                 nlon(ires+1),nlat(ires+1),nlev(ires+1))          
+            call coarsen3d(resid,rhs(:,:,:,ires+1),nlon(ires),nlat(ires),&
+                 nlev(ires),nlon(ires+1),nlat(ires+1),nlev(ires+1))          
 !             write(*,*)'ires,rhs',ires,rhs(nlon(ires+1)/2,nlat(ires+1)/2,nlev(ires+1)/2,ires)
          endif  
        enddo         
@@ -688,8 +695,8 @@ contains
 !
        do ires=nres-1,1,-1
  !        write(*,*)'coarse-fine:iter,ires',iter,ires
-         call finen3D(omega(1,1,1,ires+1),dum1,nlon(ires),nlat(ires),nlev(ires),& 
-              nlon(ires+1),nlat(ires+1),nlev(ires+1))          
+         call finen3D(omega(:,:,:,ires+1),dum1,nlon(ires),nlat(ires),&
+              nlev(ires),nlon(ires+1),nlat(ires+1),nlev(ires+1))          
 !      Without the underrelaxation (coeffient alfa) the soultion diverges
           omegaold(:,:,:,ires)=omega(:,:,:,ires)+alfa*dum1(:,:,:)
 !         if(ires.eq.1)then
@@ -698,13 +705,12 @@ contains
 !         write(*,*)'omegaold',ires,omegaold(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2,ires)
 !         endif
 
-         call solvegen(rhs(1,1,1,ires),boundaries(1,1,1,ires),& 
-             omega(1,1,1,ires),omegaold(1,1,1,ires),nlon(ires),nlat(ires),nlev(ires),&
-             dx(ires),dy(ires),dlev(ires),sigma0(1,ires),sigma(1,1,1,ires),&
-             feta(1,1,1,ires),corpar(1,ires),&
-             d2zetadp(1,1,1,ires),dudp(1,1,1,ires),dvdp(1,1,1,ires),&
-             laplome,domedp2,coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,&
-             dum4,dum5,dum6,ny2,alfa,.false.,resid)
+         call solvegen(rhs(:,:,:,ires),boundaries(:,:,:,ires),& 
+             omega(:,:,:,ires),omegaold(:,:,:,ires),nlon(ires),nlat(ires),&
+             nlev(ires),dx(ires),dy(ires),dlev(ires),sigma0(:,ires),&
+             sigma(:,:,:,ires),feta(:,:,:,ires),corpar(:,ires),&
+             d2zetadp(:,:,:,ires),dudp(:,:,:,ires),dvdp(:,:,:,ires),ny2,alfa,&
+             lres,resid)
        enddo  
 
         maxdiff=0.
@@ -730,7 +736,7 @@ contains
 !       Subtracting area mean of omega
          if(lzeromean)then
            do k=1,nlev(1) 
-           call aave(omega(1,1,k,1),nlon(1),nlat(1),aomega)
+           call aave(omega(:,:,k,1),aomega)
            do j=1,nlat(1)
            do i=1,nlon(1)
              omega(i,j,k,1)=omega(i,j,k,1)-aomega
@@ -739,17 +745,11 @@ contains
            enddo 
          endif
 
-!        irec=irec+1
-!         call WRIGRA2(omega,nlon(1)*nlat(1)*nlev(1),irec,iunit)
-
-       return
        end subroutine callsolvegen
- 
 
        subroutine solvegen(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
               dx,dy,dlev,sigma0,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
-              laplome,domedp2,coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,&
-              dum4,dum5,dum6,niter,alfa,lres,resid)
+              niter,alfa,lres,resid)
 !
 !      Solving omega iteratively using the generalized LHS operator.
 !      'niter' iterations with relaxation coefficient alfa
@@ -780,12 +780,7 @@ contains
        real boundaries(nlon,nlat,nlev) 
        real sigma0(nlev),corpar(nlat)
        real d2zetadp(nlon,nlat,nlev),dudp(nlon,nlat,nlev),dvdp(nlon,nlat,nlev)
-       real laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
-       real coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
        real dx,dy,dlev,maxdiff
-       real dum0(nlon,nlat,nlev),dum1(nlon,nlat,nlev),dum2(nlon,nlat,nlev)
-       real dum3(nlon,nlat,nlev),dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev)
-       real dum6(nlon,nlat,nlev)    
        real resid(nlon,nlat,nlev)  
        real alfa
        integer niter
@@ -813,8 +808,8 @@ contains
        do i=1,niter
        call updategen(omegaold,omega,sigma0,sigma,feta,corpar,&
             d2zetadp,dudp,dvdp,rhs,nlon,nlat,nlev, &
-            dx,dy,dlev,maxdiff,laplome,domedp2,&
-            coeff1,coeff2,coeff,dum0,dum1,dum3,dum4,dum5,dum6,alfa)
+            dx,dy,dlev,maxdiff,&
+            alfa)
        enddo
 !
 !      Calculate the residual = RHS - L(omega)
@@ -822,7 +817,7 @@ contains
        if(lres)then
          call residgen(rhs,omega,resid,&
             sigma,feta,corpar,d2zetadp,dudp,dvdp,nlon,nlat,nlev, &
-            dx,dy,dlev,dum0,dum1,dum2,dum3,dum4,dum5,dum6)
+            dx,dy,dlev)
        endif
 
        return
@@ -830,8 +825,8 @@ contains
 
        subroutine updategen(omegaold,omega, &
             sigma0,sigma,feta,f,d2zetadp,dudp,dvdp,rhs,nlon,nlat,nlev, &
-            dx,dy,dlev,maxdiff,lapl2,domedp2,coeff1,coeff2,coeff, &
-            dum0,dum1,dum3,dum4,dum5,dum6,alfa)
+            dx,dy,dlev,maxdiff, &
+            alfa)
 !
 !      Calculating new local values of omega, based on omega in the
 !      surrounding points and the right-hand-side forcing (rhs).
@@ -857,13 +852,16 @@ contains
        real sigma(nlon,nlat,nlev),feta(nlon,nlat,nlev),rhs(nlon,nlat,nlev) 
        real sigma0(nlev),f(nlat)
        real d2zetadp(nlon,nlat,nlev),dudp(nlon,nlat,nlev),dvdp(nlon,nlat,nlev)
-       real lapl2(nlon,nlat,nlev),domedp2(nlon,nlat,nlev)        
-       real coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev)
        real dx,dy,dlev,maxdiff
-       real dum0(nlon,nlat,nlev),dum1(nlon,nlat,nlev)
-       real dum3(nlon,nlat,nlev),dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev)
-       real dum6(nlon,nlat,nlev)      
        real alfa
+       real,dimension(:,:,:),allocatable :: lapl2,domedp2,coeff1,coeff2,coeff
+       real,dimension(:,:,:),allocatable :: dum0,dum1,dum3,dum4,dum5,dum6
+       allocate(lapl2(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
+       allocate(coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev))
+       allocate(coeff(nlon,nlat,nlev),dum0(nlon,nlat,nlev))
+       allocate(dum1(nlon,nlat,nlev),dum3(nlon,nlat,nlev))
+       allocate(dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev))
+       allocate(dum6(nlon,nlat,nlev))
 !
 !      Top and bottom levels: omega directly from the boundary conditions,
 !      does not need to be solved.
@@ -929,7 +927,7 @@ contains
 
        subroutine residgen(rhs,omega,resid, &
             sigma,feta,f,d2zetadp,dudp,dvdp,nlon,nlat,nlev, &
-            dx,dy,dlev,dum0,dum1,dum2,dum3,dum4,dum5,dum6)
+            dx,dy,dlev)
 !
 !      Calculating the residual RHS - L(omega)
 !      
@@ -951,9 +949,12 @@ contains
        real sigma(nlon,nlat,nlev),feta(nlon,nlat,nlev)
        real d2zetadp(nlon,nlat,nlev),dudp(nlon,nlat,nlev),dvdp(nlon,nlat,nlev)
        real dx,dy,dlev
-       real dum0(nlon,nlat,nlev),dum1(nlon,nlat,nlev),dum2(nlon,nlat,nlev)
-       real dum3(nlon,nlat,nlev),dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev)
-       real dum6(nlon,nlat,nlev)      
+       real,dimension(:,:,:),allocatable :: dum0,dum1,dum2,dum3,dum4,dum5,dum6
+       allocate(dum0(nlon,nlat,nlev),dum2(nlon,nlat,nlev))
+       allocate(dum1(nlon,nlat,nlev),dum3(nlon,nlat,nlev))
+       allocate(dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev))
+       allocate(dum6(nlon,nlat,nlev))
+
 !
 !      Calculate L(omega)
 

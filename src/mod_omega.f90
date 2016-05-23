@@ -21,9 +21,9 @@ contains
     real,dimension(:,:,:),allocatable :: sigmaraw,omegaan,zetaraw,dum6
     real,dimension(:,:,:),allocatable :: dum4,dum5,dum2,dum1,lapl,dum3
     real,dimension(:,:,:),allocatable :: dudp,dvdp,zetatend,mulfact
-    real,dimension(:,:,:),allocatable :: zero,coeff,feta
-    real,dimension(:,:,:),allocatable :: sigma,laplome,domedp2,coeff1
-    real,dimension(:,:,:),allocatable :: coeff2,df2dp2,zeta,d2zetadp
+    real,dimension(:,:,:),allocatable :: zero,feta
+    real,dimension(:,:,:),allocatable :: sigma,domedp2
+    real,dimension(:,:,:),allocatable :: df2dp2,zeta,d2zetadp
     real,dimension(:,:,:,:),allocatable :: fv,ft,ff,fq,fa,boundaries2
     real,dimension(:,:,:,:),allocatable :: zero2,sigma2,feta2,d2zetadp2
     real,dimension(:,:,:,:),allocatable :: dudp2,dvdp2,ftest
@@ -33,9 +33,9 @@ contains
     integer,dimension(:),allocatable :: nlonx,nlatx,nlevx
     real,dimension(:),allocatable :: dx2,dy2,dlev2
 
-    integer :: nlev,nlon,nlat,nres,i,j,k,ny1,ny2
-    real :: dlev,alfa
-    logical :: lzeromean,lcensor
+    integer :: nlev,nlon,nlat,nres,i,j,k
+    real :: dlev
+    logical :: lcensor
     character :: mode
 
     ! itermax = maximum number of multigrid cycles
@@ -55,12 +55,8 @@ contains
        iubound=1 ! 1 for "real" omega as upper-boundary condition
        ilbound=1 ! 1 for "real" omega as upper-boundary condition
        iybound=1 ! 1 for "real" omega as north/south boundary condtion
-       alfa=0.2  ! relaxation coefficient
        mode='G'   ! Mode = generalized omega equation
-       lzeromean=.true. ! Area means of omega are set to zero
        lcensor=.true. ! Forcing below surface is set to zero.
-       ny1=2 ! number of iterations at each grid resolution when proceeding to coarser
-       ny2=2 ! number of iterations at each grid resolution when returning to finer
 
        nlon=size(t,1)
        nlat=size(t,2)
@@ -78,11 +74,11 @@ contains
        allocate(sigma0(nlev))
        allocate(sigmaraw(nlon,nlat,nlev),zetaraw(nlon,nlat,nlev))
        allocate(dum1(nlon,nlat,nlev),sigma(nlon,nlat,nlev))
-       allocate(dum2(nlon,nlat,nlev),laplome(nlon,nlat,nlev))
+       allocate(dum2(nlon,nlat,nlev))
        allocate(dum3(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
-       allocate(dum4(nlon,nlat,nlev),coeff(nlon,nlat,nlev))
-       allocate(dum5(nlon,nlat,nlev),coeff1(nlon,nlat,nlev))
-       allocate(lapl(nlon,nlat,nlev),coeff2(nlon,nlat,nlev))
+       allocate(dum4(nlon,nlat,nlev))
+       allocate(dum5(nlon,nlat,nlev))
+       allocate(lapl(nlon,nlat,nlev))
        allocate(dum6(nlon,nlat,nlev),df2dp2(nlon,nlat,nlev))
        allocate(dvdp(nlon,nlat,nlev),zeta(nlon,nlat,nlev))
        allocate(dudp(nlon,nlat,nlev),d2zetadp(nlon,nlat,nlev))
@@ -199,7 +195,7 @@ contains
 !      5. Area mean of static stability over the whole grid
 !
        do k=1,nlev
-       call aave(sigmaraw(:,:,k),nlon,nlat,sigma0(k))                      
+       call aave(sigmaraw(:,:,k),sigma0(k))                      
        enddo
        write(*,*)'Area mean static stability'
        do k=1,nlev
@@ -349,73 +345,65 @@ contains
 !       iunit=1
 
        if(mode.eq.'T')then
-         call callsolvegen(ftest,boundaries2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
-              coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              ny1,ny2,alfa,nres,lzeromean)
+         call callsolvegen(ftest,boundaries2,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,&
+              nres)
        endif 
 
        if(mode.eq.'t')then
-         call callsolveQG(ftest,boundaries2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,feta2,dum1,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
+         call callsolveQG(ftest,boundaries2,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+              sigma02,feta2,nres)
        endif 
 
        if(mode.eq.'G')then            
          Write(*,*)'Vorticity advection'
-         call callsolvegen(fv,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
-              coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              ny1,ny2,alfa,nres,lzeromean)
+         call callsolvegen(fv,zero2,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,&
+              nres)
          omegas(:,:,:,termV)=omega(:,:,:,1)
 
          Write(*,*)'Thermal advection'
-         call callsolvegen(ft,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
-              coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              ny1,ny2,alfa,&
-              nres,lzeromean)
+         call callsolvegen(ft,zero2,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,&
+              nres)
          omegas(:,:,:,termT)=omega(:,:,:,1)
 
          Write(*,*)'Friction'
-         call callsolvegen(ff,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
-              coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              ny1,ny2,alfa,nres,lzeromean)
+         call callsolvegen(ff,zero2,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,&
+              nres)
          omegas(:,:,:,termF)=omega(:,:,:,1)
 
          Write(*,*)'Diabatic heating'
-         call callsolvegen(fq,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
-              coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              ny1,ny2,alfa,nres,lzeromean)
+         call callsolvegen(fq,zero2,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,&
+              nres)
          omegas(:,:,:,termQ)=omega(:,:,:,1)
 
          Write(*,*)'Imbalance term'
-         call callsolvegen(fa,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
-              coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              ny1,ny2,alfa,nres,lzeromean)
+         call callsolvegen(fa,zero2,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,&
+              nres)
          omegas(:,:,:,termA)=omega(:,:,:,1)
 
          Write(*,*)'Boundary conditions'        
-         call callsolvegen(zero2,boundaries,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,laplome,domedp2,&
-              coeff1,coeff2,coeff,dum0,dum1,dum2,dum3,dum4,dum5,dum6,resid,omega1,&
-              ny1,ny2,alfa,nres,lzeromean)
+         call callsolvegen(zero2,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+              sigma02,sigma2,feta2,corpar2,d2zetadp2,dudp2,dvdp2,&
+              nres)
          omegas(:,:,:,termB)=omega(:,:,:,1)
                   
        endif
 
        if(mode.eq.'Q')then
          Write(*,*)'Vorticity advection'
-         call callsolveQG(fv,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,feta2,dum1,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
+         call callsolveQG(fv,zero2,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+              sigma02,feta2,nres)
          Write(*,*)'Thermal advection'
-         call callsolveQG(ft,zero2,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,feta2,dum1,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
+         call callsolveQG(ft,zero2,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+              sigma02,feta2,nres)
          Write(*,*)'Boundary conditions'        
-         call callsolveQG(zero2,boundaries,omega,omegaold,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-              sigma02,feta2,dum1,resid,omega1,ny1,ny2,alfa,nres,lzeromean)
+         call callsolveQG(zero2,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+              sigma02,feta2,nres)
        endif 
 
      end subroutine calculate_omegas
