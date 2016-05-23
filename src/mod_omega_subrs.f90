@@ -394,7 +394,8 @@ contains
     integer,parameter :: ny1=2,ny2=2 ! number of iterations at each grid 
                                      ! resolution when proceeding to coarser 
                                      ! (ny1) and when returning to finer (ny2)
-    logical,parameter :: lzeromean=.true. ! Area means of omega are set to zero
+    logical,parameter :: lzeromean=.true.,& ! Area means of omega are set to zero
+                         lres=.true.
 
     allocate(omegaold(nlonx(1),nlatx(1),nlevx(1),nres))
     allocate(omega1(nlonx(1),nlatx(1),nlevx(1)))
@@ -415,7 +416,7 @@ contains
           call solveQG(rhs(:,:,:,ires),boundaries(:,:,:,ires),& 
                omega(:,:,:,ires),omegaold(:,:,:,ires),nlonx(ires),nlatx(ires),nlevx(ires),&
                dx(ires),dy(ires),dlev(ires),sigma0(:,ires),feta(:,:,:,ires),&
-               ny1,alfa,.true.,resid)
+               ny1,alfa,lres,resid)
           if(ires.eq.1)omega1(:,:,:)=omega(:,:,:,1)
           if(ires.lt.nres)then
              call coarsen3d(resid,rhs(:,:,:,ires+1),nlonx(ires),nlatx(ires),nlevx(ires),&
@@ -440,7 +441,7 @@ contains
           call solveQG(rhs(:,:,:,ires),boundaries(:,:,:,ires),& 
                omega(:,:,:,ires),omegaold(:,:,:,ires),nlonx(ires),nlatx(ires),nlevx(ires),&
                dx(ires),dy(ires),dlev(ires),sigma0(:,ires),feta(:,:,:,ires),&
-               ny2,alfa,.false.,resid)
+               ny2,alfa,lres,resid)
        enddo
 
        maxdiff=0.
@@ -478,154 +479,154 @@ contains
     
   end subroutine callsolveQG
 
-       subroutine solveQG(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
-              dx,dy,dlev,sigma0,feta,niter,alfa,lres,resid)
+  subroutine solveQG(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
+       dx,dy,dlev,sigma0,feta,niter,alfa,lres,resid)
 !
-!      Solving the QG omega equation using 'niter' iterations.
+!   Solving the QG omega equation using 'niter' iterations.
 !
-       implicit none
+    implicit none
 
-       real :: rhs(nlon,nlat,nlev)
-       integer i,j,k,nlon,nlat,nlev
-       real omegaold(nlon,nlat,nlev),omega(nlon,nlat,nlev)
-       real boundaries(nlon,nlat,nlev) 
-       real sigma0(nlev),feta(nlon,nlat,nlev)
-       real dx,dy,dlev,maxdiff,alfa
-       integer niter
-       logical lres
-       real resid(nlon,nlat,nlev)       
+    integer,intent(in) :: nlon,nlat,nlev,niter
+    real,   intent(in) :: rhs(nlon,nlat,nlev),boundaries(nlon,nlat,nlev)
+    real,intent(inout) ::  omegaold(nlon,nlat,nlev),omega(nlon,nlat,nlev)
+    logical,intent(in) :: lres
+    real,intent(in) :: sigma0(nlev),feta(nlon,nlat,nlev),dx,dy,dlev,alfa
+    integer :: i,j,k
+    real :: resid(nlon,nlat,nlev)       
 
-       do j=1,nlat       
+    do j=1,nlat       
        do i=1,nlon         
-         omegaold(i,j,1)=boundaries(i,j,1)
-         omegaold(i,j,nlev)=boundaries(i,j,nlev)
+          omegaold(i,j,1)=boundaries(i,j,1)
+          omegaold(i,j,nlev)=boundaries(i,j,nlev)
        enddo
-       enddo      
-       do k=2,nlev-1
+    enddo
+    do k=2,nlev-1
        do i=1,nlon
-         omegaold(i,1,k)=boundaries(i,1,k)
-         omegaold(i,nlat,k)=boundaries(i,nlat,k)
+          omegaold(i,1,k)=boundaries(i,1,k)
+          omegaold(i,nlat,k)=boundaries(i,nlat,k)
        enddo
-       enddo     
+    enddo
+    
+    omega=omegaold
 
-       omega=omegaold
+    do i=1,niter
+       call updateQG(omegaold,omega,sigma0,feta,rhs,dx,dy,dlev,alfa)
+    enddo
+    
+    if(lres)then
+       call residQG(rhs,omega,sigma0,feta,dx,dy,dlev,resid)
+    endif
+    
+  end subroutine solveQG
 
-       do i=1,niter
-       call updateQG(omegaold,omega,sigma0,feta,&
-            rhs,nlon,nlat,nlev,dx,dy,dlev,maxdiff,alfa)
-       enddo
-
-       if(lres)then
-             call residQG(rhs,omega,resid,sigma0,feta,&
-             nlon,nlat,nlev,dx,dy,dlev)
-       endif
-
-       return
-       end subroutine solveQG
-
-       subroutine updateQG(omegaold,omega,sigma,etasq,rhs,nlon,nlat,nlev, &
-            dx,dy,dlev,maxdiff,alfa)
+  subroutine updateQG(omegaold,omega,sigma,etasq,rhs,dx,dy,dlev,alfa)
 !
-!      New estimate for the local value of omega, using omega in the 
-!      surrounding points and the right-hand-side forcing (rhs)
+!   New estimate for the local value of omega, using omega in the 
+!   surrounding points and the right-hand-side forcing (rhs)
 !
-!      QG version: for 'sigma' and 'etasq', constant values from the QG theory
-!      are used.
+!   QG version: for 'sigma' and 'etasq', constant values from the QG theory
+!   are used.
 ! 
-       implicit none
+    implicit none
 
-       real :: rhs(nlon,nlat,nlev)
-       integer i,j,k,nlon,nlat,nlev
-       real omegaold(nlon,nlat,nlev),omega(nlon,nlat,nlev) 
-       real sigma(nlev),etasq(nlon,nlat,nlev)
-       real dx,dy,dlev,maxdiff,alfa
-       real,dimension(:,:,:),allocatable :: lapl2,coeff1,coeff2,coeff,domedp2
+    real,dimension(:,:,:),intent(in) :: rhs,etasq
+    real,dimension(:,:,:),intent(inout) :: omegaold,omega
+    real,dimension(:),    intent(in) :: sigma
+    real,                 intent(in) :: dx,dy,dlev,alfa
+    
+    real :: maxdiff
+    integer :: i,j,k,nlon,nlat,nlev
+    real,dimension(:,:,:),allocatable :: lapl2,coeff1,coeff2,coeff,domedp2
 
-       allocate(lapl2(nlon,nlat,nlev),coeff1(nlon,nlat,nlev))
-       allocate(coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev))
-       allocate(domedp2(nlon,nlat,nlev))
-
-!      Top and bottom levels: omega directly from the boundary conditions,
-!      does not need to be solved.
+    nlon=size(rhs,1)
+    nlat=size(rhs,2)
+    nlev=size(rhs,3)
+    allocate(lapl2(nlon,nlat,nlev),coeff1(nlon,nlat,nlev))
+    allocate(coeff2(nlon,nlat,nlev),coeff(nlon,nlat,nlev))
+    allocate(domedp2(nlon,nlat,nlev))
+    
+!   Top and bottom levels: omega directly from the boundary conditions,
+!   does not need to be solved.
 !
-       call laplace2_cart(omegaold,dx,dy,lapl2,coeff1)
-       call p2der2(omegaold,dlev,domedp2,coeff2) 
+    call laplace2_cart(omegaold,dx,dy,lapl2,coeff1)
+    call p2der2(omegaold,dlev,domedp2,coeff2) 
 
-!       write(*,*)'Calculate the coefficients'
-!       write(*,*)nlon,nlat,nlev
-!       write(*,*)'coeff(nlon,nlat,nlev-1)',coeff(nlon,nlat,nlev-1)
-!       write(*,*)'coeff1(nlon,nlat,nlev-1)',coeff1(nlon,nlat,nlev-1)
-!       write(*,*)'coeff2(nlon,nlat,nlev-1)',coeff2(nlon,nlat,nlev-1)
-!       write(*,*)'sigma(nlon,nlat,nlev-1)',sigma(nlon,nlat,nlev-1)
-!       write(*,*)'domedp2(nlon,nlat,nlev-1)',domedp2(nlon,nlat,nlev-1)
-!       write(*,*)'lapl2(nlon,nlat,nlev-1)',lapl2(nlon,nlat,nlev-1)
-!       write(*,*)'etasq(nlon,nlat,nlev-1)',etasq(nlon,nlat,nlev-1)
+!    write(*,*)'Calculate the coefficients'
+!    write(*,*)nlon,nlat,nlev
+!    write(*,*)'coeff(nlon,nlat,nlev-1)',coeff(nlon,nlat,nlev-1)
+!    write(*,*)'coeff1(nlon,nlat,nlev-1)',coeff1(nlon,nlat,nlev-1)
+!    write(*,*)'coeff2(nlon,nlat,nlev-1)',coeff2(nlon,nlat,nlev-1)
+!    write(*,*)'sigma(nlon,nlat,nlev-1)',sigma(nlon,nlat,nlev-1)
+!    write(*,*)'domedp2(nlon,nlat,nlev-1)',domedp2(nlon,nlat,nlev-1)
+!    write(*,*)'lapl2(nlon,nlat,nlev-1)',lapl2(nlon,nlat,nlev-1)
+!    write(*,*)'etasq(nlon,nlat,nlev-1)',etasq(nlon,nlat,nlev-1)
 
-       do k=2,nlev-1
+    do k=2,nlev-1
        do j=2,nlat-1
-       do i=1,nlon
-         coeff(i,j,k)=sigma(k)*coeff1(i,j,k)+etasq(i,j,k)*coeff2(i,j,k)
-         omega(i,j,k)=(rhs(i,j,k)-sigma(k)*lapl2(i,j,k)-etasq(i,j,k)*domedp2(i,j,k)) &
-         /coeff(i,j,k) 
+          do i=1,nlon
+             coeff(i,j,k)=sigma(k)*coeff1(i,j,k)+etasq(i,j,k)*coeff2(i,j,k)
+             omega(i,j,k)=(rhs(i,j,k)-sigma(k)*lapl2(i,j,k)-etasq(i,j,k)*domedp2(i,j,k)) &
+                  /coeff(i,j,k) 
+          enddo
        enddo
-       enddo
-       enddo
-
-!       write(*,*)'Updating omega'
-       maxdiff=0.
-       do k=2,nlev-1
+    enddo
+    
+!   write(*,*)'Updating omega'
+    maxdiff=0.
+    do k=2,nlev-1
        do j=2,nlat-1
-       do i=1,nlon
-         maxdiff=max(maxdiff,abs(omega(i,j,k)-omegaold(i,j,k)))
-         omegaold(i,j,k)=alfa*omega(i,j,k)+(1-alfa)*omegaold(i,j,k)
+          do i=1,nlon
+             maxdiff=max(maxdiff,abs(omega(i,j,k)-omegaold(i,j,k)))
+             omegaold(i,j,k)=alfa*omega(i,j,k)+(1-alfa)*omegaold(i,j,k)
+          enddo
        enddo
-       enddo
-       enddo
-
-       return
-       end subroutine updateQG
+    enddo
+    
+  end subroutine updateQG
 
 
-       subroutine residQG(rhs,omega,resid,sigma,etasq,nlon,nlat,nlev,&
-            dx,dy,dlev)
+  subroutine residQG(rhs,omega,sigma,etasq,dx,dy,dlev,resid)
 !
-!      Calculating the residual RHS - LQG(omega)
+!   Calculating the residual RHS - LQG(omega)
 !      
-!      Variables:
+!    Variables:
 !
-!      omega = approximation for omega
-!      sigma = local values of sigma (*after modifying for ellipticity*)
-!      feta = f*eta (*after modifying for ellipticity*)
-!      f = coriolis parameter
-!      d2zetadp = second pressure derivative of relative vorticity 
-!      dudp,dvdp = pressure derivatives of wind components
-!      rhs = right-hand-side forcing
+!    omega = approximation for omega
+!    sigma = local values of sigma (*after modifying for ellipticity*)
+!    feta = f*eta (*after modifying for ellipticity*)
+!    f = coriolis parameter
+!    d2zetadp = second pressure derivative of relative vorticity 
+!    dudp,dvdp = pressure derivatives of wind components
+!    rhs = right-hand-side forcing
 !
-       implicit none
+    implicit none
 
-       real:: rhs(nlon,nlat,nlev)
-       integer i,j,k,nlon,nlat,nlev
-       real omega(nlon,nlat,nlev),resid(nlon,nlat,nlev) 
-       real sigma(nlev),etasq(nlon,nlat,nlev)
-       real dx,dy,dlev
-       real,dimension(:,:,:),allocatable :: laplome,domedp2
-       allocate(laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
+    real,dimension(:,:,:),intent(in) :: rhs,omega,etasq
+    real,dimension(:,:,:),intent(out) :: resid
+    real,dimension(:),    intent(in) :: sigma
+    real,                 intent(in) :: dx,dy,dlev
+    real,dimension(:,:,:),allocatable :: laplome,domedp2
+    integer :: i,j,k,nlon,nlat,nlev
 
-       call laplace_cart(omega,laplome,dx,dy)         
-       call p2der(omega,dlev,domedp2) 
+    nlon=size(rhs,1)
+    nlat=size(rhs,2)
+    nlev=size(rhs,3)
+
+    allocate(laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
+
+    call laplace_cart(omega,laplome,dx,dy)         
+    call p2der(omega,dlev,domedp2) 
  
-       do k=1,nlev
+    do k=1,nlev
        do j=1,nlat
-       do i=1,nlon
-         resid(i,j,k)=rhs(i,j,k)-(sigma(k)*laplome(i,j,k)+etasq(i,j,k)*domedp2(i,j,k))
-!         if(i.eq.nlon/2.and.j.eq.nlat/2.and.k.eq.nlev/2)write(*,*)'rhs,resid',rhs(i,j,k),resid(i,j,k)
+          do i=1,nlon
+             resid(i,j,k)=rhs(i,j,k)-(sigma(k)*laplome(i,j,k)+etasq(i,j,k)*domedp2(i,j,k))
+             !if(i.eq.nlon/2.and.j.eq.nlat/2.and.k.eq.nlev/2)write(*,*)'rhs,resid',rhs(i,j,k),resid(i,j,k)
+          enddo
        enddo
-       enddo
-       enddo
-
-       return
-       end subroutine residQG
-
+    enddo
+    
+  end subroutine residQG
 
   subroutine callsolvegen(rhs,boundaries,omega,nlon,nlat,nlev,&
        dx,dy,dlev,sigma0,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
@@ -683,8 +684,8 @@ contains
                dvdp(:,:,:,ires),ny1,alfa,lres,resid)
 !             write(*,*)'ires,omega',ires,omega(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2,1)
 !             write(*,*)'ires,resid',ires,resid(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2)
-         if(ires.eq.1)omega1(:,:,:)=omega(:,:,:,1)
-         if(ires.lt.nres)then
+          if(ires.eq.1)omega1(:,:,:)=omega(:,:,:,1)
+          if(ires.lt.nres)then
             call coarsen3d(resid,rhs(:,:,:,ires+1),nlon(ires),nlat(ires),&
                  nlev(ires),nlon(ires+1),nlat(ires+1),nlev(ires+1))          
 !             write(*,*)'ires,rhs',ires,rhs(nlon(ires+1)/2,nlat(ires+1)/2,nlev(ires+1)/2,ires)
@@ -695,8 +696,8 @@ contains
 !
        do ires=nres-1,1,-1
  !        write(*,*)'coarse-fine:iter,ires',iter,ires
-         call finen3D(omega(:,:,:,ires+1),dum1,nlon(ires),nlat(ires),&
-              nlev(ires),nlon(ires+1),nlat(ires+1),nlev(ires+1))          
+          call finen3D(omega(:,:,:,ires+1),dum1,nlon(ires),nlat(ires),&
+               nlev(ires),nlon(ires+1),nlat(ires+1),nlev(ires+1))          
 !      Without the underrelaxation (coeffient alfa) the soultion diverges
           omegaold(:,:,:,ires)=omega(:,:,:,ires)+alfa*dum1(:,:,:)
 !         if(ires.eq.1)then
@@ -705,51 +706,51 @@ contains
 !         write(*,*)'omegaold',ires,omegaold(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2,ires)
 !         endif
 
-         call solvegen(rhs(:,:,:,ires),boundaries(:,:,:,ires),& 
-             omega(:,:,:,ires),omegaold(:,:,:,ires),nlon(ires),nlat(ires),&
-             nlev(ires),dx(ires),dy(ires),dlev(ires),sigma0(:,ires),&
-             sigma(:,:,:,ires),feta(:,:,:,ires),corpar(:,ires),&
-             d2zetadp(:,:,:,ires),dudp(:,:,:,ires),dvdp(:,:,:,ires),ny2,alfa,&
-             lres,resid)
-       enddo  
+          call solvegen(rhs(:,:,:,ires),boundaries(:,:,:,ires),& 
+               omega(:,:,:,ires),omegaold(:,:,:,ires),nlon(ires),nlat(ires),&
+               nlev(ires),dx(ires),dy(ires),dlev(ires),sigma0(:,ires),&
+               sigma(:,:,:,ires),feta(:,:,:,ires),corpar(:,ires),&
+               d2zetadp(:,:,:,ires),dudp(:,:,:,ires),dvdp(:,:,:,ires),ny2,alfa,&
+               lres,resid)
+       enddo
 
-        maxdiff=0.
-        do k=1,nlev(1)  
-        do j=1,nlat(1)  
-        do i=1,nlon(1)  
-          maxdiff=max(maxdiff,abs(omega(i,j,k,1)-omega1(i,j,k)))
-        enddo
-        enddo
-        enddo
-        write(*,*)iter,maxdiff
-        if(maxdiff.lt.toler.or.iter.eq.itermax)then
+       maxdiff=0.
+       do k=1,nlev(1)  
+          do j=1,nlat(1)  
+             do i=1,nlon(1)  
+                maxdiff=max(maxdiff,abs(omega(i,j,k,1)-omega1(i,j,k)))
+             enddo
+          enddo
+       enddo
+       write(*,*)iter,maxdiff
+       if(maxdiff.lt.toler.or.iter.eq.itermax)then
           write(*,*)'iter,maxdiff',iter,maxdiff
           goto 10
-        endif
+       endif
 
-        omegaold=omega
+       omegaold=omega
           
-        enddo ! iter=1,itermax
- 10     continue
+    enddo ! iter=1,itermax
+10  continue
 !----------------------------------------------------------------------------------
 
-!       Subtracting area mean of omega
-         if(lzeromean)then
-           do k=1,nlev(1) 
-           call aave(omega(:,:,k,1),aomega)
-           do j=1,nlat(1)
-           do i=1,nlon(1)
-             omega(i,j,k,1)=omega(i,j,k,1)-aomega
-           enddo 
-           enddo 
-           enddo 
-         endif
+   !       Subtracting area mean of omega
+    if(lzeromean)then
+       do k=1,nlev(1) 
+          call aave(omega(:,:,k,1),aomega)
+          do j=1,nlat(1)
+             do i=1,nlon(1)
+                omega(i,j,k,1)=omega(i,j,k,1)-aomega
+             enddo
+          enddo
+       enddo
+    endif
+    
+  end subroutine callsolvegen
 
-       end subroutine callsolvegen
-
-       subroutine solvegen(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
-              dx,dy,dlev,sigma0,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
-              niter,alfa,lres,resid)
+  subroutine solvegen(rhs,boundaries,omega,omegaold,nlon,nlat,nlev,&
+       dx,dy,dlev,sigma0,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
+       niter,alfa,lres,resid)
 !
 !      Solving omega iteratively using the generalized LHS operator.
 !      'niter' iterations with relaxation coefficient alfa
@@ -772,61 +773,54 @@ contains
 !      omega 
 !      resid (if (lres))
 !
-       implicit none
+    implicit none
 
-       integer i,j,k,nlon,nlat,nlev
-       real omegaold(nlon,nlat,nlev),omega(nlon,nlat,nlev) 
-       real sigma(nlon,nlat,nlev),feta(nlon,nlat,nlev),rhs(nlon,nlat,nlev) 
-       real boundaries(nlon,nlat,nlev) 
-       real sigma0(nlev),corpar(nlat)
-       real d2zetadp(nlon,nlat,nlev),dudp(nlon,nlat,nlev),dvdp(nlon,nlat,nlev)
-       real dx,dy,dlev,maxdiff
-       real resid(nlon,nlat,nlev)  
-       real alfa
-       integer niter
-       logical lres
+    integer,intent(in) :: nlon,nlat,nlev,niter
+    real,dimension(nlon,nlat,nlev),intent(inout) :: omega,omegaold
+    real,dimension(nlon,nlat,nlev),intent(in) :: rhs,feta,sigma,boundaries
+    real,dimension(nlon,nlat,nlev),intent(in) :: d2zetadp,dudp,dvdp
+    real,dimension(nlon,nlat,nlev),intent(out) :: resid
+    real,dimension(nlev),intent(in) :: sigma0
+    real,dimension(nlat),intent(in) :: corpar
+    real,                intent(in) :: dx,dy,dlev,alfa
+    logical,             intent(in) :: lres
+    integer :: i,j,k
 
 !       omegaold=boundaries
 
-       do j=1,nlat       
+    do j=1,nlat       
        do i=1,nlon
-         omegaold(i,j,1)=boundaries(i,j,1)
-         omegaold(i,j,nlev)=boundaries(i,j,nlev)
+          omegaold(i,j,1)=boundaries(i,j,1)
+          omegaold(i,j,nlev)=boundaries(i,j,nlev)
        enddo
-       enddo      
-       do k=2,nlev-1
+    enddo
+    do k=2,nlev-1
        do i=1,nlon
-         omegaold(i,1,k)=boundaries(i,1,k)
-         omegaold(i,nlat,k)=boundaries(i,nlat,k)
+          omegaold(i,1,k)=boundaries(i,1,k)
+          omegaold(i,nlat,k)=boundaries(i,nlat,k)
        enddo
-       enddo     
+    enddo
 
-       omega=omegaold
+    omega=omegaold
 
 !       write(*,*)'Boundary conditions given'
 
-       do i=1,niter
-       call updategen(omegaold,omega,sigma0,sigma,feta,corpar,&
-            d2zetadp,dudp,dvdp,rhs,nlon,nlat,nlev, &
-            dx,dy,dlev,maxdiff,&
-            alfa)
-       enddo
+    do i=1,niter
+       call updategen(omegaold,omega,sigma0,sigma,feta,corpar,d2zetadp,dudp,&
+            dvdp,rhs,dx,dy,dlev,alfa)
+    enddo
 !
 !      Calculate the residual = RHS - L(omega)
 
-       if(lres)then
-         call residgen(rhs,omega,resid,&
-            sigma,feta,corpar,d2zetadp,dudp,dvdp,nlon,nlat,nlev, &
+    if(lres)then
+       call residgen(rhs,omega,resid,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
             dx,dy,dlev)
-       endif
+    endif
 
-       return
-       end subroutine solvegen
-
-       subroutine updategen(omegaold,omega, &
-            sigma0,sigma,feta,f,d2zetadp,dudp,dvdp,rhs,nlon,nlat,nlev, &
-            dx,dy,dlev,maxdiff, &
-            alfa)
+  end subroutine solvegen
+  
+  subroutine updategen(omegaold,omega,sigma0,sigma,feta,f,d2zetadp,dudp,dvdp,&
+       rhs,dx,dy,dlev,alfa)
 !
 !      Calculating new local values of omega, based on omega in the
 !      surrounding points and the right-hand-side forcing (rhs).
@@ -845,157 +839,166 @@ contains
 !      dudp,dvdp = pressure derivatives of wind components
 !      rhs = right-hand-side forcing
 !
-       implicit none
+    implicit none
 
-       integer i,j,k,nlon,nlat,nlev
-       real omegaold(nlon,nlat,nlev),omega(nlon,nlat,nlev) 
-       real sigma(nlon,nlat,nlev),feta(nlon,nlat,nlev),rhs(nlon,nlat,nlev) 
-       real sigma0(nlev),f(nlat)
-       real d2zetadp(nlon,nlat,nlev),dudp(nlon,nlat,nlev),dvdp(nlon,nlat,nlev)
-       real dx,dy,dlev,maxdiff
-       real alfa
-       real,dimension(:,:,:),allocatable :: lapl2,domedp2,coeff1,coeff2,coeff
-       real,dimension(:,:,:),allocatable :: dum0,dum1,dum3,dum4,dum5,dum6
-       allocate(lapl2(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
-       allocate(coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev))
-       allocate(coeff(nlon,nlat,nlev),dum0(nlon,nlat,nlev))
-       allocate(dum1(nlon,nlat,nlev),dum3(nlon,nlat,nlev))
-       allocate(dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev))
-       allocate(dum6(nlon,nlat,nlev))
-!
-!      Top and bottom levels: omega directly from the boundary conditions,
-!      does not need to be solved.
-!
-       call laplace2_cart(omegaold,dx,dy,lapl2,coeff1)
-       call p2der2(omegaold,dlev,domedp2,coeff2) 
-!
-!      Calculate non-constant terms on the left-hand-side, based on 'omegaold'
-!
-!       a) Deviation of sigma from its normal value
+    integer i,j,k,nlon,nlat,nlev
+    real,dimension(:,:,:),intent(inout) :: omegaold,omega 
+    real,dimension(:,:,:),intent(in) :: sigma,feta,rhs,d2zetadp,dudp,dvdp
+    real,dimension(:),    intent(in) :: sigma0,f
+    real,                 intent(in) :: dx,dy,dlev,alfa
+    
+    real :: maxdiff
+    real,dimension(:,:,:),allocatable :: lapl2,domedp2,coeff1,coeff2,coeff
+    real,dimension(:,:,:),allocatable :: dum0,dum1,dum3,dum4,dum5,dum6
 
-       do k=2,nlev-1
+    nlon=size(rhs,1)
+    nlat=size(rhs,2)
+    nlev=size(rhs,3)
+       
+    allocate(lapl2(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
+    allocate(coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev))
+    allocate(coeff(nlon,nlat,nlev),dum0(nlon,nlat,nlev))
+    allocate(dum1(nlon,nlat,nlev),dum3(nlon,nlat,nlev))
+    allocate(dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev))
+    allocate(dum6(nlon,nlat,nlev))
+!
+!   Top and bottom levels: omega directly from the boundary conditions,
+!   does not need to be solved.
+!
+    call laplace2_cart(omegaold,dx,dy,lapl2,coeff1)
+    call p2der2(omegaold,dlev,domedp2,coeff2) 
+!
+!   Calculate non-constant terms on the left-hand-side, based on 'omegaold'
+!
+!   a) Deviation of sigma from its normal value
+
+    do k=2,nlev-1
        do j=1,nlat
-       do i=1,nlon
-        dum0(i,j,k)=omegaold(i,j,k)*(sigma(i,j,k)-sigma0(k))
+          do i=1,nlon
+             dum0(i,j,k)=omegaold(i,j,k)*(sigma(i,j,k)-sigma0(k))
+          enddo
        enddo
-       enddo
-       enddo        
-       call laplace_cart(dum0,dum1,dx,dy)         
+    enddo
+    call laplace_cart(dum0,dum1,dx,dy)         
 !
-!      b) f*omega*(d2zetadp): explicitly, later
+!   b) f*omega*(d2zetadp): explicitly, later
 !          
-!      c) tilting
+!   c) tilting
 !
-       call xder_cart(omegaold,dx,dum4) 
-       call yder_cart(omegaold,dy,dum5) 
+    call xder_cart(omegaold,dx,dum4) 
+    call yder_cart(omegaold,dy,dum5) 
  
-       do k=1,nlev
+    do k=1,nlev
        do j=1,nlat
-       do i=1,nlon
-         dum6(i,j,k)=f(j)*(dudp(i,j,k)*dum5(i,j,k)-dvdp(i,j,k)*dum4(i,j,k))
+          do i=1,nlon
+             dum6(i,j,k)=f(j)*(dudp(i,j,k)*dum5(i,j,k)-dvdp(i,j,k)*dum4(i,j,k))
+          enddo
        enddo
-       enddo
-       enddo        
-       call pder(dum6,dlev,dum3) 
+    enddo
+    call pder(dum6,dlev,dum3) 
 !
-!      Solving for omega 
-!      Old values are retained at y and z boundaries.
+!   Solving for omega 
+!   Old values are retained at y and z boundaries.
 !       
-       do k=2,nlev-1
+    do k=2,nlev-1
        do j=2,nlat-1
-       do i=1,nlon
-         coeff(i,j,k)=sigma0(k)*coeff1(i,j,k)+feta(i,j,k)*coeff2(i,j,k)-f(j)*d2zetadp(i,j,k)
-         omega(i,j,k)=(rhs(i,j,k)-dum1(i,j,k)-dum3(i,j,k)-sigma0(k)*lapl2(i,j,k)-feta(i,j,k)*domedp2(i,j,k)) &
-         /coeff(i,j,k)
+          do i=1,nlon
+             coeff(i,j,k)=sigma0(k)*coeff1(i,j,k)+feta(i,j,k)*coeff2(i,j,k)-&
+                          f(j)*d2zetadp(i,j,k)
+             omega(i,j,k)=(rhs(i,j,k)-dum1(i,j,k)-dum3(i,j,k)-&
+                          sigma0(k)*lapl2(i,j,k)-feta(i,j,k)*domedp2(i,j,k)) &
+                          /coeff(i,j,k)
+          enddo
        enddo
-       enddo
-       enddo
-
-!       write(*,*)'updating omega'
-       maxdiff=0.
-       do k=2,nlev-1
+    enddo
+    
+!    write(*,*)'updating omega'
+    maxdiff=0.
+    do k=2,nlev-1
        do j=2,nlat-1
-       do i=1,nlon
-         maxdiff=max(maxdiff,abs(omega(i,j,k)-omegaold(i,j,k)))
-         omegaold(i,j,k)=alfa*omega(i,j,k)+(1-alfa)*omegaold(i,j,k)
+          do i=1,nlon
+             maxdiff=max(maxdiff,abs(omega(i,j,k)-omegaold(i,j,k)))
+             omegaold(i,j,k)=alfa*omega(i,j,k)+(1-alfa)*omegaold(i,j,k)
+          enddo
        enddo
-       enddo
-       enddo
+    enddo
 
-       return
-       end subroutine updategen
+  end subroutine updategen
 
-       subroutine residgen(rhs,omega,resid, &
-            sigma,feta,f,d2zetadp,dudp,dvdp,nlon,nlat,nlev, &
-            dx,dy,dlev)
+  subroutine residgen(rhs,omega,resid,sigma,feta,f,d2zetadp,dudp,dvdp, &
+       dx,dy,dlev)
 !
-!      Calculating the residual RHS - L(omega)
+!   Calculating the residual RHS - L(omega)
 !      
-!      Variables:
+!   Variables:
 !
-!      omega = approximation for omega
-!      sigma = local values of sigma (*after modifying for ellipticity*)
-!      feta = f*eta (*after modifying for ellipticity*)
-!      f = coriolis parameter
-!      d2zetadp = second pressure derivative of relative vorticity 
-!      dudp,dvdp = pressure derivatives of wind components
-!      rhs = right-hand-side forcing
+!   omega = approximation for omega
+!   sigma = local values of sigma (*after modifying for ellipticity*)
+!   feta = f*eta (*after modifying for ellipticity*)
+!   f = coriolis parameter
+!   d2zetadp = second pressure derivative of relative vorticity 
+!   dudp,dvdp = pressure derivatives of wind components
+!   rhs = right-hand-side forcing
 !
-       implicit none
+    implicit none
 
-       integer i,j,k,nlon,nlat,nlev
-       real rhs(nlon,nlat,nlev),omega(nlon,nlat,nlev),resid(nlon,nlat,nlev) 
-       real f(nlat)
-       real sigma(nlon,nlat,nlev),feta(nlon,nlat,nlev)
-       real d2zetadp(nlon,nlat,nlev),dudp(nlon,nlat,nlev),dvdp(nlon,nlat,nlev)
-       real dx,dy,dlev
-       real,dimension(:,:,:),allocatable :: dum0,dum1,dum2,dum3,dum4,dum5,dum6
-       allocate(dum0(nlon,nlat,nlev),dum2(nlon,nlat,nlev))
-       allocate(dum1(nlon,nlat,nlev),dum3(nlon,nlat,nlev))
-       allocate(dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev))
-       allocate(dum6(nlon,nlat,nlev))
+    real,dimension(:,:,:),intent(in) :: rhs,omega,sigma,feta,d2zetadp
+    real,dimension(:,:,:),intent(in) :: dudp,dvdp
+    real,dimension(:,:,:),intent(out) :: resid
+    real,dimension(:),intent(in) :: f 
+    real,intent(in) :: dx,dy,dlev
+    integer :: i,j,k,nlon,nlat,nlev
+    real,dimension(:,:,:),allocatable :: dum0,dum1,dum2,dum3,dum4,dum5,dum6
+    
+    nlon=size(rhs,1)
+    nlat=size(rhs,2)
+    nlev=size(rhs,3)
 
+    allocate(dum0(nlon,nlat,nlev),dum2(nlon,nlat,nlev))
+    allocate(dum1(nlon,nlat,nlev),dum3(nlon,nlat,nlev))
+    allocate(dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev))
+    allocate(dum6(nlon,nlat,nlev))    
 !
-!      Calculate L(omega)
+!   Calculate L(omega)
 
-!       a) nabla^2(sigma*omega)
+!    a) nabla^2(sigma*omega)
 
-       dum0=omega*sigma
+    dum0=omega*sigma
 
-       call laplace_cart(dum0,dum1,dx,dy)         
+    call laplace_cart(dum0,dum1,dx,dy)         
 !
-!      f*eta*d2omegadp
+!   f*eta*d2omegadp
 !       
-       call p2der(omega,dlev,dum2) 
+    call p2der(omega,dlev,dum2) 
 !
-       dum3=feta*dum2
+    dum3=feta*dum2
 !
-!      c) -f*omega*(d2zetadp): explicitly, later
+!   c) -f*omega*(d2zetadp): explicitly, later
 !                  
-!      d) tilting
+!   d) tilting
 !
-       call xder_cart(omega,dx,dum4) 
-       call yder_cart(omega,dy,dum5) 
+    call xder_cart(omega,dx,dum4) 
+    call yder_cart(omega,dy,dum5) 
  
-       do k=1,nlev
+    do k=1,nlev
        do j=1,nlat
-       do i=1,nlon
-         dum6(i,j,k)=f(j)*(dudp(i,j,k)*dum5(i,j,k)-dvdp(i,j,k)*dum4(i,j,k))
+          do i=1,nlon
+             dum6(i,j,k)=f(j)*(dudp(i,j,k)*dum5(i,j,k)-dvdp(i,j,k)*dum4(i,j,k))
+          enddo
        enddo
-       enddo
-       enddo        
-       call pder(dum6,dlev,dum2) 
+    enddo
+    call pder(dum6,dlev,dum2) 
 
-       do k=1,nlev
+    do k=1,nlev
        do j=1,nlat
-       do i=1,nlon
-         resid(i,j,k)=rhs(i,j,k)-(dum1(i,j,k)+dum2(i,j,k)+dum3(i,j,k)-f(j)*d2zetadp(i,j,k)*omega(i,j,k))
+          do i=1,nlon
+             resid(i,j,k)=rhs(i,j,k)-(dum1(i,j,k)+dum2(i,j,k)+dum3(i,j,k)- &
+                  f(j)*d2zetadp(i,j,k)*omega(i,j,k))
+          enddo
        enddo
-       enddo
-       enddo
-
-       return
-       end subroutine residgen
+    enddo
+    
+  end subroutine residgen
 
   subroutine laplace2_cart(f,dx,dy,lapl2,coeff)
 !
