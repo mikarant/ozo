@@ -20,8 +20,8 @@ contains
 !
     implicit none
     integer,intent(in) :: nlon1,nlat1,nlon2,nlat2,nlev1,nlev2
-    real,intent(in) :: f(nlon1,nlat1,nlev1)
-    real,intent(out) :: g(nlon2,nlat2,nlev2)
+    real,dimension(nlon1,nlat1,nlev1),intent(in) :: f
+    real,dimension(nlon2,nlat2,nlev2),intent(out) :: g
     integer :: i,i2,j,j2,k,k2,imin,imax,jmin,jmax,kmin,kmax
     real :: fsum
     
@@ -487,12 +487,11 @@ contains
     implicit none
 
     integer,intent(in) :: nlon,nlat,nlev,niter
-    real,   intent(in) :: rhs(nlon,nlat,nlev),boundaries(nlon,nlat,nlev)
-    real,intent(inout) ::  omegaold(nlon,nlat,nlev),omega(nlon,nlat,nlev)
+    real,dimension(nlon,nlat,nlev),intent(in) :: rhs,boundaries,feta
+    real,dimension(nlon,nlat,nlev),intent(inout) :: omegaold,omega,resid
     logical,intent(in) :: lres
-    real,intent(in) :: sigma0(nlev),feta(nlon,nlat,nlev),dx,dy,dlev,alfa
+    real,intent(in) :: sigma0(nlev),dx,dy,dlev,alfa
     integer :: i,j,k
-    real :: resid(nlon,nlat,nlev)       
 
     do j=1,nlat       
        do i=1,nlon         
