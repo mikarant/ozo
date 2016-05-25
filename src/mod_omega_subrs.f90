@@ -450,7 +450,7 @@ contains
   end subroutine fimbal
 
   subroutine callsolveQG(rhs,boundaries,omega,nlonx,nlatx,nlevx,&
-                         dx,dy,dlev,sigma0,feta,nres)
+                         dx,dy,dlev,sigma0,feta,nres,alfa,toler)
 !
 !   Calling solveQG + writing out omega. Multigrid algorithm.
 !
@@ -461,18 +461,17 @@ contains
     real,dimension(:,:,:,:),intent(inout) :: rhs,omega
     real,dimension(:,:,:,:),intent(in) :: boundaries,feta
     real,dimension(:,:),intent(in) :: sigma0
+    real,intent(in) :: alfa,toler
     real,dimension(:,:,:,:),allocatable :: omegaold
     real,dimension(:,:,:),allocatable :: omega1,dum1,resid
     real :: maxdiff,aomega
     integer :: iter,i,j,k,ires
-    real,parameter :: toler=5e-5 ! threshold for stopping iterations
-    real,parameter :: alfa=0.2 ! relaxation coefficient
+
     integer,parameter :: itermax=1000
     integer,parameter :: ny1=2,ny2=2 ! number of iterations at each grid 
                                      ! resolution when proceeding to coarser 
                                      ! (ny1) and when returning to finer (ny2)
-    logical,parameter :: lzeromean=.true.,& ! Area means of omega are set to zero
-                         lres=.true.
+    logical,parameter :: lzeromean=.true. ! Area means of omega are set to zero
 
     allocate(omegaold(nlonx(1),nlatx(1),nlevx(1),nres))
     allocate(omega1(nlonx(1),nlatx(1),nlevx(1)))
@@ -493,7 +492,7 @@ contains
           call solveQG(rhs(:,:,:,ires),boundaries(:,:,:,ires),& 
                omega(:,:,:,ires),omegaold(:,:,:,ires),nlonx(ires),nlatx(ires),nlevx(ires),&
                dx(ires),dy(ires),dlev(ires),sigma0(:,ires),feta(:,:,:,ires),&
-               ny1,alfa,lres,resid)
+               ny1,alfa,.true.,resid)
           if(ires.eq.1)omega1(:,:,:)=omega(:,:,:,1)
           if(ires.lt.nres)then
              call coarsen3d(resid,rhs(:,:,:,ires+1),nlonx(ires),nlatx(ires),nlevx(ires),&
@@ -518,7 +517,7 @@ contains
           call solveQG(rhs(:,:,:,ires),boundaries(:,:,:,ires),& 
                omega(:,:,:,ires),omegaold(:,:,:,ires),nlonx(ires),nlatx(ires),nlevx(ires),&
                dx(ires),dy(ires),dlev(ires),sigma0(:,ires),feta(:,:,:,ires),&
-               ny2,alfa,lres,resid)
+               ny2,alfa,.false.,resid)
        enddo
 
        maxdiff=0.
@@ -706,7 +705,7 @@ contains
 
   subroutine callsolvegen(rhs,boundaries,omega,nlon,nlat,nlev,&
        dx,dy,dlev,sigma0,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
-       nres)
+       nres,alfa,toler)
 !
 !      Calling solvegen + writing out omega. Multigrid algorithm
 !            
@@ -717,6 +716,7 @@ contains
     real,dimension(:,:,:,:),intent(in) :: dudp,dvdp
     real,dimension(:,:),    intent(in) :: sigma0,corpar
     real,dimension(:),      intent(in) :: dx,dy,dlev
+    real,                   intent(in) :: alfa,toler
     integer,dimension(:),   intent(in) :: nlon,nlat,nlev
     integer,                intent(in) :: nres
 
@@ -726,14 +726,11 @@ contains
     real :: maxdiff,aomega
     integer :: ires,iter,i,j,k
 
-    real,parameter :: toler=5e-5 ! threshold for stopping iterations
-    real,parameter :: alfa=0.2 ! relaxation coefficient
     integer,parameter :: itermax=1000
     integer,parameter :: ny1=2,ny2=2 ! number of iterations at each grid 
                                      ! resolution when proceeding to coarser 
                                      ! (ny1) and when returning to finer (ny2)
-    logical,parameter :: lzeromean=.true.,& ! Area means of omega are set to zero
-                         lres=.true.
+    logical,parameter :: lzeromean=.true. ! Area means of omega are set to zero                    
  
     allocate(dum1(nlon(1),nlat(1),nlev(1)))
     allocate(resid(nlon(1),nlat(1),nlev(1)))
@@ -757,7 +754,7 @@ contains
                nlat(ires),nlev(ires),dx(ires),dy(ires),dlev(ires),&
                sigma0(:,ires),sigma(:,:,:,ires),feta(:,:,:,ires),&
                corpar(:,ires),d2zetadp(:,:,:,ires),dudp(:,:,:,ires),&
-               dvdp(:,:,:,ires),ny1,alfa,lres,resid)
+               dvdp(:,:,:,ires),ny1,alfa,.true.,resid)
 !             write(*,*)'ires,omega',ires,omega(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2,1)
 !             write(*,*)'ires,resid',ires,resid(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2)
           if(ires.eq.1)omega1(:,:,:)=omega(:,:,:,1)
@@ -787,7 +784,7 @@ contains
                nlev(ires),dx(ires),dy(ires),dlev(ires),sigma0(:,ires),&
                sigma(:,:,:,ires),feta(:,:,:,ires),corpar(:,ires),&
                d2zetadp(:,:,:,ires),dudp(:,:,:,ires),dvdp(:,:,:,ires),ny2,alfa,&
-               lres,resid)
+               .false.,resid)
        enddo
 
        maxdiff=0.
@@ -798,7 +795,7 @@ contains
              enddo
           enddo
        enddo
-       write(*,*)iter,maxdiff
+!       write(*,*)iter,maxdiff
        if(maxdiff.lt.toler.or.iter.eq.itermax)then
           write(*,*)'iter,maxdiff',iter,maxdiff
           goto 10

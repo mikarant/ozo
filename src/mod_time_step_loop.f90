@@ -6,18 +6,24 @@ module mod_time_step_loop
 
 contains
 
-  subroutine time_step_loop ( wrfin_file, time_1, time_n )
-    type ( wrf_file ) :: wrfin_file
-    integer :: time_1, time_n
+  subroutine time_step_loop ( wrfin_file, omegafile, time_1, time_n, alfa, &
+                              toler, mode, calc_htends )
+    ! This subroutine contains the main time stepping loop. It gets both
+    ! input and output files as input arguments. 
+    character :: mode
+    type ( wrf_file ) :: wrfin_file, omegafile
+    integer :: time_1, time_n, time, i
+    real :: alfa, toler
     real, dimension ( :, :, : ), pointer :: T, u, v, z
     real, dimension ( :, :, : ), allocatable :: &
          dT_dt, du_dt, dv_dt, dz_dt, fx, fy, q, w
     real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
-    real, dimension ( :, :, :, : ), allocatable :: omegas, hTends
-    logical, parameter :: calc_omegas=.true., calc_htends=.true.
+    integer, dimension (:), allocatable :: tdim
+    real, dimension ( :, :, :, : ), allocatable :: omegas, hTends, omegas_QG
+    logical, intent(in) :: calc_htends
+    logical, parameter :: calc_omegas=.true.
 
-    integer :: time
-
+    
     associate ( &
          nlon   => wrfin_file % dims ( 1 ), &
          nlat   => wrfin_file % dims ( 2 ), &
@@ -26,14 +32,19 @@ contains
          dy     => wrfin_file % dy, &
          p_levs => wrfin_file % pressure_levels, &
          corpar => wrfin_file % corpar )
-
+ 
+      allocate ( tdim ( time_n-time_1+1 ) )
       allocate ( hTends ( nlon, nlat, nlev, n_terms ) )
       allocate ( omegas ( nlon, nlat, nlev, n_terms ) )
+      allocate ( omegas_QG ( nlon, nlat, nlev, 3 ) )
 
       call read_T_u_v_z ( wrfin_file, time_1 - 2 )
       call read_T_u_v_z ( wrfin_file, time_1 - 1 )
+      i=0
       do time = time_1, time_n
+         i=i+1
          print *, 'Time step: ', time
+         tdim(i)=time
          call read_T_u_v_z ( wrfin_file, time )
          mu_inv = 1.0 / real2d ( wrfin_file, time, [ 'MU ', 'MUB' ]  )
          q      = diabatic_heating ( wrfin_file, time, mu_inv )
@@ -45,7 +56,7 @@ contains
          if ( calc_omegas ) then
             call calculate_omegas( T, u, v, w, z, p_levs, dx, dy, &
                  corpar, q, fx, fy, du_dt, dv_dt, dT_dt,&
-                 p_sfc, omegas)
+                 p_sfc, alfa, toler, mode, omegas, omegas_QG )
          else
             omegas = read_omegas ( wrfin_file, time )
          end if
@@ -59,15 +70,42 @@ contains
             hTends=0.
          end if
          
-         call write_omegas ( wrfin_file, time, omegas )
-         call write_tendencies ( wrfin_file, time, hTends )
-         call write3d ( wrfin_file, time, ztend_name, dz_dt )
+         ! Write data to the output file
+         if ( mode .eq. 'Q' ) then
+            call write_omegas_QG ( omegafile, time-time_1+1, omegas_QG )
+         else
+            call write_omegas ( omegafile, time-time_1+1, omegas )
+            call write_tendencies ( omegafile, time-time_1+1, hTends )
+            call write3d ( omegafile, time-time_1+1, ztend_name, dz_dt )
+         end if
 
       end do
+
+      ! Write dimension data to the output file
+      call write_dimensions ( omegafile, tdim )
 
     end associate
 
   contains
+
+    subroutine write_dimensions ( file, tdim )
+      ! This subroutine puts dimension data to the output file.
+      type ( wrf_file ) :: file
+      integer,dimension(:) :: tdim
+      integer :: varids(4),varid
+
+      do i = 1, 4
+         call check ( nf90_inq_varid ( &
+              file % ncid, trim ( rname ( i ) ), varid ) )
+         varids ( i ) = varid
+      end do
+      
+      call check( nf90_put_var(file % ncid, varids(1), file%xdim(:)) )
+      call check( nf90_put_var(file % ncid, varids(2), file%ydim(:)) )
+      call check( nf90_put_var(file % ncid, varids(3), file%pressure_levels(:)/100.) )
+      call check( nf90_put_var(file % ncid, varids(4), tdim(:)) )
+   
+    end subroutine write_dimensions
 
     subroutine read_T_u_v_z ( file, time )
       type ( wrf_file ) :: file
@@ -210,6 +248,27 @@ contains
         end do
       end associate
     end subroutine write_omegas
+
+    subroutine write_omegas_QG ( file, time, omegas_QG )
+      type ( wrf_file ), intent ( in ) :: file
+      integer, intent ( in ) :: time
+      real, dimension ( :, :, :, : ) :: omegas_QG
+      integer :: t, varid
+      associate ( &
+           ncid => file % ncid, &
+           nlon => file % dims ( 1 ), &
+           nlat => file % dims ( 2 ), &
+           nlev => file % dims ( 3 ) )
+        do t = 1, size ( QG_omega_term_names )
+           call check ( nf90_inq_varid ( ncid, &
+                trim ( QG_omega_term_names ( t ) ), varid ) )
+           call check ( nf90_put_var ( ncid, varid, &
+                omegas_QG ( :, :, :, t ), &
+                [ 1, 1, 1, time ], &
+                [ nlon, nlat, nlev, 1 ] ) )
+        end do
+      end associate
+    end subroutine write_omegas_QG
 
     subroutine write3d ( file, time, name, data )
       type ( wrf_file ), intent ( in ) :: file

@@ -7,14 +7,16 @@ module mod_omega
 contains
 
   subroutine calculate_omegas( t, u, v, omegaan, z, lev, dx, dy, corpar, q, &
-       xfrict, yfrict, utend, vtend, ttend, psfc, omegas)
+       xfrict, yfrict, utend, vtend, ttend, psfc, alfa, toler, mode, omegas, &
+       omegas_QG )
 
-    real,dimension(:,:,:,:),intent(inout) :: omegas
+    real,dimension(:,:,:,:),intent(inout) :: omegas, omegas_QG
     real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend
     real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict,utend,vtend
     real,dimension(:,:),    intent(in) :: psfc
     real,dimension(:),      intent(in) :: lev,corpar
-    real,                   intent(in) :: dx,dy 
+    real,                   intent(in) :: dx,dy,alfa,toler
+    character,              intent(in) :: mode
 
     real,dimension(:,:,:,:),allocatable :: omega,fv,ft,ff,fq,fa
     real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta
@@ -28,7 +30,6 @@ contains
     integer :: nlev,nlon,nlat,nres,i,k
     real :: dlev
     logical :: lcensor
-    character :: mode
 
 !   Threshold values to keep the generalized omega equation elliptic.
     real,parameter :: sigmamin=2e-7,etamin=2e-6
@@ -43,7 +44,6 @@ contains
     iubound=1 ! 1 for "real" omega as upper-boundary condition
     ilbound=1 ! 1 for "real" omega as upper-boundary condition
     iybound=1 ! 1 for "real" omega as north/south boundary condtion
-    mode='G'   ! Mode = generalized omega equation
     lcensor=.true. ! Forcing below surface is set to zero.
 
     nlon=size(t,1)
@@ -136,7 +136,6 @@ contains
 !
 !   Deriving quantities needed for the LHS of the 
 !   QG and/or generalised omega equation.
-!
 
 !   1. Pressure derivatives of wind components
 
@@ -162,10 +161,10 @@ contains
     do k=1,nlev
        call aave(sigmaraw(:,:,k),sigma0(k,1))                      
     enddo
-    write(*,*)'Area mean static stability'
-    do k=1,nlev
-       write(*,*)lev(k),sigma0(k,1)
-    enddo
+!    write(*,*)'Area mean static stability'
+!    do k=1,nlev
+!       write(*,*)lev(k),sigma0(k,1)
+!    enddo
 !
 !   Left-hand side coefficients for the QG equation
 !
@@ -238,43 +237,43 @@ contains
 
     if(mode.eq.'T')then
        call callsolvegen(ftest,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres)
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
     endif
 
     if(mode.eq.'t')then
        call callsolveQG(ftest,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,feta,nres)
+            sigma0,feta,nres,alfa,toler)
     endif
 
     if(mode.eq.'G')then            
        Write(*,*)'Vorticity advection'
        call callsolvegen(fv,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres)
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
        omegas(:,:,:,termV)=omega(:,:,:,1)
 
        Write(*,*)'Thermal advection'
        call callsolvegen(ft,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres)
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
        omegas(:,:,:,termT)=omega(:,:,:,1)
        
        Write(*,*)'Friction'
        call callsolvegen(ff,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres)
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
        omegas(:,:,:,termF)=omega(:,:,:,1)
        
        Write(*,*)'Diabatic heating'
        call callsolvegen(fq,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres)
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
        omegas(:,:,:,termQ)=omega(:,:,:,1)
 
        Write(*,*)'Imbalance term'
        call callsolvegen(fa,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres)
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
        omegas(:,:,:,termA)=omega(:,:,:,1)
        
        Write(*,*)'Boundary conditions'        
        call callsolvegen(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres)
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
        omegas(:,:,:,termB)=omega(:,:,:,1)
                   
     endif
@@ -282,14 +281,24 @@ contains
     if(mode.eq.'Q')then
        Write(*,*)'Vorticity advection'
        call callsolveQG(fv,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,feta,nres)
+            sigma0,feta,nres,alfa,toler)
+       omegas_QG(:,:,:,1)=omega(:,:,:,1)
        Write(*,*)'Thermal advection'
        call callsolveQG(ft,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,feta,nres)
+            sigma0,feta,nres,alfa,toler)
+       omegas_QG(:,:,:,2)=omega(:,:,:,1)
        Write(*,*)'Boundary conditions'        
        call callsolveQG(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,feta,nres)
+            sigma0,feta,nres,alfa,toler)
+       omegas_QG(:,:,:,3)=omega(:,:,:,1)
     endif
+
+!    do i=1,n_terms
+!       call callsolvegen(,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+!            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
+!       omegas(:,:,:,termV)=omega(:,:,:,1)
+
+
     
   end subroutine calculate_omegas
 
