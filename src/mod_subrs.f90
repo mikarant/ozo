@@ -91,7 +91,7 @@ contains
                       corpar,dx,dy,hTends,ztend,ttend)
 
 !   Area mean correction
-!    call ht_correction(hTends,temptend,lev,omegas,sp,tadv,tadvs,q)
+    call ht_correction(hTends,temptend,lev,omegas,sp,tadv,tadvs,q)
 
   end subroutine calculate_tendencies
 
