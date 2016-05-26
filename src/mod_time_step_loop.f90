@@ -7,7 +7,7 @@ module mod_time_step_loop
 contains
 
   subroutine time_step_loop ( wrfin_file, omegafile, time_1, time_n, alfa, &
-                              toler, mode, calc_htends )
+                              toler, mode, calc_htends, calc_omegas )
     ! This subroutine contains the main time stepping loop. It gets both
     ! input and output files as input arguments. 
     character :: mode
@@ -20,9 +20,7 @@ contains
     real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
     integer, dimension (:), allocatable :: tdim
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends, omegas_QG
-    logical, intent(in) :: calc_htends
-    logical, parameter :: calc_omegas=.true.
-
+    logical, intent(in) :: calc_htends, calc_omegas
     
     associate ( &
          nlon   => wrfin_file % dims ( 1 ), &
@@ -58,9 +56,9 @@ contains
                  corpar, q, fx, fy, du_dt, dv_dt, dT_dt,&
                  p_sfc, alfa, toler, mode, omegas, omegas_QG )
          else
-            omegas = read_omegas ( wrfin_file, time )
+            omegas = read_omegas ( omegafile, time-1 )
          end if
-         
+
          if ( calc_htends ) then
             call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
                  dx, dy, corpar, q, &
@@ -74,15 +72,18 @@ contains
          if ( mode .eq. 'Q' ) then
             call write_omegas_QG ( omegafile, time-time_1+1, omegas_QG )
          else
-            call write_omegas ( omegafile, time-time_1+1, omegas )
-            call write_tendencies ( omegafile, time-time_1+1, hTends )
-            call write3d ( omegafile, time-time_1+1, ztend_name, dz_dt )
+            if (calc_omegas) then
+               call write_omegas ( omegafile, time-time_1+1, omegas )
+            else
+               call write_tendencies ( omegafile, time-time_1+1, hTends )
+               call write3d ( omegafile, time-time_1+1, ztend_name, dz_dt )
+            end if
          end if
 
       end do
 
       ! Write dimension data to the output file
-      call write_dimensions ( omegafile, tdim )
+ !     call write_dimensions ( omegafile, tdim )
 
     end associate
 

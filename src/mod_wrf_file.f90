@@ -205,6 +205,23 @@ contains
     call check ( nf90_close ( file % ncid ) )
   end subroutine close_wrf_file
 
+  function open_out_file ( fname ) result ( f )
+    character ( * ), intent ( in ) :: fname
+    type ( wrf_file ) :: f
+    integer :: i,dimid
+
+    call check( nf90_open ( fname, NF90_WRITE, f % ncid ) )
+
+    do i = 1, 4
+       call check ( nf90_inq_dimid ( &
+            f % ncid, trim ( rname ( i ) ), dimid ) )
+!       dimids ( i ) = dimid
+       call check ( nf90_inquire_dimension ( &
+            f % ncid, dimid, len = f % dims ( i ) ) )
+    end do
+
+   end function open_out_file
+
   function real2d ( file, time, names )
     type ( wrf_file ), intent ( in ) :: file
     integer, intent ( in ) :: time
@@ -240,11 +257,11 @@ end function real2d
     real, dimension ( :, :, : ), allocatable :: real3d
     integer :: i
 
-    print*,'Reading ',trim(names(1))
+!    print*,'Reading ',trim(names(1))
     real3d = data ( names ( 1 ) )
 
     do i = 2, size ( names )
-       print*,'Reading ',trim(names(i))
+!       print*,'Reading ',trim(names(i))
        real3d = real3d + data ( names ( i ) )
     end do
 
@@ -287,7 +304,6 @@ end function real2d
        call check( nf90_def_dim(ncid, trim(dim_name), len, dimid) )
     endif
     call check( nf90_def_var(ncid, trim(dim_name), NF90_REAL, dimid, varid) )
-!    call check( nf90_put_att(ncid, dim%varid, dim%unit_name, dim%units) )
     
   end subroutine def_dim
   

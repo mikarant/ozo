@@ -18,9 +18,9 @@ contains
     real,                   intent(in) :: dx,dy,alfa,toler
     character,              intent(in) :: mode
 
-    real,dimension(:,:,:,:),allocatable :: omega,fv,ft,ff,fq,fa
+    real,dimension(:,:,:,:,:),allocatable :: rhs
     real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta
-    real,dimension(:,:,:,:),allocatable :: dudp,dvdp,ftest,d2zetadp
+    real,dimension(:,:,:,:),allocatable :: dudp,dvdp,ftest,d2zetadp,omega
     real,dimension(:,:,:),  allocatable :: sigmaraw,zetaraw,zetatend,zeta
     real,dimension(:,:,:),  allocatable :: mulfact
     real,dimension(:,:),    allocatable :: corpar2,sigma0
@@ -67,19 +67,17 @@ contains
 !   Choose so that the coarsest grid has at least 5 points
 !
     nres=1+int(log(max(nlon,nlat,nlev)/5.)/log(2.))
-    write(*,*)'nres=',nres
+!    write(*,*)'nres=',nres
 !
-    allocate(omega(nlon,nlat,nlev,nres),fv(nlon,nlat,nlev,nres))
-    allocate(ft(nlon,nlat,nlev,nres),ff(nlon,nlat,nlev,nres))
-    allocate(fq(nlon,nlat,nlev,nres),fa(nlon,nlat,nlev,nres))
+    allocate(omega(nlon,nlat,nlev,nres),ftest(nlon,nlat,nlev,nres))
     allocate(boundaries(nlon,nlat,nlev,nres))
     allocate(zero(nlon,nlat,nlev,nres),sigma(nlon,nlat,nlev,nres))
     allocate(d2zetadp(nlon,nlat,nlev,nres),feta(nlon,nlat,nlev,nres))
     allocate(dudp(nlon,nlat,nlev,nres),dvdp(nlon,nlat,nlev,nres))
-    allocate(ftest(nlon,nlat,nlev,nres))
     allocate(corpar2(nlat,nres),sigma0(nlev,nres))
     allocate(nlonx(nres),nlatx(nres),nlevx(nres))
     allocate(dx2(nres),dy2(nres),dlev2(nres))
+    allocate(rhs(nlon,nlat,nlev,nres,n_terms))
 
     dlev=lev(2)-lev(1)
     zero=0.
@@ -99,8 +97,8 @@ contains
        dx2(i)=dx*real(nlon)/real(nlonx(i))
        dy2(i)=dy*real(nlat)/real(nlatx(i))
        dlev2(i)=dlev*real(nlev)/real(nlevx(i))
-       write(*,*)'i,nlonx,nlatx,nlevx',i,nlonx(i),nlatx(i),nlevx(i)
-       write(*,*)'i,dx2,dy2,dlev2',i,dx2(i),dy2(i),dlev2(i)
+!       write(*,*)'i,nlonx,nlatx,nlevx',i,nlonx(i),nlatx(i),nlevx(i)
+!       write(*,*)'i,dx2,dy2,dlev2',i,dx2(i),dy2(i),dlev2(i)
     enddo
 !
 !   For quasi-geostrophic equation: calculation of geostrophic winds
@@ -124,14 +122,14 @@ contains
 !   Calculation of forcing terms 
 !
     if(mode.eq.'G'.or.mode.eq.'Q')then
-       call fvort(u,v,zetaraw,corpar,dx,dy,dlev,mulfact,fv(:,:,:,1))
-       call ftemp(u,v,t,lev,dx,dy,mulfact,ft(:,:,:,1))
+       call fvort(u,v,zetaraw,corpar,dx,dy,dlev,mulfact,rhs(:,:,:,1,termV))
+       call ftemp(u,v,t,lev,dx,dy,mulfact,rhs(:,:,:,1,termT))
     endif
 
     if(mode.eq.'G')then
-       call ffrict(xfrict,yfrict,corpar,dx,dy,dlev,mulfact,ff(:,:,:,1))
-       call fdiab(q,lev,dx,dy,mulfact,fq(:,:,:,1))
-       call fimbal(zetatend,ttend,corpar,lev,dx,dy,dlev,mulfact,fa(:,:,:,1))
+       call ffrict(xfrict,yfrict,corpar,dx,dy,dlev,mulfact,rhs(:,:,:,1,termF))
+       call fdiab(q,lev,dx,dy,mulfact,rhs(:,:,:,1,termQ))
+       call fimbal(zetatend,ttend,corpar,lev,dx,dy,dlev,mulfact,rhs(:,:,:,1,termA))
     endif
 !
 !   Deriving quantities needed for the LHS of the 
@@ -161,10 +159,6 @@ contains
     do k=1,nlev
        call aave(sigmaraw(:,:,k),sigma0(k,1))                      
     enddo
-!    write(*,*)'Area mean static stability'
-!    do k=1,nlev
-!       write(*,*)lev(k),sigma0(k,1)
-!    enddo
 !
 !   Left-hand side coefficients for the QG equation
 !
@@ -199,7 +193,6 @@ contains
     boundaries(:,1,2:nlev-1,1)=iybound*omegaan(:,1,2:nlev-1)
     boundaries(:,nlat,2:nlev-1,1)=iybound*omegaan(:,nlat,2:nlev-1)
 
-!
 !   Regrid left-hand-side parameters and boundary conditions to 
 !   coarser grids. Note that non-zero boundary conditions are only 
 !   possibly given at the highest resolutions (As only the 
@@ -246,32 +239,14 @@ contains
     endif
 
     if(mode.eq.'G')then            
-       Write(*,*)'Vorticity advection'
-       call callsolvegen(fv,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
-       omegas(:,:,:,termV)=omega(:,:,:,1)
 
-       Write(*,*)'Thermal advection'
-       call callsolvegen(ft,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
-       omegas(:,:,:,termT)=omega(:,:,:,1)
-       
-       Write(*,*)'Friction'
-       call callsolvegen(ff,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
-       omegas(:,:,:,termF)=omega(:,:,:,1)
-       
-       Write(*,*)'Diabatic heating'
-       call callsolvegen(fq,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
-       omegas(:,:,:,termQ)=omega(:,:,:,1)
+       do i=1,5
+          call callsolvegen(rhs(:,:,:,:,i),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+               sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
+          omegas(:,:,:,i)=omega(:,:,:,1)
+       enddo
 
-       Write(*,*)'Imbalance term'
-       call callsolvegen(fa,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
-       omegas(:,:,:,termA)=omega(:,:,:,1)
-       
-       Write(*,*)'Boundary conditions'        
+!       Write(*,*)'Boundary conditions'        
        call callsolvegen(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
             sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
        omegas(:,:,:,termB)=omega(:,:,:,1)
@@ -279,27 +254,19 @@ contains
     endif
 
     if(mode.eq.'Q')then
-       Write(*,*)'Vorticity advection'
-       call callsolveQG(fv,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+       do i=1,2
+          call callsolveQG(rhs(:,:,:,:,i),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
             sigma0,feta,nres,alfa,toler)
-       omegas_QG(:,:,:,1)=omega(:,:,:,1)
-       Write(*,*)'Thermal advection'
-       call callsolveQG(ft,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,feta,nres,alfa,toler)
-       omegas_QG(:,:,:,2)=omega(:,:,:,1)
+          omegas_QG(:,:,:,i)=omega(:,:,:,1)
+       enddo
+
        Write(*,*)'Boundary conditions'        
        call callsolveQG(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
             sigma0,feta,nres,alfa,toler)
        omegas_QG(:,:,:,3)=omega(:,:,:,1)
+
     endif
 
-!    do i=1,n_terms
-!       call callsolvegen(,zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-!            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
-!       omegas(:,:,:,termV)=omega(:,:,:,1)
-
-
-    
   end subroutine calculate_omegas
 
 end module mod_omega

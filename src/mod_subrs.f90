@@ -109,16 +109,19 @@ contains
     real,dimension(:,:,:,:),intent(inout) :: hTends
     real,dimension(:,:,:,:),intent(inout) :: temptend
 
-    integer :: i,j,k,l,nlon,nlat,nlev
+    integer :: i,j,k,l,m,nlon,nlat,nlev
     real,dimension(:,:),    allocatable :: mtt,mht,mzo,diff
-    real,dimension(:),      allocatable :: pres,help1,help2
+    real,dimension(:),      allocatable :: pres,help1,help2,diffsum
+    integer,dimension(:),   allocatable :: terms
 
     nlon=size(q,1);nlat=size(q,2);nlev=size(q,3)
 
-    allocate(pres(nlev))
+    allocate(pres(nlev),terms(n_terms-1),diffsum(nlev))
     allocate(help1(n_terms),help2(n_terms))
     allocate(mtt(n_terms,nlev),mht(n_terms,nlev))
     allocate(mzo(n_terms,nlev),diff(n_terms,nlev))
+    
+    terms=(/1,2,3,4,5,7,8/)
 
 !   Pressure levels       
     pres=lev(1:size(lev))/100.
@@ -129,7 +132,8 @@ contains
     temptend=0.
 
 !   Temperature tendencies of all terms
-    do l=1,n_terms
+    do m=1,n_terms-1
+       l=terms(m)
        temptend(:,:,:,l)=sp*omegas(:,:,:,l)
     enddo
     temptend(:,:,:,termT)=temptend(:,:,:,termT)+tadv
@@ -138,7 +142,8 @@ contains
 
 !   Area mean temperature and calculated area mean height tendencies
 !   for each pressure level separately
-    do l=1,n_terms
+    do m=1,n_terms-1
+       l=terms(m)
        do k=1,nlev
           do i=1,nlon
              do j=1,nlat
@@ -155,7 +160,8 @@ contains
 
 !   Area mean temperature and calculated height tendency
 !   for layers (1000-950,1000-900,1000-850...)
-    do l=1,n_terms
+    do m=1,n_terms-1
+       l=terms(m)
        do k=2,nlev
           mtt(l,k-1)=sum(mtt(l,1:k))/k
           mzo(l,k-1)=sum(mzo(l,1:k))/k
@@ -164,7 +170,8 @@ contains
 
 !   Area mean "thickness" tendencies, calculated from temperature tendencies
 !   by using hypsometric equation
-    do l=1,n_terms
+    do m=1,n_terms-1
+       l=terms(m)
        do k=2,nlev
           mht(l,k-1)=(r/g)*mtt(l,k-1)*log(1000./pres(k))
        enddo
@@ -172,17 +179,25 @@ contains
 
 !   Difference between hypsometric thickness tendencies and zwack-okossi-
 !   calculated thickness tendencies
-    do l=1,n_terms
+    do m=1,n_terms-1
+       l=terms(m)
        diff(l,:)=mht(l,:)-mzo(l,:)
     enddo
 
 !   Adding the difference to calculated height tendencies
-    do l=1,n_terms
+    diffsum=0.
+    do m=1,n_terms-1
+       l=terms(m)
        do k=2,nlev
           hTends(:,:,k,l)=hTends(:,:,k,l)+diff(l,k-1)
+          if(l<=5)then
+             diffsum(k)=diffsum(k)+diff(l,k-1)
+          endif
        enddo
     enddo
-
+    do k=1,nlev
+       hTends(:,:,k,termB)=hTends(:,:,k,termB)-diffsum(k)
+    enddo
   end subroutine ht_correction
       
   subroutine vorticity_tendencies(omegas,u,v,w,uKhi,vKhi,zeta,zetatend,&
@@ -279,7 +294,7 @@ contains
     real,dimension(:,:,:),intent(in) :: omega,eta,u,v,zeta
     real,                 intent(in) :: dx,dy,dlev  
     real,dimension(:,:,:,:),intent(inout) :: vortt
- 
+
 !   Vertical advection of vorticity
     call f2(omega,zeta,dlev,vortt(:,:,:,1))
        
@@ -306,7 +321,7 @@ contains
 
 !   Pressure derivative of vorticity
     call pder(zeta,dlev,dvortdp)
- 
+
 !   Vertical advection
     vortadv=-omega*dvortdp
 

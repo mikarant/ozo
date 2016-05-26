@@ -797,7 +797,7 @@ contains
        enddo
 !       write(*,*)iter,maxdiff
        if(maxdiff.lt.toler.or.iter.eq.itermax)then
-          write(*,*)'iter,maxdiff',iter,maxdiff
+!          write(*,*)'iter,maxdiff',iter,maxdiff
           goto 10
        endif
 
@@ -859,8 +859,6 @@ contains
     logical,             intent(in) :: lres
     integer :: i,j,k
 
-!       omegaold=boundaries
-
     do j=1,nlat       
        do i=1,nlon
           omegaold(i,j,1)=boundaries(i,j,1)
@@ -920,7 +918,6 @@ contains
     real,dimension(:),    intent(in) :: sigma0,f
     real,                 intent(in) :: dx,dy,dlev,alfa
     
-    real :: maxdiff
     real,dimension(:,:,:),allocatable :: lapl2,domedp2,coeff1,coeff2,coeff
     real,dimension(:,:,:),allocatable :: dum0,dum1,dum3,dum4,dum5,dum6
 
@@ -946,11 +943,7 @@ contains
 !   a) Deviation of sigma from its normal value
 
     do k=2,nlev-1
-       do j=1,nlat
-          do i=1,nlon
-             dum0(i,j,k)=omegaold(i,j,k)*(sigma(i,j,k)-sigma0(k))
-          enddo
-       enddo
+       dum0(:,:,k)=omegaold(:,:,k)*(sigma(:,:,k)-sigma0(k))
     enddo
     call laplace_cart(dum0,dum1,dx,dy)         
 !
@@ -961,36 +954,29 @@ contains
     call xder_cart(omegaold,dx,dum4) 
     call yder_cart(omegaold,dy,dum5) 
  
-    do k=1,nlev
-       do j=1,nlat
-          do i=1,nlon
-             dum6(i,j,k)=f(j)*(dudp(i,j,k)*dum5(i,j,k)-dvdp(i,j,k)*dum4(i,j,k))
-          enddo
-       enddo
+    do j=1,nlat
+       dum6(:,j,:)=f(j)*(dudp(:,j,:)*dum5(:,j,:)-dvdp(:,j,:)*dum4(:,j,:))
     enddo
     call pder(dum6,dlev,dum3) 
 !
 !   Solving for omega 
 !   Old values are retained at y and z boundaries.
 !       
+
     do k=2,nlev-1
        do j=2,nlat-1
-          do i=1,nlon
-             coeff(i,j,k)=sigma0(k)*coeff1(i,j,k)+feta(i,j,k)*coeff2(i,j,k)-&
-                          f(j)*d2zetadp(i,j,k)
-             omega(i,j,k)=(rhs(i,j,k)-dum1(i,j,k)-dum3(i,j,k)-&
-                          sigma0(k)*lapl2(i,j,k)-feta(i,j,k)*domedp2(i,j,k)) &
-                          /coeff(i,j,k)
-          enddo
+          coeff(:,j,k)=sigma0(k)*coeff1(:,j,k)+feta(:,j,k)*coeff2(:,j,k)-&
+                          f(j)*d2zetadp(:,j,k)
+          omega(:,j,k)=(rhs(:,j,k)-dum1(:,j,k)-dum3(:,j,k)-&
+               sigma0(k)*lapl2(:,j,k)-feta(:,j,k)*domedp2(:,j,k)) &
+               /coeff(:,j,k)
        enddo
     enddo
-    
+     
 !    write(*,*)'updating omega'
-    maxdiff=0.
     do k=2,nlev-1
        do j=2,nlat-1
           do i=1,nlon
-             maxdiff=max(maxdiff,abs(omega(i,j,k)-omegaold(i,j,k)))
              omegaold(i,j,k)=alfa*omega(i,j,k)+(1-alfa)*omegaold(i,j,k)
           enddo
        enddo
@@ -1082,33 +1068,25 @@ contains
     real,dimension(:,:,:),intent(in) :: f
     real,dimension(:,:,:),intent(out) :: lapl2,coeff
     real,intent(in) :: dx,dy
-    integer :: i,i1,i2,j,k,nlon,nlat,nlev
-    double precision :: d2fdy,d2fdx
-    
+    integer :: nlon,nlat
+     
     nlon=size(f,1)
     nlat=size(f,2)
-    nlev=size(f,3)
 
-    do k=1,nlev
-       do i=1,nlon 
-          i1=i-1
-          i2=i+1
-          if(i1.lt.1)i1=i1+nlon
-          if(i2.gt.nlon)i2=i2-nlon
-          do j=2,nlat-1
-             d2fdx=(f(i2,j,k)+f(i1,j,k))/(dx**2.)
-             if(j.gt.1.and.j.lt.nlat)then
-                d2fdy=(f(i,j+1,k)+f(i,j-1,k))/(dy**2.)
-                lapl2(i,j,k)=d2fdx+d2fdy
-                coeff(i,j,k)=-2/(dy**2.)-2/(dx**2.)
-             else
-                lapl2(i,j,k)=d2fdx
-                coeff(i,j,k)=-2/(dx**2.)
-             endif
-          enddo
-       enddo
-    enddo
-   
+    ! x-direction
+    lapl2 ( 2 : nlon - 1, :, : ) = f( 1: nlon - 2, :, : ) + f ( 3: nlon, :, : ) 
+    lapl2 ( 1, :, : )    = f( nlon, :, : ) + f ( 2, :, : ) 
+    lapl2 ( nlon, :, : ) = f( nlon - 1, :, : ) + f ( 1, :, : ) 
+    lapl2 = lapl2 / ( dx * dx )
+
+    ! y-direction
+    lapl2 ( :, 2 : nlat -1, : ) = lapl2 ( :, 2 : nlat -1, : ) &
+         + ( f ( :, 1 : nlat -2, : ) + f ( :, 3 : nlat, :) ) / ( dy * dy )
+
+    coeff ( :, 2 : nlat -1, : ) = -2 / (dy**2.) -2 / (dx**2.)
+    coeff ( :, 1, : ) = -2 / ( dx**2. )
+    coeff ( :, nlat, : ) = -2 / ( dx**2. )
+
   end subroutine laplace2_cart
 
   subroutine p2der(f,dp,df2dp2) 
@@ -1120,22 +1098,15 @@ contains
     real,dimension(:,:,:),intent(in) :: f
     real,dimension(:,:,:),intent(out) :: df2dp2
     real,intent(in) :: dp
-    integer :: i,j,k,nlon,nlat,nlev
+    integer :: nlev
 
-    nlon=size(f,1)
-    nlat=size(f,2)
     nlev=size(f,3)
-    
-   do i=1,nlon
-      do j=1,nlat
-         do k=2,nlev-1
-            df2dp2(i,j,k)=(f(i,j,k+1)+f(i,j,k-1)-2*f(i,j,k))/(dp*dp)
-         enddo
-         df2dp2(i,j,1)=0.
-         df2dp2(i,j,nlev)=0.
-      enddo
-   enddo
 
+    df2dp2(:,:,2:nlev-1)=(f(:,:,3:nlev)+f(:,:,1:nlev-2) &
+                         -2*f(:,:,2:nlev-1))/(dp*dp)
+    df2dp2(:,:,1)=0.
+    df2dp2(:,:,nlev)=0.
+    
  end subroutine p2der
 
  subroutine p2der2(f,dp,df2dp22,coeff) 
@@ -1148,25 +1119,18 @@ contains
    real,dimension(:,:,:),intent(in) :: f
    real,dimension(:,:,:),intent(out) :: df2dp22,coeff
    real,intent(in) :: dp
-   integer :: i,j,k,nlon,nlat,nlev
+   integer :: nlev
 
-   nlon=size(f,1)
-   nlat=size(f,2)
    nlev=size(f,3)
-   
-   do i=1,nlon
-      do j=1,nlat
-         do k=2,nlev-1
-            df2dp22(i,j,k)=(f(i,j,k+1)+f(i,j,k-1))/(dp*dp)
-            coeff(i,j,k)=-2/(dp*dp)
-         enddo
-         df2dp22(i,j,1)=0.
-         df2dp22(i,j,nlev)=0.
-         coeff(i,j,1)=0.
-         coeff(i,j,nlev)=0.
-      enddo
-   enddo
-       
+ 
+   df2dp22(:,:,2:nlev-1)=(f(:,:,3:nlev)+f(:,:,1:nlev-2)) &
+                         /(dp*dp)
+   coeff(:,:,2:nlev-1)=-2/(dp*dp)
+   df2dp22(:,:,1)=0.
+   df2dp22(:,:,nlev)=0.
+   coeff(:,:,1)=0.
+   coeff(:,:,nlev)=0.
+  
  end subroutine p2der2
 
 

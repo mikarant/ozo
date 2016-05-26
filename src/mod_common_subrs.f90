@@ -160,7 +160,7 @@ contains
     
     integer :: nlon,nlat,nlev
     nlon=size(f,1); nlat=size(f,2); nlev=size(f,3)
-
+ 
     dfdp(:,:,2:nlev-1)=f(:,:,3:nlev)-f(:,:,1:nlev-2)
     dfdp(:,:,2:nlev-1)=dfdp(:,:,2:nlev-1)/(2.*dp)
     
