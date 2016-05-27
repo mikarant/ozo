@@ -83,8 +83,10 @@ contains
       end do
 
       ! Write dimension data to the output file
- !     call write_dimensions ( omegafile, tdim )
-
+      if ( calc_omegas .or. mode .eq. 'Q' ) then
+         call write_dimensions ( omegafile, tdim )
+      end if
+      
     end associate
 
   contains
