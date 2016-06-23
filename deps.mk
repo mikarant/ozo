@@ -1,4 +1,4 @@
-mod_common_subrs.o : src/mod_common_subrs.f90 mod_const.o 
+mod_common_subrs.o : src/mod_common_subrs.f90 mod_const.o mod_poisson_DFT.o 
 mod_const.o : src/mod_const.f90 
 mod_omega.o : src/mod_omega.f90 mod_omega_subrs.o mod_common_subrs.o mod_wrf_file.o 
 mod_omega_subrs.o : src/mod_omega_subrs.f90 mod_common_subrs.o mod_const.o 
