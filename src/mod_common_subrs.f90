@@ -76,7 +76,7 @@ contains
   subroutine irrotationalWind(u,v,dx,dy,uKhi,vKhi)
 !   This subroutine calculates irrotational wind components (uKhi,vKhi) from
 !   velocity potential. 
-!    use mod_poisson
+    use mod_poisson_DFT
     implicit none
 
     real,dimension(:,:,:),intent(in) :: u,v
@@ -101,8 +101,8 @@ contains
 
     bd_0=0.0e0
     do k=1,nlev
-!       call poisson_solver_2D(dudx(:,:,k)+dvdy(:,:,k),"PPDD",.false.,"DFT",&
-!            dx,dy,khi(:,:,k),bd_0,bd_0)
+       call poisson_solver_2D(dudx(:,:,k)+dvdy(:,:,k),dx,dy,khi(:,:,k),&
+            bd_0,bd_0)
     enddo
 
 !   Derivatives of velocity potential
