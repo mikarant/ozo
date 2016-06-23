@@ -483,9 +483,9 @@ contains
     bd_0 = 0.0e0
  
 ! "Pseudo" height tendency
-    call laplace_cart(ztend,laplz,dx,dy)
-    vortTends(:,:,:,termVKhi)=(g/corf)*laplz
-    tempTends(:,:,:,termVKhi)=ttend
+!    call laplace_cart(ztend,laplz,dx,dy)
+!    vortTends(:,:,:,termVKhi)=(g/corf)*laplz
+!    tempTends(:,:,:,termVKhi)=ttend
 
 ! Integration
     do i=1,n_terms
@@ -494,9 +494,9 @@ contains
     enddo
 
 ! Height tendency with WRF omega
-    ttend_omegaWRF=sp*w+tadv+q
-    call zo_integral(vorTend_omegaWRF,ttend_omegaWRF,dx,dy,corf,&
-         gvtend_omegaWRF)
+!    ttend_omegaWRF=sp*w+tadv+q
+!    call zo_integral(vorTend_omegaWRF,ttend_omegaWRF,dx,dy,corf,&
+!         gvtend_omegaWRF)
 
     do k=1,nlev
        do i=1,5
@@ -511,8 +511,8 @@ contains
        call poisson_solver_2D( gvortTends ( :, :, k, termVKhi ), & 
             dx, dy, hTends(:,:,k,termVKhi), bd_ay ( :, k ), bd_by ( :, k ) )
        ! WRF omega height tendency
-       call poisson_solver_2D( gvTend_omegaWRF ( :, :, k ), dx, dy, &
-            hTends(:,:,k,termTKhi), bd_ay ( :, k ), bd_by ( :, k ) )
+       call poisson_solver_2D( gvortTends ( :, :, k, termTKhi ), & 
+            dx, dy, hTends(:,:,k,termTKhi), bd_ay ( :, k ), bd_by ( :, k ) )
     enddo
     
   end subroutine zwack_okossi

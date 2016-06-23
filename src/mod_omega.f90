@@ -22,7 +22,7 @@ contains
     real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta
     real,dimension(:,:,:,:),allocatable :: dudp,dvdp,ftest,d2zetadp,omega
     real,dimension(:,:,:),  allocatable :: sigmaraw,zetaraw,zetatend,zeta
-    real,dimension(:,:,:),  allocatable :: mulfact
+    real,dimension(:,:,:),  allocatable :: mulfact,ukhi,vkhi
     real,dimension(:,:),    allocatable :: corpar2,sigma0
     real,dimension(:),      allocatable :: dx2,dy2,dlev2
     integer,dimension(:),   allocatable :: nlonx,nlatx,nlevx
@@ -62,6 +62,7 @@ contains
     allocate(sigmaraw(nlon,nlat,nlev),zetaraw(nlon,nlat,nlev))
     allocate(zeta(nlon,nlat,nlev),zetatend(nlon,nlat,nlev))
     allocate(mulfact(nlon,nlat,nlev))
+    allocate(ukhi(nlon,nlat,nlev),vkhi(nlon,nlat,nlev))
  
 !   Number of different resolutions in solving the equation = nres 
 !   Choose so that the coarsest grid has at least 5 points
@@ -118,6 +119,8 @@ contains
 !
     call curl_cart(u,v,dx,dy,zetaraw)
     if(mode.eq.'G')call curl_cart(utend,vtend,dx,dy,zetatend)
+
+    call irrotationalWind(u,v,dx,dy,ukhi,vkhi)
 !
 !   Calculation of forcing terms 
 !
@@ -130,6 +133,8 @@ contains
        call ffrict(xfrict,yfrict,corpar,dx,dy,dlev,mulfact,rhs(:,:,:,1,termF))
        call fdiab(q,lev,dx,dy,mulfact,rhs(:,:,:,1,termQ))
        call fimbal(zetatend,ttend,corpar,lev,dx,dy,dlev,mulfact,rhs(:,:,:,1,termA))
+       call fvort(ukhi,vkhi,zetaraw,corpar,dx,dy,dlev,mulfact,rhs(:,:,:,1,termvkhi))
+       call ftemp(ukhi,vkhi,t,lev,dx,dy,mulfact,rhs(:,:,:,1,termtkhi))
     endif
 !
 !   Deriving quantities needed for the LHS of the 
@@ -250,7 +255,13 @@ contains
        call callsolvegen(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
             sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
        omegas(:,:,:,termB)=omega(:,:,:,1)
-                  
+
+       call callsolvegen(rhs(:,:,:,:,termvkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
+       omegas(:,:,:,termvkhi)=omega(:,:,:,1)
+       call callsolvegen(rhs(:,:,:,:,termtkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
+       omegas(:,:,:,termtkhi)=omega(:,:,:,1)
     endif
 
     if(mode.eq.'Q')then

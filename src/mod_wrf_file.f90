@@ -276,10 +276,8 @@ end function real2d
            file % dims ( 1 ), file % dims ( 2 ), file % dims ( 3 ) ) )
      
       call check ( nf90_inq_varid ( file % ncid, trim ( name ), varid ) )
-
       call check ( nf90_get_var ( file % ncid, varid, data, &
            start = [ 1, 1, 1, time ], count = [ shape ( data ), 1 ] ) )
-    
     end function data
   
   end function real3d
