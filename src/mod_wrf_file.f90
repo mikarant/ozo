@@ -22,6 +22,7 @@ module mod_wrf_file
        QG_omega_term_names &
        = [ 'ome_v_QG', 'ome_t_QG', 'ome_b_QG' ]
   character ( 9 ), parameter :: ztend_name='ztend_WRF'
+  character ( 7 ), parameter :: ome_name='ome_WRF'
   character ( 4 ), dimension ( 4 ), parameter :: rname = &
        [ 'lon ', 'lat ', 'lev ', 'Time' ]
   character ( 37 ), dimension ( 3 ), parameter :: QG_omega_long_names = &
@@ -119,6 +120,14 @@ contains
        call check( nf90_put_att(f % ncid, varid,trim('description'),trim(omega_long_names(i)) ) )
        call check( nf90_put_att(f % ncid, varid,trim('units'),trim('Pa s-1') ) )
        end do
+
+       ! Create ome_WRF variable
+       status = nf90_def_var ( f % ncid, trim ( ome_name ), NF90_FLOAT, &
+            dimids, varid )
+       if ( .not. ( status == nf90_enameinuse .or. status == NF90_NOERR ) ) &
+            call check ( status )
+       call check( nf90_put_att(f % ncid, varid,trim('description'),trim('omega from WRF') ) )
+       call check( nf90_put_att(f % ncid, varid,trim('units'),trim('Pa s-1') ) )
 
        ! Create height tendency variables
        do i = 1, size ( htend_term_names )
