@@ -69,6 +69,7 @@ contains
          else if ( mode .eq. 'G' ) then
             if (calc_omegas) then
                call write_omegas ( omegafile, time-time_1+1, omegas )
+               call write3d ( omegafile, time-time_1+1, ome_name, w)
             end if
             call write_tendencies ( omegafile, time-time_1+1, hTends )
             call write3d ( omegafile, time-time_1+1, ztend_name, dz_dt )
