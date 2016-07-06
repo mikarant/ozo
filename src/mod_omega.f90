@@ -271,7 +271,7 @@ contains
           omegas_QG(:,:,:,i)=omega(:,:,:,1)
        enddo
 
-       Write(*,*)'Boundary conditions'        
+!       Write(*,*)'Boundary conditions'        
        call callsolveQG(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
             sigma0,feta,nres,alfa,toler)
        omegas_QG(:,:,:,3)=omega(:,:,:,1)

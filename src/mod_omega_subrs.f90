@@ -530,7 +530,7 @@ contains
        enddo
        print*,iter,maxdiff
        if(maxdiff.lt.toler.or.iter.eq.itermax)then
-          write(*,*)'iter,maxdiff',iter,maxdiff
+!          write(*,*)'iter,maxdiff',iter,maxdiff
           goto 10
        endif
        

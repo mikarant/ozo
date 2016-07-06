@@ -1,9 +1,9 @@
  &PARAM
   infile='wrf_omega_100km.nc',
-  outfile='test.nc',
-  time_1=118,time_n=128,
+  outfile='test_QG.nc',
+  time_1=2,time_n=240,
   alfa=0.20,toler=5e-5,
-  mode='G',
+  mode='Q',
   calc_omegas=.true.
 /
 
