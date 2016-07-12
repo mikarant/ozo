@@ -16,25 +16,72 @@ contains
     real,dimension(:),    intent(in) :: lev 
     integer,              intent(in) :: nlev
     real,dimension(:,:,:),intent(inout) :: mulfact
-
-    integer :: i,j,k,nlon,nlat 
+    real :: pm1
+    integer :: i,j,k,nlon,nlat,factor 
     nlon=size(psfc,1); nlat=size(psfc,2)
+    
+    factor=3
 
-    mulfact=1.
-    do i=1,nlon
-       do j=1,nlat
-          do k=2,nlev
-             if(psfc(i,j).le.lev(k-1))then
-                mulfact(i,j,k)=0.
-             else
-                if(psfc(i,j).le.lev(k))then
-                   mulfact(i,j,k)=(psfc(i,j)-lev(k-1))/(lev(k)-lev(k-1))              
-                endif
-             endif
+    select case (factor)
+
+       case (1) ! current version
+          mulfact=1.
+          do i=1,nlon
+             do j=1,nlat
+                do k=1,nlev-1
+                   if(psfc(i,j) .le. lev(k+1) )then
+                      mulfact(i,j,k)=0.
+                   else
+                      if(psfc(i,j).le.lev(k))then
+                         mulfact(i,j,k)=(psfc(i,j)-lev(k+1))/(lev(k)-lev(k+1))
+                         !mulfact(i,j,k)=0.
+                      endif
+                   endif
+                enddo
+             enddo
           enddo
-       enddo
-    enddo
-        
+
+       case(2) ! old version, should not be used
+          mulfact=1.
+          do i=1,nlon
+             do j=1,nlat
+                do k=2,nlev
+                   if(psfc(i,j).le.lev(k-1))then
+                      mulfact(i,j,k)=0.
+                   else
+                      if(psfc(i,j).le.lev(k))then
+                         mulfact(i,j,k)=(psfc(i,j)-lev(k-1))/(lev(k)-lev(k-1))
+                      endif
+                   endif
+                enddo
+             enddo
+          enddo
+
+       case (3)
+          mulfact=1.
+          do i=1,nlon
+             do j=1,nlat
+                do k=1,nlev-1
+                   if(k==1)then
+                      pm1=2*lev(1)-lev(2)
+                   else
+                      pm1=lev(k-1)
+                   end if
+                   if (psfc(i,j) <= lev(k)-((lev(k)-lev(k+1))/2) )then
+                      mulfact(i,j,k)=0.
+                   else if (psfc(i,j) > lev(k)-((lev(k)-lev(k+1))/2) .and. &
+                        psfc(i,j) <= lev(k)+((pm1-lev(k))/2)) then
+                      mulfact(i,j,k)=(psfc(i,j)-(lev(k+1)+(lev(k)-lev(k+1))/2))&
+                           /((pm1-lev(k))/2+(lev(k)-lev(k+1))/2)
+                   else if (psfc(i,j) >= (2*lev(1)-lev(2))) then
+                      mulfact(i,j,k) = 1 + (psfc(i,j)-((lev(1)+pm1)/2))/(pm1-lev(1)) 
+                   
+                   endif
+                enddo
+             enddo
+          enddo
+       
+       end select
   end subroutine calmul
 
   subroutine nondivergentWind(zeta,dx,dy,uPsi,vPsi)
@@ -124,58 +171,55 @@ contains
     real,                 intent(in) :: dx,dy
     real,dimension(:,:,:),intent(inout) :: zeta
 
-    integer :: i,i1,i2,j,k,nlon,nlat,nlev
-    real :: dudy,dvdx
+    integer :: nlon,nlat,nlev
+    real,dimension(:,:,:),allocatable :: du_dy,dv_dx
+
     nlon=size(u,1); nlat=size(u,2); nlev=size(u,3)
-
-    do k=1,nlev
-       do i=1,nlon
-          i1=i-1
-          i2=i+1
-          if(i1.lt.1)i1=i1+nlon
-          if(i2.gt.nlon)i2=i2-nlon
-          do j=1,nlat
-             if(j.gt.1.and.j.lt.nlat)then
-                dudy=(u(i,j+1,k)-u(i,j-1,k))/(2*dy)
-             else
-                if(j.eq.1)dudy=(u(i,j+1,k)-u(i,j,k))/dy
-                if(j.eq.nlat)dudy=(u(i,j,k)-u(i,j-1,k))/dy
-             endif
-             dvdx=(v(i2,j,k)-v(i1,j,k))/(2*dx)
-             zeta(i,j,k)=dvdx-dudy
-          enddo
-       enddo
-    enddo
-
+    allocate(du_dy(nlon,nlat,nlev))
+    allocate(dv_dx(nlon,nlat,nlev))
+    
+    call yder_cart(u,dy,du_dy)
+    call xder_cart(v,dx,dv_dx)
+    zeta=dv_dx-du_dy
+       
   end subroutine curl_cart
 
   subroutine pder(f,dp,dfdp)
 !   Estimation of pressure derivatives.
-!   One-sided derivatives are used at top and bottom levels 
+!   One-sided derivatives are used at top and bottom levels
+!   Accuracy=1 means second-order accuracy
+!   Accuracy=2 fourth-order accuracy
     implicit none
 
     real,dimension(:,:,:),intent(in) :: f
     real,                 intent(in) :: dp
     real,dimension(:,:,:),intent(inout) :: dfdp
     
-    integer :: nlon,nlat,nlev
+    integer :: nlon,nlat,nlev,accuracy,k
     nlon=size(f,1); nlat=size(f,2); nlev=size(f,3)
  
-    dfdp(:,:,2:nlev-1)=f(:,:,3:nlev)-f(:,:,1:nlev-2)
-    dfdp(:,:,2:nlev-1)=dfdp(:,:,2:nlev-1)/(2.*dp)
-    
-    dfdp(:,:,1)=(f(:,:,2)-f(:,:,1))/dp
-    dfdp(:,:,nlev)=(f(:,:,nlev)-f(:,:,nlev-1))/dp
+    accuracy=1
 
-!    do i=1,nlon
-!       do j=1,nlat
-!          do k=2,nlev-1
-!             dfdp(i,j,k)=(f(i,j,k+1)-f(i,j,k-1))/(2.*dp)
-!          enddo
-!          dfdp(i,j,1)=(f(i,j,2)-f(i,j,1))/dp
-!          dfdp(i,j,nlev)=(f(i,j,nlev)-f(i,j,nlev-1))/dp
-!       enddo
-!    enddo
+    select case (accuracy)
+
+       case(1)
+          dfdp(:,:,2:nlev-1)=f(:,:,3:nlev)-f(:,:,1:nlev-2)
+          dfdp(:,:,2:nlev-1)=dfdp(:,:,2:nlev-1)/(2.*dp)
+          
+          dfdp(:,:,1)=(f(:,:,2)-f(:,:,1))/dp
+          dfdp(:,:,nlev)=(f(:,:,nlev)-f(:,:,nlev-1))/dp
+       case(2)
+          do k=3,nlev-2
+             dfdp(:,:,k)=f(:,:,k-2)-8.*f(:,:,k-1)+8.*f(:,:,k+1) &
+                  -f(:,:,k+2)
+             dfdp(:,:,k)=dfdp(:,:,k)/(12.*dp)
+          enddo
+          dfdp(:,:,2)=(dfdp(:,:,3)-dfdp(:,:,1))/(2.*dp)
+          dfdp(:,:,nlev-1)=(dfdp(:,:,nlev)-dfdp(:,:,nlev-2))/(2.*dp)
+          dfdp(:,:,1)=(f(:,:,2)-f(:,:,1))/dp
+          dfdp(:,:,nlev)=(f(:,:,nlev)-f(:,:,nlev-1))/dp
+
+       end select
 
   end subroutine pder
 
@@ -187,21 +231,48 @@ contains
     real,                 intent(in) :: dx
     real,dimension(:,:,:),intent(inout) :: dfdx
 
-    integer :: i,j,k,nlon,nlat,nlev,i1,i2
+    integer :: i,j,k,nlon,nlat,nlev,i1,i2,acc,i_1,i_2
     nlon=size(f,1); nlat=size(f,2); nlev=size(f,3)
 
-    do k=1,nlev
-       do i=1,nlon
-          i1=max(i-1,1)
-          i2=min(i+1,nlon)
-          if(i1.eq.i)i1=nlon
-          if(i2.eq.i)i2=1
-          do j=1,nlat
-             dfdx(i,j,k)=(f(i2,j,k)-f(i1,j,k))/(2.*dx)
+    acc=1
+
+    select case (acc)
+    case (1)
+       do k=1,nlev
+          do i=1,nlon
+             i1=max(i-1,1)
+             i2=min(i+1,nlon)
+             if(i1.eq.i)i1=nlon
+             if(i2.eq.i)i2=1
+             do j=1,nlat
+                dfdx(i,j,k)=(f(i2,j,k)-f(i1,j,k))/(2.*dx)
+             enddo
           enddo
        enddo
-    enddo
-    
+    case (2)
+       do k=1,nlev
+          do j=1,nlat
+             do i=1,nlon
+                i_2=i-2
+                i_1=i-1
+                i1=i+1
+                i2=i+2
+                if(i==2)i_2=nlon
+                if(i==1)then
+                   i_2=nlon-1
+                   i_1=nlon
+                end if
+                if(i==nlon-1)i2=1
+                if(i==nlon)then
+                   i1=1
+                   i2=2
+                end if
+                dfdx(i,j,k)=(f(i_2,j,k)-8*f(i_1,j,k)+8*f(i1,j,k)-f(i2,j,k))/(12*dx)
+             enddo
+          enddo
+       enddo
+    end select
+
   end subroutine xder_cart
 
   subroutine yder_cart(f,dy,dfdy)                          
@@ -213,18 +284,43 @@ contains
     real,                 intent(in) :: dy
     real,dimension(:,:,:),intent(inout) :: dfdy
 
-    integer :: i,j,k,nlon,nlat,nlev
+    integer :: i,j,k,nlon,nlat,nlev,acc
     nlon=size(f,1); nlat=size(f,2); nlev=size(f,3)
 
-    do k=1,nlev
-       do i=1,nlon
-          do j=2,nlat-1
-             dfdy(i,j,k)=(f(i,j+1,k)-f(i,j-1,k))/(2*dy)
+    acc=1
+    select case(acc)
+       
+    case(1)
+       do k=1,nlev
+          do i=1,nlon
+             do j=2,nlat-1
+                dfdy(i,j,k)=(f(i,j+1,k)-f(i,j-1,k))/(2*dy)
+             enddo
+             dfdy(i,1,k)=(f(i,2,k)-f(i,1,k))/dy
+             dfdy(i,nlat,k)=(f(i,nlat,k)-f(i,nlat-1,k))/dy
           enddo
-          dfdy(i,1,k)=(f(i,2,k)-f(i,1,k))/dy
-          dfdy(i,nlat,k)=(f(i,nlat,k)-f(i,nlat-1,k))/dy
        enddo
-    enddo
+
+    case (2)
+       do k=1,nlev
+          do j=1,nlat
+             do i=1,nlon
+                if(j==2)then
+                   dfdy(i,2,k)=(f(i,3,k)-f(i,1,k))/(2*dy)
+                else if(j==1)then
+                   dfdy(i,1,k)=(-f(i,3,k)+4*f(i,2,k)-3*f(i,1,k))/(2*dy)
+                else if(j==nlat-1)then
+                   dfdy(i,nlat-1,k)=(f(i,nlat,k)-f(i,nlat-2,k))/(2*dy)
+                else if(j==nlat)then
+                   dfdy(i,nlat,k)=(f(i,nlat-2,k)-4*f(i,nlat-1,k)+3*f(i,nlat,k))/(2*dy)
+                else
+                   dfdy(i,j,k)=(f(i,j-2,k)-8*f(i,j-1,k)+8*f(i,j+1,k)-f(i,j+2,k))/(12*dy)
+                end if
+             enddo
+          enddo
+       enddo
+    end select
+
 
   end subroutine yder_cart
   
@@ -302,26 +398,77 @@ contains
     real,dimension(:,:,:),intent(in) :: f
     real,                 intent(in) :: dx,dy
     real,dimension(:,:,:),intent(out) :: lapl
-    integer :: nlon,nlat,nlev
-
+    integer :: nlon,nlat,nlev,acc,i,j,k
+    
     nlon=size(f,1)
     nlat=size(f,2)
     nlev=size(f,3)
 
- ! x-direction
-    lapl ( 2 : nlon - 1, :, : ) = f( 1: nlon - 2, :, : ) + f ( 3: nlon, :, : ) &
-         - 2 * f( 2 : nlon - 1, :, : )
-    lapl ( 1, :, : )    = f( nlon, :, : ) + f ( 2, :, : ) &
-         - 2 * f( 1, :, : )
-    lapl ( nlon, :, : ) = f( nlon - 1, :, : ) + f ( 1, :, : ) &
-         - 2 * f( nlon, :, : )
-    lapl = lapl / ( dx * dx )
+    acc=1
 
-    ! y-directon
-    lapl ( :, 2 : nlat -1, : ) = lapl ( :, 2 : nlat -1, : ) &
-         + ( f ( :, 1 : nlat -2, : ) + f ( :, 3 : nlat, :) &
-         - 2 * f( :, 2 : nlat -1, : ) ) / ( dy * dy )
+    select case(acc)
+    case(1)
+       ! x-direction
+       lapl ( 2 : nlon - 1, :, : ) = f( 1: nlon - 2, :, : ) + f ( 3: nlon, :, : ) &
+            - 2 * f( 2 : nlon - 1, :, : )
+       lapl ( 1, :, : )    = f( nlon, :, : ) + f ( 2, :, : ) &
+            - 2 * f( 1, :, : )
+       lapl ( nlon, :, : ) = f( nlon - 1, :, : ) + f ( 1, :, : ) &
+            - 2 * f( nlon, :, : )
+       lapl = lapl / ( dx * dx )
+       
+       ! y-directon
+       lapl ( :, 2 : nlat -1, : ) = lapl ( :, 2 : nlat -1, : ) &
+            + ( f ( :, 1 : nlat -2, : ) + f ( :, 3 : nlat, :) &
+            - 2 * f( :, 2 : nlat -1, : ) ) / ( dy * dy )
 
+    case(2)
+
+       do j=1,nlat
+          do k=1,nlev
+             do i=1,nlon
+                ! x-direction
+                if(i==1)then
+                   lapl(i,j,k)=(-(1/12)*f(nlon-1,j,k)+(4/3)*f(nlon,j,k)-(5/2)*f(i,j,k) &
+                     +(4/3)*f(i+1,j,k)-(1/12)*f(i+2,j,k))/(dx*dx)
+                else if(i==2)then
+                   lapl(i,j,k)=(-(1/12)*f(nlon,j,k)+(4/3)*f(i-1,j,k)-(5/2)*f(i,j,k) &
+                        +(4/3)*f(i+1,j,k)-(1/12)*f(i+2,j,k))/(dx*dx)
+                else if(i==nlon-1)then
+                   lapl(i,j,k)=(-(1/12)*f(i-2,j,k)+(4/3)*f(i-1,j,k)-(5/2)*f(i,j,k) &
+                     +(4/3)*f(i+1,j,k)-(1/12)*f(1,j,k))/(dx*dx)
+                else if(i==nlon)then
+                   lapl(i,j,k)=(-(1/12)*f(i-2,j,k)+(4/3)*f(i-1,j,k)-(5/2)*f(i,j,k) &
+                     +(4/3)*f(1,j,k)-(1/12)*f(2,j,k))/(dx*dx)
+                else
+                   lapl(i,j,k)=-(1/12)*f(i-2,j,k)+(4/3)*f(i-1,j,k)-(5/2)*f(i,j,k) &
+                        +(4/3)*f(i+1,j,k)-(1/12)*f(i+2,j,k)
+                   lapl(i,j,k)=lapl(i,j,k)/(dx*dx)
+                end if
+             enddo
+          enddo
+       enddo
+
+       do i=1,nlon
+          do k=1,nlev
+             do j=2,nlat-1
+                ! y-direction
+                if(j==2)then
+                   lapl(i,j,k)=lapl(i,j,k)+(f(i,j-1,k)+f(i,j+1,k)-2*f(i,j,k))&
+                        /(dy*dy)
+                else if(j==nlat-1)then
+                   lapl(i,j,k)=lapl(i,j,k)+(f(i,j-1,k)+f(i,j+1,k)-2*f(i,j,k))&
+                        /(dy*dy)
+                else
+                   lapl(i,j,k)=lapl(i,j,k)+(-(1/12)*f(i,j-2,k)+(4/3)*f(i,j-1,k) &
+                        -(5/2)*f(i,j,k)+(4/3)*f(i,j+1,k)-(1/12)*f(i,j+2,k))/(dy*dy)
+                end if
+             enddo
+          enddo
+       enddo
+       
+    end select     
+          
   end subroutine laplace_cart
   
 end module mod_common_subrs

@@ -50,7 +50,7 @@ contains
          fy     = friction ( wrfin_file, time, 'V', mu_inv )
          p_sfc  = real2d ( wrfin_file, time, [ 'PSFC' ]  )
          w      = real3d ( wrfin_file, time, [ 'WW' ]  )
-         
+
          if ( calc_omegas ) then
             call calculate_omegas( T, u, v, w, z, p_levs, dx, dy, &
                  corpar, q, fx, fy, du_dt, dv_dt, dT_dt,&

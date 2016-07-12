@@ -304,7 +304,8 @@ contains
     call advect_cart(u,v,eta,dx,dy,adv)
     adv=adv*mulfact
     call pder(adv,dp,dadvdp) 
-
+!    print*,"fvort"
+!    write(*,"(20E11.3E2)")sum(dadvdp)
     do k=1,nlev
        do j=1,nlat      
           do i=1,nlon
@@ -768,7 +769,7 @@ contains
 !      Loop from coarser to finer resolutions
 !
        do ires=nres-1,1,-1
- !        write(*,*)'coarse-fine:iter,ires',iter,ires
+!         write(*,*)'coarse-fine:iter,ires',iter,ires
           call finen3D(omega(:,:,:,ires+1),dum1,nlon(ires),nlat(ires),&
                nlev(ires),nlon(ires+1),nlat(ires+1),nlev(ires+1))          
 !      Without the underrelaxation (coeffient alfa) the soultion diverges
@@ -795,9 +796,9 @@ contains
              enddo
           enddo
        enddo
-!       write(*,*)iter,maxdiff
+       write(*,*)iter,maxdiff
        if(maxdiff.lt.toler.or.iter.eq.itermax)then
-!          write(*,*)'iter,maxdiff',iter,maxdiff
+          write(*,*)'iter,maxdiff',iter,maxdiff
           goto 10
        endif
 
@@ -1068,24 +1069,75 @@ contains
     real,dimension(:,:,:),intent(in) :: f
     real,dimension(:,:,:),intent(out) :: lapl2,coeff
     real,intent(in) :: dx,dy
-    integer :: nlon,nlat
-     
+    integer :: nlon,nlat,nlev,i,j,k,c
+    
     nlon=size(f,1)
     nlat=size(f,2)
-
-    ! x-direction
-    lapl2 ( 2 : nlon - 1, :, : ) = f( 1: nlon - 2, :, : ) + f ( 3: nlon, :, : ) 
-    lapl2 ( 1, :, : )    = f( nlon, :, : ) + f ( 2, :, : ) 
-    lapl2 ( nlon, :, : ) = f( nlon - 1, :, : ) + f ( 1, :, : ) 
-    lapl2 = lapl2 / ( dx * dx )
-
-    ! y-direction
-    lapl2 ( :, 2 : nlat -1, : ) = lapl2 ( :, 2 : nlat -1, : ) &
-         + ( f ( :, 1 : nlat -2, : ) + f ( :, 3 : nlat, :) ) / ( dy * dy )
-
-    coeff ( :, 2 : nlat -1, : ) = -2 / (dy**2.) -2 / (dx**2.)
-    coeff ( :, 1, : ) = -2 / ( dx**2. )
-    coeff ( :, nlat, : ) = -2 / ( dx**2. )
+    nlev=size(f,3)
+    c=1
+    select case (c)
+    case(1)
+       
+       ! x-direction
+       lapl2 ( 2 : nlon - 1, :, : ) = f( 1: nlon - 2, :, : ) + f ( 3: nlon, :, : ) 
+       lapl2 ( 1, :, : )    = f( nlon, :, : ) + f ( 2, :, : ) 
+       lapl2 ( nlon, :, : ) = f( nlon - 1, :, : ) + f ( 1, :, : ) 
+       lapl2 = lapl2 / ( dx * dx )
+       
+       ! y-direction
+       lapl2 ( :, 2 : nlat -1, : ) = lapl2 ( :, 2 : nlat -1, : ) &
+            + ( f ( :, 1 : nlat -2, : ) + f ( :, 3 : nlat, :) ) / ( dy * dy )
+       
+       coeff ( :, 2 : nlat -1, : ) = -2 / (dy**2.) -2 / (dx**2.)
+       coeff ( :, 1, : ) = -2 / ( dx**2. )
+       coeff ( :, nlat, : ) = -2 / ( dx**2. )
+    case(2)
+       do j=1,nlat
+          do k=1,nlev
+             do i=1,nlon
+                ! x-direction
+                if(i==1)then
+                   lapl2(i,j,k)=(-(1./12.)*f(nlon-1,j,k)+(4./3.)*f(nlon,j,k) &
+                        +(4./3.)*f(i+1,j,k)-(1./12.)*f(i+2,j,k))/(dx*dx)
+                else if(i==2)then
+                   lapl2(i,j,k)=(-(1./12.)*f(nlon,j,k)+(4./3.)*f(i-1,j,k) &
+                        +(4./3.)*f(i+1,j,k)-(1./12.)*f(i+2,j,k))/(dx*dx)
+                else if(i==nlon-1)then
+                   lapl2(i,j,k)=(-(1./12.)*f(i-2,j,k)+(4./3.)*f(i-1,j,k) &
+                        +(4./3.)*f(i+1,j,k)-(1./12.)*f(1,j,k))/(dx*dx)
+                else if(i==nlon)then
+                   lapl2(i,j,k)=(-(1./12.)*f(i-2,j,k)+(4./3.)*f(i-1,j,k) &
+                        +(4./3.)*f(1,j,k)-(1./12.)*f(2,j,k))/(dx*dx)
+                else
+                   lapl2(i,j,k)=-(1./12.)*f(i-2,j,k)+(4./3.)*f(i-1,j,k) &
+                        +(4./3.)*f(i+1,j,k)-(1./12.)*f(i+2,j,k)
+                   lapl2(i,j,k)=lapl2(i,j,k)/(dx*dx)
+                end if
+             enddo
+          enddo
+       enddo
+       
+       do i=1,nlon
+          do k=1,nlev
+             do j=2,nlat-1
+                ! y-direction
+                if(j==2)then
+                   lapl2(i,j,k)=lapl2(i,j,k)+(f(i,j-1,k)+f(i,j+1,k))/(dy*dy)
+                else if(j==nlat-1)then
+                   lapl2(i,j,k)=lapl2(i,j,k)+(f(i,j-1,k)+f(i,j+1,k))/(dy*dy)
+                else
+                   lapl2(i,j,k)=lapl2(i,j,k)+(-(1./12.)*f(i,j-2,k)+(4./3.)*f(i,j-1,k) &
+                        +(4./3.)*f(i,j+1,k)-(1./12.)*f(i,j+2,k))/(dy*dy)
+                end if
+             enddo
+          enddo
+       enddo
+       coeff(:,3:nlat-2,:)=-(5./2.)/(dx*dx)-(5./2.)/(dy*dy)
+       coeff(:,2,:)=-(5./2.)/(dx*dx)-2./(dy*dy)
+       coeff(:,nlat-1,:)=-(5./2.)/(dx*dx)-2./(dy*dy)
+       coeff(:,1,:)=-(5./2.)/(dx*dx)
+       coeff(:,nlat,:)=-(5./2.)/(dx*dx)
+    end select
 
   end subroutine laplace2_cart
 
@@ -1098,15 +1150,28 @@ contains
     real,dimension(:,:,:),intent(in) :: f
     real,dimension(:,:,:),intent(out) :: df2dp2
     real,intent(in) :: dp
-    integer :: nlev
+    integer :: nlev,c,k
 
     nlev=size(f,3)
-
-    df2dp2(:,:,2:nlev-1)=(f(:,:,3:nlev)+f(:,:,1:nlev-2) &
-                         -2*f(:,:,2:nlev-1))/(dp*dp)
-    df2dp2(:,:,1)=0.
-    df2dp2(:,:,nlev)=0.
-    
+    c=1
+    select case(c)
+       
+    case(1)
+       df2dp2(:,:,2:nlev-1)=(f(:,:,3:nlev)+f(:,:,1:nlev-2) &
+            -2*f(:,:,2:nlev-1))/(dp*dp)
+       df2dp2(:,:,1)=0.
+       df2dp2(:,:,nlev)=0.
+    case(2)
+       do k=3,nlev-2
+          df2dp2(:,:,k)=(-1./12.)*f(:,:,k-2)+(4./3.)*f(:,:,k-1)&
+               -(5./2.)*f(:,:,k)+(4./3.)*f(:,:,k+1)-(1./12.)*f(:,:,k+2)
+          df2dp2(:,:,k)=df2dp2(:,:,k)/(dp*dp)
+       enddo
+       df2dp2(:,:,2)=(f(:,:,3)+f(:,:,1)-2.*f(:,:,2))/(dp*dp)
+       df2dp2(:,:,nlev-1)=(f(:,:,nlev)+f(:,:,nlev-2)-2.*f(:,:,nlev-1))/(dp*dp)
+       df2dp2(:,:,1)=0.
+       df2dp2(:,:,nlev)=0.
+    end select
  end subroutine p2der
 
  subroutine p2der2(f,dp,df2dp22,coeff) 
@@ -1119,18 +1184,37 @@ contains
    real,dimension(:,:,:),intent(in) :: f
    real,dimension(:,:,:),intent(out) :: df2dp22,coeff
    real,intent(in) :: dp
-   integer :: nlev
+   integer :: nlev,c,k
 
+   c=1
    nlev=size(f,3)
  
-   df2dp22(:,:,2:nlev-1)=(f(:,:,3:nlev)+f(:,:,1:nlev-2)) &
-                         /(dp*dp)
-   coeff(:,:,2:nlev-1)=-2/(dp*dp)
-   df2dp22(:,:,1)=0.
-   df2dp22(:,:,nlev)=0.
-   coeff(:,:,1)=0.
-   coeff(:,:,nlev)=0.
-  
+   select case (c)
+   case(1)
+      df2dp22(:,:,2:nlev-1)=(f(:,:,3:nlev)+f(:,:,1:nlev-2)) &
+           /(dp*dp)
+      coeff(:,:,2:nlev-1)=-2./(dp*dp)
+      df2dp22(:,:,1)=0.
+      df2dp22(:,:,nlev)=0.
+      coeff(:,:,1)=0.
+      coeff(:,:,nlev)=0.
+   case(2)
+      do k=3,nlev-2
+         df2dp22(:,:,k)=(-1./12.)*f(:,:,k-2)+(4./3.)*f(:,:,k-1) &
+              +(4./3.)*f(:,:,k+1)-(1./12.)*f(:,:,k+2)
+         df2dp22(:,:,k)=df2dp22(:,:,k)/(dp*dp)
+      enddo
+      coeff(:,:,3:nlev-2)=(-5./2.)/(dp*dp)
+      df2dp22(:,:,2)=(f(:,:,3)+f(:,:,1))/(dp*dp)
+      df2dp22(:,:,nlev-1)=(f(:,:,nlev)+f(:,:,nlev-2))/(dp*dp)
+      coeff(:,:,2)=-2./(dp*dp)
+      coeff(:,:,nlev-1)=-2./(dp*dp)
+      coeff(:,:,1)=0
+      coeff(:,:,nlev)=0
+      df2dp22(:,:,1)=0.
+      df2dp22(:,:,nlev)=0.
+   end select
+      
  end subroutine p2der2
 
 

@@ -33,6 +33,7 @@ contains
 
 !   Threshold values to keep the generalized omega equation elliptic.
     real,parameter :: sigmamin=2e-7,etamin=2e-6
+!    real,parameter :: sigmamin=1e-6,etamin=2e-5
 
 !   For iubound, ilbound and iybound are 0, horizontal boundary
 !   conditions are used at the upper, lower and north/south boundaries  
@@ -111,12 +112,12 @@ contains
 !   Multiplication factor for forcing: 
 !   1 above the ground, smaller (or 0) below the ground
 !
-    if(lcensor)then         
+ !   if(lcensor)then         
        call calmul(psfc,lev,nlev,mulfact) 
-    endif
+ !   endif
 !
 !   Calculation of vorticity and vorticity tendency 
-!
+
     call curl_cart(u,v,dx,dy,zetaraw)
     if(mode.eq.'G')call curl_cart(utend,vtend,dx,dy,zetatend)
 
@@ -126,6 +127,7 @@ contains
 !
     if(mode.eq.'G'.or.mode.eq.'Q')then
        call fvort(u,v,zetaraw,corpar,dx,dy,dlev,mulfact,rhs(:,:,:,1,termV))
+       
        call ftemp(u,v,t,lev,dx,dy,mulfact,rhs(:,:,:,1,termT))
     endif
 

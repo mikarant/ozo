@@ -54,10 +54,12 @@ contains
     call interp1000(z,ztend,t,ttend)
 
 !   Calculating mulfact
-    call calmul(psfc,lev,nlev,mulfact) 
-    
+    call calmul(psfc,lev,nlev,mulfact)
+    print*,'max(pxfc)',maxval(psfc)
+    print*,'level 1',sum(mulfact(:,:,1))
+    print*,'level 2',sum(mulfact(:,:,2))
+    print*,'level 3',sum(mulfact(:,:,3))
 !   Calculation of relative vorticity and its tendency
-!  
     call curl_cart(u,v,dx,dy,zeta)
     call curl_cart(utend,vtend,dx,dy,zetatend)
 
@@ -121,7 +123,7 @@ contains
     allocate(mtt(n_terms,nlev),mht(n_terms,nlev))
     allocate(mzo(n_terms,nlev),diff(n_terms,nlev))
     
-    terms=(/1,2,3,4,5,7,8/)
+    terms=(/1,2,3,4,5,6,7,8/)
 
 !   Pressure levels       
     pres=lev(1:size(lev))/100.
@@ -132,7 +134,7 @@ contains
     temptend=0.
 
 !   Temperature tendencies of all terms
-    do m=1,n_terms-1
+    do m=1,size(terms)
        l=terms(m)
        temptend(:,:,:,l)=sp*omegas(:,:,:,l)
     enddo
@@ -142,7 +144,7 @@ contains
 
 !   Area mean temperature and calculated area mean height tendencies
 !   for each pressure level separately
-    do m=1,n_terms-1
+    do m=1,size(terms)
        l=terms(m)
        do k=1,nlev
           do i=1,nlon
@@ -160,7 +162,7 @@ contains
 
 !   Area mean temperature and calculated height tendency
 !   for layers (1000-950,1000-900,1000-850...)
-    do m=1,n_terms-1
+    do m=1,size(terms)
        l=terms(m)
        do k=2,nlev
           mtt(l,k-1)=sum(mtt(l,1:k))/k
@@ -170,7 +172,7 @@ contains
 
 !   Area mean "thickness" tendencies, calculated from temperature tendencies
 !   by using hypsometric equation
-    do m=1,n_terms-1
+    do m=1,size(terms)
        l=terms(m)
        do k=2,nlev
           mht(l,k-1)=(r/g)*mtt(l,k-1)*log(1000./pres(k))
@@ -179,14 +181,14 @@ contains
 
 !   Difference between hypsometric thickness tendencies and zwack-okossi-
 !   calculated thickness tendencies
-    do m=1,n_terms-1
+    do m=1,size(terms)
        l=terms(m)
        diff(l,:)=mht(l,:)-mzo(l,:)
     enddo
 
 !   Adding the difference to calculated height tendencies
     diffsum=0.
-    do m=1,n_terms-1
+    do m=1,size(terms)
        l=terms(m)
        do k=2,nlev
           hTends(:,:,k,l)=hTends(:,:,k,l)+diff(l,k-1)
@@ -195,9 +197,9 @@ contains
           endif
        enddo
     enddo
-    do k=1,nlev
-       hTends(:,:,k,termB)=hTends(:,:,k,termB)-diffsum(k)
-    enddo
+!    do k=1,nlev
+!       hTends(:,:,k,termB)=hTends(:,:,k,termB)-diffsum(k)
+!    enddo
   end subroutine ht_correction
       
   subroutine vorticity_tendencies(omegas,u,v,w,uKhi,vKhi,zeta,zetatend,&
@@ -494,9 +496,9 @@ contains
     enddo
 
 ! Height tendency with WRF omega
-!    ttend_omegaWRF=sp*w+tadv+q
-!    call zo_integral(vorTend_omegaWRF,ttend_omegaWRF,dx,dy,corf,&
-!         gvtend_omegaWRF)
+    ttend_omegaWRF=sp*w+tadv+q
+    call zo_integral(vorTend_omegaWRF,ttend_omegaWRF,dx,dy,corf,&
+         gvtend_omegaWRF)
 
     do k=1,nlev
        do i=1,5
@@ -506,12 +508,15 @@ contains
        enddo
        ! Ztend-boundaries for B-term
        call poisson_solver_2D( gvortTends ( :, :, k, termB ), &
-            dx, dy, hTends(:,:,k,termB), bd_ay ( :, k ), bd_by ( :, k ) )
+            dx, dy, hTends(:,:,k,termB), bd_0 ( :, k ), bd_0 ( :, k ) )
        ! "Pseudo" height tendency
        call poisson_solver_2D( gvortTends ( :, :, k, termVKhi ), & 
             dx, dy, hTends(:,:,k,termVKhi), bd_ay ( :, k ), bd_by ( :, k ) )
        ! WRF omega height tendency
        call poisson_solver_2D( gvortTends ( :, :, k, termTKhi ), & 
+            dx, dy, hTends(:,:,k,termTKhi), bd_ay ( :, k ), bd_by ( :, k ) )
+       ! WRF omega height tendency
+       call poisson_solver_2D( gvtend_omegaWRF ( :, :, k ), & 
             dx, dy, hTends(:,:,k,termTKhi), bd_ay ( :, k ), bd_by ( :, k ) )
     enddo
     
