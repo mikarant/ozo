@@ -12,20 +12,20 @@ Source code files of the OZO are located in the directory called _src_.
 2. mod\_const.f90  
 	This short module contains only definition of some natural constants.
 
-3. mod\_omega.f90
+3. mod\_omega.f90  
 	This file contains the main routine of the calculation of vertical motions. All the subroutines called by this routine are located in a file mod\_omega\_subrs.f90.
 
-4. mod\_omega\_subrs.f90
+4. mod\_omega\_subrs.f90  
 	All of the omega-related subroutines are located here.
 	
-5. mod\_poisson\_DFT.f90
+5. mod\_poisson\_DFT.f90  
 	This module contains subroutines related to solving of Poisson's equation in the Zwack-Okossi equation. 
 	
-6. mod\_subrs.f90
+6. mod\_subrs.f90  
 	In this module, all the subroutines related to Zwack-Okossi equation are located.
 	
-7. mod\_time\_step\_loop.f90
+7. mod\_time\_step\_loop.f90  
 	Time stepping loop + input/output routines are described here. 
 
-8. mod\_wrf\_file.f90
+8. mod\_wrf\_file.f90  
 	This module includes routines to create and handle input and output netcdf files.
