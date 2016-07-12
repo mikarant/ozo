@@ -8,7 +8,7 @@ contains
 !
   subroutine calculate_tendencies(omegas,t,u,v,w,z,lev,dx,dy,corpar,&
                                   q,xfrict,yfrict,ztend,utend,vtend,ttend,&
-                                  psfc,hTends)
+                                  psfc,calc_b,hTends)
 !   This is the main subroutine of solving the Zwack-Okossi equation. Input 
 !   arguments are variables from WRF and omegas, and output of this subroutine
 !   is height tendencies, stored in hTends.
@@ -18,13 +18,14 @@ contains
     implicit none
 
     real,dimension(:,:,:,:),intent(in) :: omegas
-    real,dimension(:,:,:),intent(in) :: t,u,v,w,xfrict,yfrict
-    real,dimension(:,:,:),intent(in) :: utend,vtend,ttend
-    real,dimension(:,:),  intent(in) :: psfc
-    real,dimension(:),intent(in) :: lev,corpar
-    real,                 intent(in) :: dx,dy 
+    real,dimension(:,:,:),  intent(in) :: t,u,v,w,xfrict,yfrict
+    real,dimension(:,:,:),  intent(in) :: utend,vtend,ttend
+    real,dimension(:,:),    intent(in) :: psfc
+    real,dimension(:),      intent(in) :: lev,corpar
+    real,                   intent(in) :: dx,dy 
+    logical,                intent(in) :: calc_b
     real,dimension(:,:,:,:),intent(inout) :: hTends
-    real,dimension(:,:,:),intent(inout) :: z,q,ztend
+    real,dimension(:,:,:),  intent(inout) :: z,q,ztend
 
     real,dimension(:,:,:,:),allocatable :: vortTends
     real,dimension(:,:,:),allocatable :: sigma,zetatend,sp,tadv,tadvs,zeta
@@ -55,10 +56,7 @@ contains
 
 !   Calculating mulfact
     call calmul(psfc,lev,nlev,mulfact)
-    print*,'max(pxfc)',maxval(psfc)
-    print*,'level 1',sum(mulfact(:,:,1))
-    print*,'level 2',sum(mulfact(:,:,2))
-    print*,'level 3',sum(mulfact(:,:,3))
+
 !   Calculation of relative vorticity and its tendency
     call curl_cart(u,v,dx,dy,zeta)
     call curl_cart(utend,vtend,dx,dy,zetatend)
@@ -90,14 +88,14 @@ contains
 
 !   Calculate height tendencies
     call zwack_okossi(vortTends,vorTend_omegaWRF,w,tadv,tadvs,q,omegas,sp,&
-                      corpar,dx,dy,hTends,ztend,ttend)
+                      corpar,dx,dy,calc_b,hTends,ztend)
 
 !   Area mean correction
-    call ht_correction(hTends,temptend,lev,omegas,sp,tadv,tadvs,q)
+    call ht_correction(hTends,temptend,lev,omegas,sp,tadv,tadvs,q,calc_b)
 
   end subroutine calculate_tendencies
 
-  subroutine ht_correction(hTends,temptend,lev,omegas,sp,tadv,tadvs,q)
+  subroutine ht_correction(hTends,temptend,lev,omegas,sp,tadv,tadvs,q,calc_b)
 
 !   This subroutine does area mean correction for height tendencies
 !   by using mean temperature tendencies and hypsometric equation.
@@ -110,6 +108,7 @@ contains
     real,dimension(:),    intent(in) :: lev
     real,dimension(:,:,:,:),intent(inout) :: hTends
     real,dimension(:,:,:,:),intent(inout) :: temptend
+    logical,intent(in) :: calc_b
 
     integer :: i,j,k,l,m,nlon,nlat,nlev
     real,dimension(:,:),    allocatable :: mtt,mht,mzo,diff
@@ -123,7 +122,9 @@ contains
     allocate(mtt(n_terms,nlev),mht(n_terms,nlev))
     allocate(mzo(n_terms,nlev),diff(n_terms,nlev))
     
-    terms=(/1,2,3,4,5,6,7,8/)
+    terms=(/1,2,3,4,5,6,7/)
+    if (calc_b) terms=(/1,2,3,4,5,6,7,8/)
+
 
 !   Pressure levels       
     pres=lev(1:size(lev))/100.
@@ -411,7 +412,7 @@ contains
   end subroutine ageo_tend
 
   subroutine zwack_okossi(vortTends,vorTend_omegaWRF,w,tadv,tadvs,q,omegas,&
-                          sp,corpar,dx,dy,hTends,ztend,ttend)
+                          sp,corpar,dx,dy,calc_b,hTends,ztend)
 
 !   This function calculates zwack-okossi equation for all forcings.
 !   Input: vorticity tendencies of forcings, omegas, thermal advection and
@@ -427,8 +428,9 @@ contains
     real,dimension(:,:,:,:),intent(inout) :: vortTends
     real,dimension(:,:,:),intent(in) :: tadv,tadvs,q,sp
     real,                 intent(in) :: dx,dy
-    real,dimension(:,:,:),intent(in) :: w,ztend,ttend
+    real,dimension(:,:,:),intent(in) :: w,ztend
     real,dimension(:),intent(in) :: corpar
+    logical,intent(in) :: calc_b
     real,dimension(:,:,:),intent(inout) :: vorTend_omegaWRF
     real,dimension(:,:,:,:),intent(inout) :: hTends
 
@@ -484,11 +486,6 @@ contains
 
     bd_0 = 0.0e0
  
-! "Pseudo" height tendency
-!    call laplace_cart(ztend,laplz,dx,dy)
-!    vortTends(:,:,:,termVKhi)=(g/corf)*laplz
-!    tempTends(:,:,:,termVKhi)=ttend
-
 ! Integration
     do i=1,n_terms
        call zo_integral(vortTends(:,:,:,i),tempTends(:,:,:,i),dx,dy,corf,&
@@ -506,9 +503,11 @@ contains
           call poisson_solver_2D( gvortTends( :, :, k, i ), &
                dx, dy, hTends(:,:,k,i), bd_0 ( :, k ), bd_0 ( :, k ) )
        enddo
-       ! Ztend-boundaries for B-term
-       call poisson_solver_2D( gvortTends ( :, :, k, termB ), &
-            dx, dy, hTends(:,:,k,termB), bd_0 ( :, k ), bd_0 ( :, k ) )
+       ! B-term
+       if (calc_b) then
+          call poisson_solver_2D( gvortTends ( :, :, k, 8 ), &
+               dx, dy, hTends(:,:,k,8), bd_0 ( :, k ), bd_0 ( :, k ) )
+       end if
        ! "Pseudo" height tendency
        call poisson_solver_2D( gvortTends ( :, :, k, termVKhi ), & 
             dx, dy, hTends(:,:,k,termVKhi), bd_ay ( :, k ), bd_by ( :, k ) )

@@ -2,25 +2,26 @@ module mod_wrf_file
   use netcdf
   implicit none
 
-  integer,parameter :: n_terms = 8
+  integer :: n_terms = 7
   integer,parameter :: termV=1,& ! names of omega and height tendency terms
                        termT=2,&
                        termF=3,&
                        termQ=4,&
                        termA=5,&
-                       termB=6,&
-                       termVKhi=7,&
-                       termTKhi=8
-  character ( 6 ), dimension ( n_terms ), parameter :: &
+                       termVKhi=6,&
+                       termTKhi=7
+  character ( 6 ), dimension ( 7 ), parameter :: &
        omega_term_names &
-       = [ 'ome_v ', 'ome_t ', 'ome_f ', 'ome_q ', 'ome_a ', 'ome_b ', &
+       = [ 'ome_v ', 'ome_t ', 'ome_f ', 'ome_q ', 'ome_a ', &
        'ome_vs', 'ome_ts' ], &
        htend_term_names &
-       = [ 'htv   ', 'htt   ', 'htf   ', 'htq   ', 'hta   ', 'htb   ', &
+       = [ 'htv   ', 'htt   ', 'htf   ', 'htq   ', 'hta   ', &
        'htvKhi', 'httKhi' ]
   character ( 8 ), dimension ( 3 ), parameter :: &
        QG_omega_term_names &
        = [ 'ome_v_QG', 'ome_t_QG', 'ome_b_QG' ]
+  character ( 5 ), parameter :: ome_b_name='ome_b'
+  character ( 3 ), parameter :: htend_b_name='htb'
   character ( 9 ), parameter :: ztend_name='ztend_WRF'
   character ( 7 ), parameter :: ome_name='ome_WRF'
   character ( 4 ), dimension ( 4 ), parameter :: rname = &
@@ -29,24 +30,26 @@ module mod_wrf_file
        [ 'QG omega due to vorticity advection  ', &
        'QG omega due to temperature advection', &
        'QG omega due to boundary conditions  ' ]
-  character ( 49 ), dimension ( 8 ), parameter :: omega_long_names = &
+  character ( 49 ), dimension ( 7 ), parameter :: omega_long_names = &
        [ 'omega due to vorticity advection                 ', &
        'omega due to temperature advection               ', &
        'omega due to friction                            ', &
        'omega due to diabatic heating                    ', &
        'omega due to ageostrophic vorticity tendency     ', &
-       'omega due to boundary conditions                 ', &
        'omega due to vorticity advection by irrot. wind  ',&
        'omega due to temperature advection by irrot. wind' ]
-  character ( 59 ), dimension ( 8 ), parameter :: htend_long_names = &
+  character ( 59 ), dimension ( 7 ), parameter :: htend_long_names = &
        [ 'height tendency due to vorticity advection                 ', &
        'height tendency due to temperature advection               ', &
        'height tendency due to friction                            ', &
        'height tendency due to diabatic heating                    ', &
        'height tendency due to ageostrophic vorticity tendency     ', &
-       'height tendency due to boundary conditions                 ', &
        'height tendency due to vorticity advection by irrot. wind  ',&
        'height tendency due to temperature advection by irrot. wind' ]
+  character ( 49 ), parameter :: ome_b_long_name = &
+       'omega due to boundary conditions                 '
+  character ( 59 ), parameter :: htend_b_long_name = &
+       'height tendency due to boundary conditions                 '
 
   type wrf_file
      integer :: ncid, dims ( 4 )
@@ -58,9 +61,10 @@ module mod_wrf_file
 
 contains
 
-  function create_out_file ( fname, wrf_infile, mode ) result ( f )
+  function create_out_file ( fname, wrf_infile, mode, calc_b ) result ( f )
     character ( * ),   intent ( in ) :: fname ! file name
     type ( wrf_file ), intent ( in ) :: wrf_infile ! wrf inputfile
+    logical,           intent ( in ) :: calc_b
     type ( wrf_file ) :: f
     integer :: dimids(4),i,status,varid,varids(4)
     character :: mode
@@ -105,8 +109,8 @@ contains
                NF90_FLOAT, dimids, varid )
           if ( .not. ( status == nf90_enameinuse .or. status == NF90_NOERR ) ) &
                call check ( status )
-       call check( nf90_put_att(f % ncid, varid,trim('description'),trim(QG_omega_long_names(i)) ) )
-       call check( nf90_put_att(f % ncid, varid,trim('units'),trim('Pa s-1') ) )
+          call check( nf90_put_att(f % ncid, varid,trim('description'),trim(QG_omega_long_names(i)) ) )
+          call check( nf90_put_att(f % ncid, varid,trim('units'),trim('Pa s-1') ) )
        end do
 
     else
@@ -117,9 +121,18 @@ contains
                NF90_FLOAT, dimids, varid )
           if ( .not. ( status == nf90_enameinuse .or. status == NF90_NOERR ) ) &
                call check ( status )
-       call check( nf90_put_att(f % ncid, varid,trim('description'),trim(omega_long_names(i)) ) )
-       call check( nf90_put_att(f % ncid, varid,trim('units'),trim('Pa s-1') ) )
+          call check( nf90_put_att(f % ncid, varid,trim('description'),trim(omega_long_names(i)) ) )
+          call check( nf90_put_att(f % ncid, varid,trim('units'),trim('Pa s-1') ) )
        end do
+
+       if (calc_b) then ! create omega b-variable if wanted
+          status = nf90_def_var ( f % ncid, trim ( ome_b_name ), &
+               NF90_FLOAT, dimids, varid )
+          if ( .not. ( status == nf90_enameinuse .or. status == NF90_NOERR ) ) &
+               call check ( status )
+          call check( nf90_put_att(f % ncid, varid,trim('description'),trim(ome_b_long_name) ) )
+          call check( nf90_put_att(f % ncid, varid,trim('units'),trim('Pa s-1') ) )
+       end if
 
        ! Create ome_WRF variable
        status = nf90_def_var ( f % ncid, trim ( ome_name ), NF90_FLOAT, &
@@ -135,10 +148,18 @@ contains
                NF90_FLOAT, dimids, varid )
           if ( .not. ( status == nf90_enameinuse .or. status == NF90_NOERR ) ) &
                call check ( status )
-       call check( nf90_put_att(f % ncid, varid,trim('description'),trim(htend_long_names(i)) ) )
-       call check( nf90_put_att(f % ncid, varid,trim('units'),trim('m s-1') ) )
-
+          call check( nf90_put_att(f % ncid, varid,trim('description'),trim(htend_long_names(i)) ) )
+          call check( nf90_put_att(f % ncid, varid,trim('units'),trim('m s-1') ) )
        end do
+       
+       if (calc_b) then ! create htend b-variable if wanted
+          status = nf90_def_var ( f % ncid, trim ( htend_b_name ), &
+               NF90_FLOAT, dimids, varid )
+          if ( .not. ( status == nf90_enameinuse .or. status == NF90_NOERR ) ) &
+               call check ( status )
+          call check( nf90_put_att(f % ncid, varid,trim('description'),trim(htend_b_long_name) ) )
+          call check( nf90_put_att(f % ncid, varid,trim('units'),trim('m s-1') ) )
+       end if
 
        ! Create ztend_wrf variable
        status = nf90_def_var ( f % ncid, trim ( ztend_name ), NF90_FLOAT, &

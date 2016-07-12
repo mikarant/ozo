@@ -7,8 +7,8 @@ module mod_omega
 contains
 
   subroutine calculate_omegas( t, u, v, omegaan, z, lev, dx, dy, corpar, q, &
-       xfrict, yfrict, utend, vtend, ttend, psfc, alfa, toler, mode, omegas, &
-       omegas_QG )
+       xfrict, yfrict, utend, vtend, ttend, psfc, alfa, toler, mode, & 
+       calc_b, omegas, omegas_QG )
 
     real,dimension(:,:,:,:),intent(inout) :: omegas, omegas_QG
     real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend
@@ -17,6 +17,7 @@ contains
     real,dimension(:),      intent(in) :: lev,corpar
     real,                   intent(in) :: dx,dy,alfa,toler
     character,              intent(in) :: mode
+    logical,                intent(in) :: calc_b
 
     real,dimension(:,:,:,:,:),allocatable :: rhs
     real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta
@@ -50,15 +51,6 @@ contains
     nlon=size(t,1)
     nlat=size(t,2)
     nlev=size(t,3)
-
-    if(mode.eq.'G')write(*,*)'Generalized omega equation'   
-    if(mode.eq.'Q')write(*,*)'Quasi-geostrophic omega equation'   
-    if(mode.eq.'T')write(*,*)'Generalized test version'   
-    if(mode.eq.'t')write(*,*)'Quasigeostrophic test version'   
-    if(mode.ne.'G'.and.mode.ne.'Q'.and.mode.ne.'T'.and.mode.ne.'t')then
-       write(*,*)'Unknown mode of operation. Aborting'
-       stop
-    endif
 
     allocate(sigmaraw(nlon,nlat,nlev),zetaraw(nlon,nlat,nlev))
     allocate(zeta(nlon,nlat,nlev),zetatend(nlon,nlat,nlev))
@@ -195,11 +187,12 @@ contains
 !   Boundary conditions from WRF omega?  
 !
     boundaries=0.
-    boundaries(:,:,1,1)=iubound*omegaan(:,:,1)
-    boundaries(:,:,nlev,1)=ilbound*omegaan(:,:,nlev)
-    boundaries(:,1,2:nlev-1,1)=iybound*omegaan(:,1,2:nlev-1)
-    boundaries(:,nlat,2:nlev-1,1)=iybound*omegaan(:,nlat,2:nlev-1)
-
+    if ( calc_b ) then
+       boundaries(:,:,1,1)=iubound*omegaan(:,:,1)
+       boundaries(:,:,nlev,1)=ilbound*omegaan(:,:,nlev)
+       boundaries(:,1,2:nlev-1,1)=iybound*omegaan(:,1,2:nlev-1)
+       boundaries(:,nlat,2:nlev-1,1)=iybound*omegaan(:,nlat,2:nlev-1)
+    end if
 !   Regrid left-hand-side parameters and boundary conditions to 
 !   coarser grids. Note that non-zero boundary conditions are only 
 !   possibly given at the highest resolutions (As only the 
@@ -252,11 +245,13 @@ contains
                sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
           omegas(:,:,:,i)=omega(:,:,:,1)
        enddo
-
-!       Write(*,*)'Boundary conditions'        
-       call callsolvegen(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
-       omegas(:,:,:,termB)=omega(:,:,:,1)
+       
+       if (calc_b) then
+          !       Write(*,*)'Boundary conditions'        
+          call callsolvegen(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+               sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
+          omegas(:,:,:,8)=omega(:,:,:,1)
+       end if
 
        call callsolvegen(rhs(:,:,:,:,termvkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
             sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)

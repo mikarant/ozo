@@ -4,6 +4,6 @@
   time_1=2,time_n=240,
   alfa=0.2,toler=5e-5,
   mode='G',
-  calc_omegas=.true.
+  calc_omegas=.false.
 /
 

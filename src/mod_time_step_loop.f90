@@ -7,7 +7,7 @@ module mod_time_step_loop
 contains
 
   subroutine time_step_loop ( wrfin_file, omegafile, time_1, time_n, alfa, &
-                              toler, mode, calc_omegas )
+                              toler, mode, calc_omegas, calc_b )
     ! This subroutine contains the main time stepping loop. It gets both
     ! input and output files as input arguments. 
     character :: mode
@@ -20,8 +20,12 @@ contains
     real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
     integer, dimension (:), allocatable :: tdim
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends, omegas_QG
-    logical, intent(in) :: calc_omegas
+    logical, intent(in) :: calc_omegas,calc_b
     
+    if (calc_b) then 
+       n_terms = n_terms + 1
+    end if
+
     associate ( &
          nlon   => wrfin_file % dims ( 1 ), &
          nlat   => wrfin_file % dims ( 2 ), &
@@ -54,24 +58,24 @@ contains
          if ( calc_omegas ) then
             call calculate_omegas( T, u, v, w, z, p_levs, dx, dy, &
                  corpar, q, fx, fy, du_dt, dv_dt, dT_dt,&
-                 p_sfc, alfa, toler, mode, omegas, omegas_QG )
+                 p_sfc, alfa, toler, mode, calc_b, omegas, omegas_QG )
          else
             omegas = read_omegas ( omegafile, time-time_1+1 )
          end if
 
          call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
               dx, dy, corpar, q, fx, fy, dz_dt, du_dt, &
-              dv_dt, dT_dt, p_sfc, hTends )
+              dv_dt, dT_dt, p_sfc, calc_b, hTends )
          
          ! Write data to the output file
          if ( mode .eq. 'Q' ) then
             call write_omegas_QG ( omegafile, time-time_1+1, omegas_QG )
          else if ( mode .eq. 'G' ) then
             if (calc_omegas) then
-               call write_omegas ( omegafile, time-time_1+1, omegas )
+               call write_omegas ( omegafile, time-time_1+1, calc_b, omegas )
                call write3d ( omegafile, time-time_1+1, ome_name, w)
             end if
-            call write_tendencies ( omegafile, time-time_1+1, hTends )
+            call write_tendencies ( omegafile, time-time_1+1, calc_b, hTends )
             call write3d ( omegafile, time-time_1+1, ztend_name, dz_dt )
          end if
 
@@ -205,9 +209,10 @@ contains
       end do
     end function friction
 
-    subroutine write_tendencies ( file, time, hTends )
+    subroutine write_tendencies ( file, time, calc_b, hTends )
       type ( wrf_file ), intent ( in ) :: file
       integer, intent ( in ) :: time
+      logical, intent ( in ) :: calc_b
       real, dimension ( :, :, :, : ) :: hTends
       integer :: t, varid
       associate ( &
@@ -223,12 +228,22 @@ contains
                 [ 1, 1, 1, time ], &
                 [ nlon, nlat, nlev, 1 ] ) )
         end do
+
+        if (calc_b) then
+           call check ( nf90_inq_varid ( ncid, &
+                trim ( htend_b_name ), varid ) )
+           call check ( nf90_put_var ( ncid, varid, &
+                hTends ( :, :, :, 8 ), &
+                [ 1, 1, 1, time ], &
+                [ nlon, nlat, nlev, 1 ] ) )
+        end if
       end associate
     end subroutine write_tendencies
 
-    subroutine write_omegas ( file, time, omegas )
+    subroutine write_omegas ( file, time, calc_b, omegas )
       type ( wrf_file ), intent ( in ) :: file
       integer, intent ( in ) :: time
+      logical, intent ( in ) :: calc_b
       real, dimension ( :, :, :, : ) :: omegas
       integer :: t, varid
       associate ( &
@@ -244,6 +259,16 @@ contains
                 [ 1, 1, 1, time ], &
                 [ nlon, nlat, nlev, 1 ] ) )
         end do
+
+        if (calc_b) then
+           call check ( nf90_inq_varid ( ncid, &
+                trim ( ome_b_name ), varid ) )
+           call check ( nf90_put_var ( ncid, varid, &
+                omegas ( :, :, :, 8 ), &
+                [ 1, 1, 1, time ], &
+                [ nlon, nlat, nlev, 1 ] ) )
+        end if
+        
       end associate
     end subroutine write_omegas
 
