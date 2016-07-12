@@ -2,7 +2,7 @@
 
 ## Download
 
-[http://www2.mmm.ucar.edu/wrf/users/download/get_sources.html]
+[http://www2.mmm.ucar.edu/wrf/users/download/get_sources.html] [WRF]
 
 ## Tutorial
 
@@ -26,4 +26,7 @@ ln -s ../../run/LANDUSE.TBL
 ./ideal.exe
 ./wrf.exe
 ```
+[//]: # (Reference links)
+
+[WRF]: <https://software.intel.com/en-us/articles/free_mkl>
 
