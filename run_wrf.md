@@ -2,10 +2,17 @@
 
 ## Download
 
+Here you can find different versions of the WRF model:
+
 [http://www2.mmm.ucar.edu/wrf/users/download/get_sources.html] [WRF]
 
 ## Tutorial
 
+And here is information about downloading and compiling WRF on your local computer
+
+[http://www2.mmm.ucar.edu/wrf/OnLineTutorial/index.htm] [tutorial]
+
+## Downloading and compiling WRF on your local computer
 ```sh
 # Build
 wget http://www2.mmm.ucar.edu/wrf/src/WRFV3.7.1.TAR.gz
@@ -29,4 +36,5 @@ ln -s ../../run/LANDUSE.TBL
 [//]: # (Reference links)
 
 [WRF]: <https://software.intel.com/en-us/articles/free_mkl>
+[tutorial]: <http://www2.mmm.ucar.edu/wrf/OnLineTutorial/index.htm>
 
