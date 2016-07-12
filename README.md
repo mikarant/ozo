@@ -13,7 +13,7 @@ Source code files of the OZO are located in the directory called _src_.
 	This short module contains only definition of some natural constants.
 
 3. mod\_omega.f90  
-	This file contains the main routine of the calculation of vertical motions. All the subroutines called by this routine are located in a file mod\_omega\_subrs.f90.
+	This file contains the main routine of the solving of omega equation. All the other subroutines called by this routine are located in a file mod\_omega\_subrs.f90.
 
 4. mod\_omega\_subrs.f90  
 	All of the omega-related subroutines are located here.
