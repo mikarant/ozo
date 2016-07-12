@@ -1,12 +1,12 @@
-# Omega - Zwack-Okossi program README
+# OZO program README
 
-This is a manual for downloading, compiling and running the OZO-program in your own computer.
+This is a manual for downloading, compiling and running the OZO program in your own computer.
 
 ## 1. Technical requirements:
 
 1. Standard NETCDF-library
 
-2. Intel Math Kernel Library. The program uses Intel's MKL library for solving poisson's equation. 
+2. Intel Math Kernel Library. The program uses Intel's MKL library for solving Poisson's equation. 
 It can be downloaded for free, but registration is required. 
    See more: [https://software.intel.com/en-us/articles/free_mkl] [MKL]
    
@@ -40,7 +40,7 @@ For running the test case, you need to download test data. Datafile is in nc-for
 
 ## 4. Compiling the program
 
-Downloaded directory contains a makefile for compiling and running the program. At first, you should change paths for netcdf- and mkl-libraries.
+Downloaded directory contains a makefile for compiling and running the program. At first, you should change paths for Netcdf- and MKL libraries.
 
 1. Go to ozo-directory
 
