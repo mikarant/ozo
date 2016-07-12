@@ -16,7 +16,7 @@ contains
     real :: alfa, toler
     real, dimension ( :, :, : ), pointer :: T, u, v, z
     real, dimension ( :, :, : ), allocatable :: &
-         dT_dt, du_dt, dv_dt, dz_dt, fx, fy, q, w
+         dT_dt, du_dt, dv_dt, dz_dt, fx, fy, q, w, mulfact
     real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
     integer, dimension (:), allocatable :: tdim
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends, omegas_QG
@@ -39,6 +39,7 @@ contains
       allocate ( hTends ( nlon, nlat, nlev, n_terms ) )
       allocate ( omegas ( nlon, nlat, nlev, n_terms ) )
       allocate ( omegas_QG ( nlon, nlat, nlev, 3 ) )
+      allocate ( mulfact ( nlon, nlat, nlev) )
 
       call read_T_u_v_z ( wrfin_file, time_1 - 2 )
       call read_T_u_v_z ( wrfin_file, time_1 - 1 )
@@ -54,18 +55,19 @@ contains
          fy     = friction ( wrfin_file, time, 'V', mu_inv )
          p_sfc  = real2d ( wrfin_file, time, [ 'PSFC' ]  )
          w      = real3d ( wrfin_file, time, [ 'WW' ]  )
+         call calmul(p_sfc, p_levs, nlev, mulfact)
 
          if ( calc_omegas ) then
             call calculate_omegas( T, u, v, w, z, p_levs, dx, dy, &
-                 corpar, q, fx, fy, du_dt, dv_dt, dT_dt,&
-                 p_sfc, alfa, toler, mode, calc_b, omegas, omegas_QG )
+                 corpar, q, fx, fy, du_dt, dv_dt, dT_dt, &
+                 mulfact, alfa, toler, mode, calc_b, omegas, omegas_QG )
          else
             omegas = read_omegas ( omegafile, time-time_1+1 )
          end if
 
          call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
               dx, dy, corpar, q, fx, fy, dz_dt, du_dt, &
-              dv_dt, dT_dt, p_sfc, calc_b, hTends )
+              dv_dt, dT_dt, mulfact, calc_b, hTends )
          
          ! Write data to the output file
          if ( mode .eq. 'Q' ) then

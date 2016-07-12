@@ -390,7 +390,8 @@ contains
 !     Output: stored in "fq"
 !
     implicit none
-    real,dimension(:,:,:),intent(inout) :: q,mulfact
+    real,dimension(:,:,:),intent(inout) :: q
+    real,dimension(:,:,:),intent(in) :: mulfact
     real,dimension(:,:,:),intent(out) :: fq
     real,dimension(:),intent(in) :: lev
     real,intent(in) :: dx,dy      

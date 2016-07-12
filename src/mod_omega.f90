@@ -7,13 +7,13 @@ module mod_omega
 contains
 
   subroutine calculate_omegas( t, u, v, omegaan, z, lev, dx, dy, corpar, q, &
-       xfrict, yfrict, utend, vtend, ttend, psfc, alfa, toler, mode, & 
+       xfrict, yfrict, utend, vtend, ttend, mulfact, alfa, toler, mode, & 
        calc_b, omegas, omegas_QG )
 
     real,dimension(:,:,:,:),intent(inout) :: omegas, omegas_QG
     real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend
-    real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict,utend,vtend
-    real,dimension(:,:),    intent(in) :: psfc
+    real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict,utend
+    real,dimension(:,:,:),  intent(in) :: vtend,mulfact
     real,dimension(:),      intent(in) :: lev,corpar
     real,                   intent(in) :: dx,dy,alfa,toler
     character,              intent(in) :: mode
@@ -23,18 +23,16 @@ contains
     real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta
     real,dimension(:,:,:,:),allocatable :: dudp,dvdp,ftest,d2zetadp,omega
     real,dimension(:,:,:),  allocatable :: sigmaraw,zetaraw,zetatend,zeta
-    real,dimension(:,:,:),  allocatable :: mulfact,ukhi,vkhi
+    real,dimension(:,:,:),  allocatable :: ukhi,vkhi
     real,dimension(:,:),    allocatable :: corpar2,sigma0
     real,dimension(:),      allocatable :: dx2,dy2,dlev2
     integer,dimension(:),   allocatable :: nlonx,nlatx,nlevx
 
     integer :: nlev,nlon,nlat,nres,i,k
     real :: dlev
-    logical :: lcensor
 
 !   Threshold values to keep the generalized omega equation elliptic.
     real,parameter :: sigmamin=2e-7,etamin=2e-6
-!    real,parameter :: sigmamin=1e-6,etamin=2e-5
 
 !   For iubound, ilbound and iybound are 0, horizontal boundary
 !   conditions are used at the upper, lower and north/south boundaries  
@@ -46,7 +44,6 @@ contains
     iubound=1 ! 1 for "real" omega as upper-boundary condition
     ilbound=1 ! 1 for "real" omega as upper-boundary condition
     iybound=1 ! 1 for "real" omega as north/south boundary condtion
-    lcensor=.true. ! Forcing below surface is set to zero.
 
     nlon=size(t,1)
     nlat=size(t,2)
@@ -54,7 +51,6 @@ contains
 
     allocate(sigmaraw(nlon,nlat,nlev),zetaraw(nlon,nlat,nlev))
     allocate(zeta(nlon,nlat,nlev),zetatend(nlon,nlat,nlev))
-    allocate(mulfact(nlon,nlat,nlev))
     allocate(ukhi(nlon,nlat,nlev),vkhi(nlon,nlat,nlev))
  
 !   Number of different resolutions in solving the equation = nres 
@@ -100,14 +96,7 @@ contains
     if(mode.eq.'Q')then
        call gwinds(z,dx,dy,corpar,u,v)
     endif
-!
-!   Multiplication factor for forcing: 
-!   1 above the ground, smaller (or 0) below the ground
-!
- !   if(lcensor)then         
-       call calmul(psfc,lev,nlev,mulfact) 
- !   endif
-!
+
 !   Calculation of vorticity and vorticity tendency 
 
     call curl_cart(u,v,dx,dy,zetaraw)

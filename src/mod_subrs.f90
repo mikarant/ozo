@@ -8,7 +8,7 @@ contains
 !
   subroutine calculate_tendencies(omegas,t,u,v,w,z,lev,dx,dy,corpar,&
                                   q,xfrict,yfrict,ztend,utend,vtend,ttend,&
-                                  psfc,calc_b,hTends)
+                                  mulfact,calc_b,hTends)
 !   This is the main subroutine of solving the Zwack-Okossi equation. Input 
 !   arguments are variables from WRF and omegas, and output of this subroutine
 !   is height tendencies, stored in hTends.
@@ -19,8 +19,7 @@ contains
 
     real,dimension(:,:,:,:),intent(in) :: omegas
     real,dimension(:,:,:),  intent(in) :: t,u,v,w,xfrict,yfrict
-    real,dimension(:,:,:),  intent(in) :: utend,vtend,ttend
-    real,dimension(:,:),    intent(in) :: psfc
+    real,dimension(:,:,:),  intent(in) :: utend,vtend,ttend,mulfact
     real,dimension(:),      intent(in) :: lev,corpar
     real,                   intent(in) :: dx,dy 
     logical,                intent(in) :: calc_b
@@ -29,7 +28,7 @@ contains
 
     real,dimension(:,:,:,:),allocatable :: vortTends
     real,dimension(:,:,:),allocatable :: sigma,zetatend,sp,tadv,tadvs,zeta
-    real,dimension(:,:,:),allocatable :: mulfact,uKhi,vKhi,vorTend_omegaWRF
+    real,dimension(:,:,:),allocatable :: uKhi,vKhi,vorTend_omegaWRF
     real,dimension(:,:,:,:),allocatable :: temptend
     integer :: nlon,nlat,nlev
     real :: dlev
@@ -40,7 +39,6 @@ contains
     allocate(sigma(nlon,nlat,nlev),sp(nlon,nlat,nlev))
     allocate(zetatend(nlon,nlat,nlev),zeta(nlon,nlat,nlev))
     allocate(tadv(nlon,nlat,nlev),tadvs(nlon,nlat,nlev))
-    allocate(mulfact(nlon,nlat,nlev))
     allocate(uKhi(nlon,nlat,nlev),vKhi(nlon,nlat,nlev))
     allocate(temptend(nlon,nlat,nlev,n_terms))
     allocate(vorTend_omegaWRF(nlon,nlat,nlev))
@@ -53,9 +51,6 @@ contains
 !   Interpolation of 1000mb geopotential height and height tendency
 !   p_interp does not do that.
     call interp1000(z,ztend,t,ttend)
-
-!   Calculating mulfact
-    call calmul(psfc,lev,nlev,mulfact)
 
 !   Calculation of relative vorticity and its tendency
     call curl_cart(u,v,dx,dy,zeta)
