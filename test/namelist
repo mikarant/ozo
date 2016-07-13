@@ -1,8 +1,9 @@
  &PARAM
-  infile='wrf_omega_100km.nc',
-  outfile='ozo_output.nc',
-  time_1=2,time_n=240,
+  infile='/home/mikarant/ozo/test/wrf_omega_100km.nc',
+  outfile='/home/mikarant/ozo/test/ozo_output_50km.nc',
+  time_1=118,time_n=118,
   alfa=0.2,toler=5e-5,
+  ny1=4,ny2=2,
   mode='G',
   calc_omegas=.true.
 /

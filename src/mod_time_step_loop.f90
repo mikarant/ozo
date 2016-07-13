@@ -7,12 +7,12 @@ module mod_time_step_loop
 contains
 
   subroutine time_step_loop ( wrfin_file, omegafile, time_1, time_n, alfa, &
-                              toler, mode, calc_omegas, calc_b )
+                              toler, ny1, ny2, mode, calc_omegas, calc_b )
     ! This subroutine contains the main time stepping loop. It gets both
     ! input and output files as input arguments. 
     character :: mode
     type ( wrf_file ) :: wrfin_file, omegafile
-    integer :: time_1, time_n, time, i
+    integer :: time_1, time_n, time, i, ny1, ny2
     real :: alfa, toler
     real, dimension ( :, :, : ), pointer :: T, u, v, z
     real, dimension ( :, :, : ), allocatable :: &
@@ -57,7 +57,7 @@ contains
          fx     = friction ( wrfin_file, time, 'U', mu_inv )
          fy     = friction ( wrfin_file, time, 'V', mu_inv )
          p_sfc  = real2d ( wrfin_file, time, [ 'PSFC' ]  )
-         w      = real3d ( wrfin_file, time, [ 'WW' ]  )
+         w      = real3d ( wrfin_file, time, [ 'W' ]  )
          zeta   = vorticity ( u, v, wrfin_file )
          zetatend = vorticity ( du_dt, dv_dt, wrfin_file )
          call calmul(p_sfc, p_levs, nlev, mulfact)
@@ -67,7 +67,8 @@ contains
          if ( calc_omegas ) then
             call calculate_omegas( T, u, v, w, z, p_levs, dx, dy, &
                  corpar, q, fx, fy, dT_dt, zeta, zetatend, uKhi, vKhi, &
-                 mulfact, alfa, toler, mode, calc_b, omegas, omegas_QG )
+                 mulfact, alfa, toler, ny1, ny2, mode, calc_b, omegas, &
+                 omegas_QG )
          else
             omegas = read_omegas ( omegafile, time-time_1+1 )
          end if
@@ -184,8 +185,10 @@ contains
       associate ( plev => file % pressure_levels )
         select case ( file % wrf_cu_phys )
         case ( 1 )
+!           q = real3d ( file, time, &
+!                [ 'RTHSHTEN', 'RTHCUTEN', 'RTHRATEN', 'RTHBLTEN' ] )
            q = real3d ( file, time, &
-                [ 'RTHSHTEN', 'RTHCUTEN', 'RTHRATEN', 'RTHBLTEN' ] )
+                [ 'RTHCUTEN', 'RTHRATEN', 'RTHBLTEN' ] )
         end select
         do lev = 1, size ( q, 3 )
            q ( :, :, lev ) = q ( :, :, lev ) * mu_inv
@@ -209,8 +212,11 @@ contains
            file % dims ( 3 ) ) )
       select case ( file % wrf_cu_phys )
       case ( 1 )
+!         friction = real3d ( file, time, &
+!              [ 'R'//direction//'SHTEN', 'R'//direction//'CUTEN', &
+!              'R'//direction//'BLTEN' ] )
          friction = real3d ( file, time, &
-              [ 'R'//direction//'SHTEN', 'R'//direction//'CUTEN', &
+              [ 'R'//direction//'CUTEN', &
               'R'//direction//'BLTEN' ] )
       end select
       do lev = 1, size ( friction, 3 )

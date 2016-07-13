@@ -707,7 +707,7 @@ contains
 
   subroutine callsolvegen(rhs,boundaries,omega,nlon,nlat,nlev,&
        dx,dy,dlev,sigma0,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
-       nres,alfa,toler)
+       nres,alfa,toler,ny1,ny2)
 !
 !      Calling solvegen + writing out omega. Multigrid algorithm
 !            
@@ -720,7 +720,7 @@ contains
     real,dimension(:),      intent(in) :: dx,dy,dlev
     real,                   intent(in) :: alfa,toler
     integer,dimension(:),   intent(in) :: nlon,nlat,nlev
-    integer,                intent(in) :: nres
+    integer,                intent(in) :: nres,ny1,ny2
 
     real,dimension(:,:,:,:),allocatable :: omegaold
     real,dimension(:,:,:),allocatable :: dum1,resid,omega1
@@ -729,9 +729,6 @@ contains
     integer :: ires,iter,i,j,k
 
     integer,parameter :: itermax=1000
-    integer,parameter :: ny1=2,ny2=2 ! number of iterations at each grid 
-                                     ! resolution when proceeding to coarser 
-                                     ! (ny1) and when returning to finer (ny2)
     logical,parameter :: lzeromean=.true. ! Area means of omega are set to zero                    
  
     allocate(dum1(nlon(1),nlat(1),nlev(1)))
@@ -799,7 +796,7 @@ contains
        enddo
 !       write(*,*)iter,maxdiff
        if(maxdiff.lt.toler.or.iter.eq.itermax)then
-!          write(*,*)'iter,maxdiff',iter,maxdiff
+          write(*,*)'iter,maxdiff',iter,maxdiff
           goto 10
        endif
 

@@ -8,7 +8,7 @@ contains
 
   subroutine calculate_omegas( t, u, v, omegaan, z, lev, dx, dy, corpar, q, &
        xfrict, yfrict, ttend, zetaraw, zetatend, uKhi, vKhi, mulfact, alfa, &
-       toler, mode, calc_b, omegas, omegas_QG )
+       toler, ny1, ny2, mode, calc_b, omegas, omegas_QG )
 
     real,dimension(:,:,:,:),intent(inout) :: omegas, omegas_QG
     real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend,zetatend
@@ -16,6 +16,7 @@ contains
     real,dimension(:,:,:),  intent(in) :: mulfact,zetaraw,uKhi,vKhi
     real,dimension(:),      intent(in) :: lev,corpar
     real,                   intent(in) :: dx,dy,alfa,toler
+    integer,                intent(in) :: ny1,ny2
     character,              intent(in) :: mode
     logical,                intent(in) :: calc_b
 
@@ -209,7 +210,7 @@ contains
 
     if(mode.eq.'T')then
        call callsolvegen(ftest,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
     endif
 
     if(mode.eq.'t')then
@@ -221,22 +222,22 @@ contains
 
        do i=1,5
           call callsolvegen(rhs(:,:,:,:,i),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-               sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
+               sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
           omegas(:,:,:,i)=omega(:,:,:,1)
        enddo
        
        if (calc_b) then
           !       Write(*,*)'Boundary conditions'        
           call callsolvegen(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-               sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
+               sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
           omegas(:,:,:,8)=omega(:,:,:,1)
        end if
 
        call callsolvegen(rhs(:,:,:,:,termvkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
        omegas(:,:,:,termvkhi)=omega(:,:,:,1)
        call callsolvegen(rhs(:,:,:,:,termtkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler)
+            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
        omegas(:,:,:,termtkhi)=omega(:,:,:,1)
     endif
 
