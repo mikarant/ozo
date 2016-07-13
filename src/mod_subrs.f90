@@ -6,9 +6,9 @@ contains
 !
 !------------SUBROUTINES--------------
 !
-  subroutine calculate_tendencies(omegas,t,u,v,w,z,lev,dx,dy,corpar,&
-                                  q,xfrict,yfrict,ztend,utend,vtend,ttend,&
-                                  zeta,zetatend,mulfact,calc_b,hTends)
+  subroutine calculate_tendencies(omegas,t,u,v,w,z,lev,dx,dy,corpar,q,xfrict,&
+       yfrict,ztend,ttend,zeta,zetatend,uKhi,vKhi,mulfact,calc_b,hTends)
+
 !   This is the main subroutine of solving the Zwack-Okossi equation. Input 
 !   arguments are variables from WRF and omegas, and output of this subroutine
 !   is height tendencies, stored in hTends.
@@ -19,7 +19,7 @@ contains
 
     real,dimension(:,:,:,:),intent(in) :: omegas
     real,dimension(:,:,:),  intent(in) :: t,u,v,w,xfrict,yfrict,zeta
-    real,dimension(:,:,:),  intent(in) :: utend,vtend,ttend,mulfact
+    real,dimension(:,:,:),  intent(in) :: ttend,mulfact,uKhi,vKhi
     real,dimension(:),      intent(in) :: lev,corpar
     real,                   intent(in) :: dx,dy 
     logical,                intent(in) :: calc_b
@@ -28,7 +28,7 @@ contains
 
     real,dimension(:,:,:,:),allocatable :: vortTends
     real,dimension(:,:,:),allocatable :: sigma,sp,tadv,tadvs
-    real,dimension(:,:,:),allocatable :: uKhi,vKhi,vorTend_omegaWRF
+    real,dimension(:,:,:),allocatable :: vorTend_omegaWRF
     real,dimension(:,:,:,:),allocatable :: temptend
     integer :: nlon,nlat,nlev
     real :: dlev
@@ -38,7 +38,6 @@ contains
     allocate(vortTends(nlon,nlat,nlev,n_terms))
     allocate(sigma(nlon,nlat,nlev),sp(nlon,nlat,nlev))
     allocate(tadv(nlon,nlat,nlev),tadvs(nlon,nlat,nlev))
-    allocate(uKhi(nlon,nlat,nlev),vKhi(nlon,nlat,nlev))
     allocate(temptend(nlon,nlat,nlev,n_terms))
     allocate(vorTend_omegaWRF(nlon,nlat,nlev))
 
@@ -50,12 +49,6 @@ contains
 !   Interpolation of 1000mb geopotential height and height tendency
 !   p_interp does not do that.
     call interp1000(z,ztend,t,ttend)
-
-!   Calculation of velocity potential
-    call irrotationalWind(u,v,dx,dy,uKhi,vKhi)
-
-!   Calculation of streamfunction
-!   call nondivergentWind(zeta,dx,dy,uPsi,vPsi)
 
     call vorticity_tendencies(omegas,u,v,w,uKhi,vKhi,zeta,zetatend,dx,dy,&
                         corpar,dlev,xfrict,yfrict,ztend,vortTends,mulfact,&

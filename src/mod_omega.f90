@@ -7,13 +7,13 @@ module mod_omega
 contains
 
   subroutine calculate_omegas( t, u, v, omegaan, z, lev, dx, dy, corpar, q, &
-       xfrict, yfrict, utend, vtend, ttend, zetaraw, zetatend, mulfact, alfa, &
+       xfrict, yfrict, ttend, zetaraw, zetatend, uKhi, vKhi, mulfact, alfa, &
        toler, mode, calc_b, omegas, omegas_QG )
 
     real,dimension(:,:,:,:),intent(inout) :: omegas, omegas_QG
     real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend,zetatend
-    real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict,utend
-    real,dimension(:,:,:),  intent(in) :: vtend,mulfact,zetaraw
+    real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict
+    real,dimension(:,:,:),  intent(in) :: mulfact,zetaraw,uKhi,vKhi
     real,dimension(:),      intent(in) :: lev,corpar
     real,                   intent(in) :: dx,dy,alfa,toler
     character,              intent(in) :: mode
@@ -22,7 +22,7 @@ contains
     real,dimension(:,:,:,:,:),allocatable :: rhs
     real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta
     real,dimension(:,:,:,:),allocatable :: dudp,dvdp,ftest,d2zetadp,omega
-    real,dimension(:,:,:),  allocatable :: sigmaraw,zeta,ukhi,vkhi
+    real,dimension(:,:,:),  allocatable :: sigmaraw,zeta
     real,dimension(:,:),    allocatable :: corpar2,sigma0
     real,dimension(:),      allocatable :: dx2,dy2,dlev2
     integer,dimension(:),   allocatable :: nlonx,nlatx,nlevx
@@ -49,7 +49,6 @@ contains
     nlev=size(t,3)
 
     allocate(sigmaraw(nlon,nlat,nlev),zeta(nlon,nlat,nlev))
-    allocate(ukhi(nlon,nlat,nlev),vkhi(nlon,nlat,nlev))
  
 !   Number of different resolutions in solving the equation = nres 
 !   Choose so that the coarsest grid has at least 5 points
@@ -95,8 +94,6 @@ contains
        call gwinds(z,dx,dy,corpar,u,v)
     endif
 
-    call irrotationalWind(u,v,dx,dy,ukhi,vkhi)
-!
 !   Calculation of forcing terms 
 !
     if(mode.eq.'G'.or.mode.eq.'Q')then

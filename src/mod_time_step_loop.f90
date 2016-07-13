@@ -16,7 +16,8 @@ contains
     real :: alfa, toler
     real, dimension ( :, :, : ), pointer :: T, u, v, z
     real, dimension ( :, :, : ), allocatable :: &
-         dT_dt, du_dt, dv_dt, dz_dt, fx, fy, q, w, mulfact,zeta,zetatend
+         dT_dt, du_dt, dv_dt, dz_dt, fx, fy, q, w, mulfact,zeta,zetatend,&
+         ukhi,vkhi
     real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
     integer, dimension (:), allocatable :: tdim
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends, omegas_QG
@@ -42,7 +43,8 @@ contains
       allocate ( mulfact ( nlon, nlat, nlev) )
       allocate ( zeta ( nlon, nlat, nlev) )
       allocate ( zetatend ( nlon, nlat, nlev) )
-      
+      allocate ( ukhi (nlon, nlat, nlev) )
+      allocate ( vkhi (nlon, nlat, nlev) )
 
       call read_T_u_v_z ( wrfin_file, time_1 - 2 )
       call read_T_u_v_z ( wrfin_file, time_1 - 1 )
@@ -62,18 +64,20 @@ contains
          !   Calculation of relative vorticity and its tendency
          call curl_cart(u,v,dx,dy,zeta)
          call curl_cart(du_dt,dv_dt,dx,dy,zetatend)
+         !   Calculation of velocity potential
+         call irrotationalWind(u,v,dx,dy,uKhi,vKhi)
 
          if ( calc_omegas ) then
             call calculate_omegas( T, u, v, w, z, p_levs, dx, dy, &
-                 corpar, q, fx, fy, du_dt, dv_dt, dT_dt, zeta, zetatend, &
+                 corpar, q, fx, fy, dT_dt, zeta, zetatend, uKhi, vKhi, &
                  mulfact, alfa, toler, mode, calc_b, omegas, omegas_QG )
          else
             omegas = read_omegas ( omegafile, time-time_1+1 )
          end if
 
          call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
-              dx, dy, corpar, q, fx, fy, dz_dt, du_dt, dv_dt, dT_dt, &
-              zeta, zetatend, mulfact, calc_b, hTends )
+              dx, dy, corpar, q, fx, fy, dz_dt, dT_dt, zeta, zetatend, &
+              uKhi, vKhi, mulfact, calc_b, hTends )
          
          ! Write data to the output file
          if ( mode .eq. 'Q' ) then
