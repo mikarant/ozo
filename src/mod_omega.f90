@@ -7,13 +7,13 @@ module mod_omega
 contains
 
   subroutine calculate_omegas( t, u, v, omegaan, z, lev, dx, dy, corpar, q, &
-       xfrict, yfrict, utend, vtend, ttend, mulfact, alfa, toler, mode, & 
-       calc_b, omegas, omegas_QG )
+       xfrict, yfrict, utend, vtend, ttend, zetaraw, zetatend, mulfact, alfa, &
+       toler, mode, calc_b, omegas, omegas_QG )
 
     real,dimension(:,:,:,:),intent(inout) :: omegas, omegas_QG
-    real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend
+    real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend,zetatend
     real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict,utend
-    real,dimension(:,:,:),  intent(in) :: vtend,mulfact
+    real,dimension(:,:,:),  intent(in) :: vtend,mulfact,zetaraw
     real,dimension(:),      intent(in) :: lev,corpar
     real,                   intent(in) :: dx,dy,alfa,toler
     character,              intent(in) :: mode
@@ -22,8 +22,7 @@ contains
     real,dimension(:,:,:,:,:),allocatable :: rhs
     real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta
     real,dimension(:,:,:,:),allocatable :: dudp,dvdp,ftest,d2zetadp,omega
-    real,dimension(:,:,:),  allocatable :: sigmaraw,zetaraw,zetatend,zeta
-    real,dimension(:,:,:),  allocatable :: ukhi,vkhi
+    real,dimension(:,:,:),  allocatable :: sigmaraw,zeta,ukhi,vkhi
     real,dimension(:,:),    allocatable :: corpar2,sigma0
     real,dimension(:),      allocatable :: dx2,dy2,dlev2
     integer,dimension(:),   allocatable :: nlonx,nlatx,nlevx
@@ -49,8 +48,7 @@ contains
     nlat=size(t,2)
     nlev=size(t,3)
 
-    allocate(sigmaraw(nlon,nlat,nlev),zetaraw(nlon,nlat,nlev))
-    allocate(zeta(nlon,nlat,nlev),zetatend(nlon,nlat,nlev))
+    allocate(sigmaraw(nlon,nlat,nlev),zeta(nlon,nlat,nlev))
     allocate(ukhi(nlon,nlat,nlev),vkhi(nlon,nlat,nlev))
  
 !   Number of different resolutions in solving the equation = nres 
@@ -96,11 +94,6 @@ contains
     if(mode.eq.'Q')then
        call gwinds(z,dx,dy,corpar,u,v)
     endif
-
-!   Calculation of vorticity and vorticity tendency 
-
-    call curl_cart(u,v,dx,dy,zetaraw)
-    if(mode.eq.'G')call curl_cart(utend,vtend,dx,dy,zetatend)
 
     call irrotationalWind(u,v,dx,dy,ukhi,vkhi)
 !

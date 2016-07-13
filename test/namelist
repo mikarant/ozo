@@ -1,7 +1,7 @@
  &PARAM
   infile='wrf_omega_100km.nc',
   outfile='ozo_output.nc',
-  time_1=118,time_n=118,
+  time_1=2,time_n=240,
   alfa=0.2,toler=5e-5,
   mode='G',
   calc_omegas=.true.
