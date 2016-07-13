@@ -41,8 +41,6 @@ contains
       allocate ( omegas ( nlon, nlat, nlev, n_terms ) )
       allocate ( omegas_QG ( nlon, nlat, nlev, 3 ) )
       allocate ( mulfact ( nlon, nlat, nlev) )
-      allocate ( zeta ( nlon, nlat, nlev) )
-      allocate ( zetatend ( nlon, nlat, nlev) )
       allocate ( ukhi (nlon, nlat, nlev) )
       allocate ( vkhi (nlon, nlat, nlev) )
 
@@ -60,10 +58,9 @@ contains
          fy     = friction ( wrfin_file, time, 'V', mu_inv )
          p_sfc  = real2d ( wrfin_file, time, [ 'PSFC' ]  )
          w      = real3d ( wrfin_file, time, [ 'WW' ]  )
+         zeta   = vorticity ( u, v, wrfin_file )
+         zetatend = vorticity ( du_dt, dv_dt, wrfin_file )
          call calmul(p_sfc, p_levs, nlev, mulfact)
-         !   Calculation of relative vorticity and its tendency
-         call curl_cart(u,v,dx,dy,zeta)
-         call curl_cart(du_dt,dv_dt,dx,dy,zetatend)
          !   Calculation of velocity potential
          call irrotationalWind(u,v,dx,dy,uKhi,vKhi)
 
@@ -220,6 +217,25 @@ contains
          friction ( :, :, lev ) = friction ( :, :, lev ) * mu_inv
       end do
     end function friction
+
+    function vorticity ( u, v, file ) result ( zeta )
+      type ( wrf_file ), intent ( in ) :: file
+      real, dimension ( :, :, : ), intent ( in ) :: u, v
+      real, dimension ( :, :, : ), allocatable :: zeta
+      real,dimension(:,:,:),allocatable :: du_dy,dv_dx
+
+      allocate ( zeta ( file % dims ( 1 ), file % dims ( 2 ), &
+           file % dims ( 3 ) ) )
+      allocate ( du_dy ( file % dims ( 1 ), file % dims ( 2 ), &
+           file % dims ( 3 ) ) )
+      allocate ( dv_dx ( file % dims ( 1 ), file % dims ( 2 ), &
+           file % dims ( 3 ) ) )
+      
+      call yder_cart( u, file % dy, du_dy )
+      call xder_cart( v, file % dx, dv_dx )
+      zeta = dv_dx - du_dy
+
+    end function vorticity
 
     subroutine write_tendencies ( file, time, calc_b, hTends )
       type ( wrf_file ), intent ( in ) :: file
