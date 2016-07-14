@@ -87,19 +87,25 @@ After that, start running the model:
 ```
 
 ### 4. Interpolating to pressure levels
+
 WRF Tutorial provides good instructions to compile and run p\_interp utility:
 
-[http://www2.mmm.ucar.edu/wrf/OnLineTutorial/Tools/p_interp.htm] [p_interp]
+[http://www2.mmm.ucar.edu/wrf/OnLineTutorial/Tools/p\_interp.htm] [p_interp]
+
 
 OZO requires pressure levels to be evenly spaced, so we recommend following values for them in the _namelist.pinterp_:  
 
 `interp_levels  = 1000.,950.,900.,850.,800.,750.,700.,650.,600.,550.,500.,450.,400.,350.,300.,250.,200.,150.,100.,`  
 
+
 In addition of levels, following values are recommended for the rest of the namelist variables:  
 
-`extrapolate    = 1,`  
+`extrapolate    = 1,`
+
 `interp_method  = 2,`  
+
 `unstagger_grid = .TRUE.`  
+
 
 
 [//]: # (Reference links)
