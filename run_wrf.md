@@ -28,7 +28,7 @@ export NETCDF=/usr WRFIO_NCD_LARGE_FILE_SUPPORT=1
 export WRF_EM_CORE=1
 ./compile em_b_wave >& compile.log
 ```
-Check the compile.log file for any errors.
+Check the compile.log file for any errors. If the compilation was succesful, you should have the executables appeared in main-directory.
 
 ### 2. Editing the namelist 
 
@@ -86,6 +86,10 @@ After that, start running the model:
 ```sh
 ./wrf.exe
 ```
+
+If the run was succesful, you should have _wrfout\_d01\_0001-01-01\_00:00:00_ appeared to your directory.  
+That file is the output netcdf-file of the simulation and contains the data on model levels. Before running OZO,  
+that data needs to be interpolated to pressure levels.
 
 ### 4. Interpolating to pressure levels
 
