@@ -1,4 +1,5 @@
-# WRF
+
+# Instructions to produce input data to OZO by WRF model
 
 ## Download
 
@@ -12,7 +13,6 @@ And here is information about downloading and compiling WRF on your local comput
 
 [http://www2.mmm.ucar.edu/wrf/OnLineTutorial/index.htm] [tutorial]
 
-## Instructions to produce input data to OZO by WRF idealized simulation
 
 ### 1. Downloading and compiling WRF on your local computer
 ```sh
