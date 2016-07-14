@@ -90,7 +90,7 @@ After that, start running the model:
 
 WRF Tutorial provides good instructions to compile and run p\_interp utility:
 
-[http://www2.mmm.ucar.edu/wrf/OnLineTutorial/Tools/p\_interp.htm] [p_interp]
+[http://www2.mmm.ucar.edu/wrf/OnLineTutorial/Tools/p\_interp.htm] [p\_interp]
 
 
 OZO requires pressure levels to be evenly spaced, so we recommend following values for them in the _namelist.pinterp_:  
