@@ -25,14 +25,21 @@ export NETCDF=/usr WRFIO_NCD_LARGE_FILE_SUPPORT=1
 '
 export WRF_EM_CORE=1
 ./compile em_b_wave >& compile.log
+```
+Check the compile.log file for any errors.
 
-# Test
+## Running the idealized baroclinic wave simulation in WRF
+```sh
 cd test/em_b_wave/
 ./run_me_first.csh
 ln -s ../../run/LANDUSE.TBL
 ./ideal.exe
 ./wrf.exe
 ```
+
+
+
+
 [//]: # (Reference links)
 
 [WRF]: <https://software.intel.com/en-us/articles/free_mkl>
