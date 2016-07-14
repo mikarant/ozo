@@ -20,7 +20,8 @@ It can be downloaded for free, but registration is required.
 
 3. Write to the command line:
 
-        git clone git@bitbucket.org:mikarant/ozo.git`
+        wget --user=mika.p.rantanen@helsinki.fi --password=01Skjrpm05 https://bitbucket.org/mikarant/ozo/get/master.tar.gz
+
 
 If the clone was successful, you should now have ozo-directory appeared on your local drive.
 
