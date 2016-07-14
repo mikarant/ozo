@@ -22,11 +22,13 @@ It can be downloaded for free, but registration is required.
 
         wget --user=<email> --password=<password> https://bitbucket.org/mikarant/ozo/get/master.tar.gz
 
+
 4. Extract the tarball by command
 
         tar -zxvf master.tar.gz
 
-If the download was succesful, you should now have folder called `mikarant-ozo-xxxx` appeared to your local drive. In the folder name, xxxx refers the last commit ID code.
+
+If the download was succesful, you should now have folder called `mikarant-ozo-xxxx` appeared to your local drive. In the folder name, xxxx refers the last commit ID.
 
 ## 3. Downloading test data
 
@@ -35,6 +37,7 @@ For running the test case, you need to download test data. Datafile is in nc-for
 1. Go to test-directory:
 
         cd ozo/test
+
 
 2. Download the data by command (provided that you are added as an user to the private repository) (note this is all one line):
 
