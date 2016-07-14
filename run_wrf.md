@@ -30,13 +30,15 @@ export WRF_EM_CORE=1
 ```
 Check the compile.log file for any errors.
 
-### 2. Running the idealized baroclinic wave simulation in WRF
-First, you have to edit the namelist to set correct values of some parameters.
+### 2. Editing the namelist 
+Go to the baroclinic wave directory:  
 ```sh
 cd test/em_b_wave/
 ```
 Open _namelist.input_ with some text editor and change at least following values:  
-Section _&time\_control_:
+
+Section _&time\_control_:  
+
 `run_days = 10` Sets simulation time to 10 days.  
 `end_day = 10` Ending day of the simulation.  
 `history_interval = 60` Output interval in seconds.  
@@ -45,12 +47,14 @@ With that file you can change the number of output variables. There is no place 
 but it can be added there to the _&time\_control_ section.
 
 Section &physics:  
+
 `mp_physics = 2`  
 `sf_sfclay_physics = 1`  
 `sf_surface_physics = 1`  
 `bl_pbl_physics = 1`  
 `cu_physics = 1`  
 
+### 3. Running the model
 Once you have set correct values in the namelist, you have to link some files to running directory.  
 This can be done by executing _run\_me\_first.csh_ script and linking one other file:
 ```sh
