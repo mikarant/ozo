@@ -22,13 +22,13 @@ Source code files of the OZO are located in the directory called _src_.
 	This module contains subroutines related to solving of Poisson's equation in the Zwack-Okossi equation. 
 	
 6. mod\_subrs.f90  
-	In this module, all the subroutines related to Zwack-Okossi equation are located.
+	Module for solving the Zwack-Okossi equation and all subroutines related to it.
 	
 7. mod\_time\_step\_loop.f90  
-	Time stepping loop + input/output routines are described here. 
+	Contains time stepping loop + some input/output routines. 
 
 8. mod\_wrf\_file.f90  
-	This module includes routines to create and handle input and output netcdf files.
+	This module includes routines to create and handle input and output files.
 	
 9. ozo.f90  
 	This is the main program of the OZO.
