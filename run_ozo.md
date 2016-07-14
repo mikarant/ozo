@@ -32,7 +32,7 @@ If the download was succesful, you should now have folder called `mikarant-ozo-x
 
 ## 3. Downloading test data
 
-For running the test case, you need to download test data. Datafile is in nc-format and contains WRF-output variables and calculated vertical motion fields from two timesteps.
+For running the test case, you need to download a test data. Data file is in netcdf-format and contains WRF-output at hours 117-120 of the idealized baroclinic wave simulation.
 
 1. Go to test-directory:
 
@@ -48,7 +48,7 @@ For running the test case, you need to download test data. Datafile is in nc-for
 
 Downloaded directory contains a makefile for compiling and running the program. At first, you should change paths for Netcdf- and MKL libraries.
 
-1. Go to ozo-directory
+1. Go back to the ozo-directory
 
 2. Open makefile, for example with emacs:
 
@@ -79,14 +79,16 @@ in the ozo-directory.
 ## 6. Editing the namelist
 
         &PARAM
-        infile='/home/mikarant/ozo/test/test_WRF.nc',
-        outfile='/home/mikarant/ozo/test/ozo_output_test.nc',
+        infile='/ozo/test/test_WRF.nc',
+        outfile='/ozo/test/ozo_output_test.nc',
         time_1=2,time_n=3,
         alfa=0.2,toler=5e-5,
         ny1=4,ny2=2,
         mode='G',
         calc_omegas=.true.
         /
+
+`infile`: Complete path to the input file. 
 
 
 [//]: # (Reference links)
