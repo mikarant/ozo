@@ -57,7 +57,7 @@ contains
          fx     = friction ( wrfin_file, time, 'U', mu_inv )
          fy     = friction ( wrfin_file, time, 'V', mu_inv )
          p_sfc  = real2d ( wrfin_file, time, [ 'PSFC' ]  )
-         w      = real3d ( wrfin_file, time, [ 'W' ]  )
+         w      = real3d ( wrfin_file, time, [ 'WW' ]  )
          zeta   = vorticity ( u, v, wrfin_file )
          zetatend = vorticity ( du_dt, dv_dt, wrfin_file )
          call calmul(p_sfc, p_levs, nlev, mulfact)

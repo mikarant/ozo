@@ -24,8 +24,8 @@ module mod_wrf_file
   character ( 3 ), parameter :: htend_b_name='htb'
   character ( 9 ), parameter :: ztend_name='ztend_WRF'
   character ( 7 ), parameter :: ome_name='ome_WRF'
-  character ( 4 ), dimension ( 4 ), parameter :: rname = &
-       [ 'lon ', 'lat ', 'lev ', 'Time' ]
+  character ( 18 ), dimension ( 4 ), parameter :: rname = &
+       [ 'west_east         ', 'south_north       ', 'num_metgrid_levels', 'Time              ' ]
   character ( 37 ), dimension ( 3 ), parameter :: QG_omega_long_names = &
        [ 'QG omega due to vorticity advection  ', &
        'QG omega due to temperature advection', &
@@ -177,14 +177,17 @@ contains
     allocate(f % xdim (f%dims(1)))
     allocate(f % ydim (f%dims(2)))
 
-    call check ( nf90_inq_varid ( wrf_infile % ncid, trim ( rname(1) ), varid ) )
-    call check ( nf90_get_var ( wrf_infile % ncid, varid, f % xdim, &
-         start = [ 1 ], count = [ f % dims(1)  ] ) )
+    f % xdim = (/(i, i=1,f%dims(1), 1)/)
+    f % ydim = (/(i, i=1,f%dims(2), 1)/)
+!    call check ( nf90_inq_varid ( wrf_infile % ncid, trim ( rname(1) ), varid ) )
+!    call check ( nf90_get_var ( wrf_infile % ncid, varid, f % xdim, &
+!         start = [ 1 ], count = [ f % dims(1)  ] ) )
     
-    call check ( nf90_inq_varid ( wrf_infile % ncid, trim ( rname(2) ), varid ) )
-    call check ( nf90_get_var ( wrf_infile % ncid, varid, f % ydim, &
-         start = [ 1 ], count = [ f % dims(2)  ] ) )
+!    call check ( nf90_inq_varid ( wrf_infile % ncid, trim ( rname(2) ), varid ) )
+!    call check ( nf90_get_var ( wrf_infile % ncid, varid, f % ydim, &
+!         start = [ 1 ], count = [ f % dims(2)  ] ) )
 
+    print*,"Outputfile created!"
   end function create_out_file
 
   function open_wrf_file ( fname ) result ( f )
@@ -192,8 +195,10 @@ contains
     type ( wrf_file ) :: f
     integer :: i, dimid, varid, dimids ( 4 )
 
+    print*,"Opening file: ",fname
     call check( nf90_open ( fname, NF90_WRITE, f % ncid ) )
     
+    print*,"Inquiring dimensions from the input file..."
     do i = 1, 4
        call check ( nf90_inq_dimid ( &
             f % ncid, trim ( rname ( i ) ), dimid ) )
@@ -202,6 +207,7 @@ contains
             f % ncid, dimid, len = f % dims ( i ) ) )
     end do
     
+    print*,"Getting attributes from the input file..."
     call check ( nf90_get_att ( &
          f % ncid, NF90_GLOBAL, 'DX', f % dx ) )
     call check ( nf90_get_att ( &
@@ -209,6 +215,7 @@ contains
     call check ( nf90_get_att ( &
          f % ncid, NF90_GLOBAL, 'CU_PHYSICS', f % wrf_cu_phys ) )
     
+    print*,"Getting time information from the input file..."
     allocate ( f % times ( f % dims ( 4 ) ) )
     call check ( nf90_inq_varid ( f % ncid, 'Time', varid ) )
     call check ( nf90_get_var ( f % ncid, varid, f % times, &
@@ -216,18 +223,21 @@ contains
          count = [ size ( f % times ) ] ) )
     f % times = f % times * 3600
 
+    print*,"Getting pressure level information from the input file..."
     allocate ( f % pressure_levels ( f % dims ( 3 ) ) )
     call check ( nf90_inq_varid ( f % ncid, 'PRES', varid ) )
     call check ( nf90_get_var ( f % ncid, varid, f % pressure_levels, &
          start = [ 1, 1, 1, 2 ], &
          count = [ 1, 1, size ( f % pressure_levels ), 1 ] ) )
 
+    print*,"Getting coriolisparameter from the input file..."
     allocate ( f % corpar ( f % dims ( 2 ) ) )
     call check ( nf90_inq_varid ( f % ncid, 'F', varid ) )
     call check ( nf90_get_var ( f % ncid, varid, f % corpar, &
          start = [ 1, 1, 2 ], &
          count = [ 1, size ( f % corpar ), 1 ] ) )
 
+    print*,"Input file opened succesfully!"
   end function open_wrf_file
 
   subroutine close_wrf_file ( file )
