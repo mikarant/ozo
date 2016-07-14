@@ -31,12 +31,16 @@ export WRF_EM_CORE=1
 Check the compile.log file for any errors.
 
 ### 2. Running the idealized baroclinic wave simulation in WRF
-First, you have to edit the namelist for correct values of some parameters.
+First, you have to edit the namelist to set correct values of some parameters.
 ```sh
 cd test/em_b_wave/
-emacs namelist.input
 ```
-Change at least following values:
+Open `namelist.input` with some text editor and change at least following values:
+`run_days = 10` Sets simulation time to 10 days.  
+`end_day = 10` Ending day of the simulation.
+`history_interval = 60` Output interval in seconds.
+`iofields_filename = = "iofield_list.txt"` This is optional. That file By default, namelist does not contain this, but it can be added there
+
 
 
 
