@@ -35,11 +35,11 @@ First, you have to edit the namelist to set correct values of some parameters.
 ```sh
 cd test/em_b_wave/
 ```
-Open `namelist.input` with some text editor and change at least following values:
+Open `namelist.input` with some text editor and change at least following values:  
 `run_days = 10` Sets simulation time to 10 days.  
-`end_day = 10` Ending day of the simulation.
-`history_interval = 60` Output interval in seconds.
-`iofields_filename = = "iofield_list.txt"` This is optional. That file By default, namelist does not contain this, but it can be added there
+`end_day = 10` Ending day of the simulation.  
+`history_interval = 60` Output interval in seconds.  
+`iofields_filename = = "iofield_list.txt"` This is optional. That file By default, namelist does not contain this, but it can be added there  
 
 
 
