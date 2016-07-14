@@ -31,11 +31,17 @@ export WRF_EM_CORE=1
 Check the compile.log file for any errors.
 
 ### 2. Running the idealized baroclinic wave simulation in WRF
-First, you have to edit the namelist for correct values of some parameters. Open `namelist.input` with some text editor and change following values:  
+First, you have to edit the namelist for correct values of some parameters.
+```sh
+cd test/em_b_wave/
+emacs namelist.input
+```
+Change at least following values:
+
 
 
 ```sh
-cd test/em_b_wave/
+
 ./run_me_first.csh
 ln -s ../../run/LANDUSE.TBL
 
