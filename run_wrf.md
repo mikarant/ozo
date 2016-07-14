@@ -12,7 +12,9 @@ And here is information about downloading and compiling WRF on your local comput
 
 [http://www2.mmm.ucar.edu/wrf/OnLineTutorial/index.htm] [tutorial]
 
-## Downloading and compiling WRF on your local computer
+## Instructions to produce input data to OZO by WRF idealized simulation
+
+### 1. Downloading and compiling WRF on your local computer
 ```sh
 # Build
 wget http://www2.mmm.ucar.edu/wrf/src/WRFV3.7.1.TAR.gz
@@ -28,7 +30,7 @@ export WRF_EM_CORE=1
 ```
 Check the compile.log file for any errors.
 
-## Running the idealized baroclinic wave simulation in WRF
+### 2. Running the idealized baroclinic wave simulation in WRF
 ```sh
 cd test/em_b_wave/
 ./run_me_first.csh
