@@ -39,7 +39,8 @@ Open `namelist.input` with some text editor and change at least following values
 `run_days = 10` Sets simulation time to 10 days.  
 `end_day = 10` Ending day of the simulation.  
 `history_interval = 60` Output interval in seconds.  
-`iofields_filename = = "iofield_list.txt"` This is optional. That file By default, namelist does not contain this, but it can be added there  
+`iofields_filename = = "iofield_list.txt"` This is optional. With that file you can change the number of output variables.  
+By default, there is no place for this in the namelist, but it can be added there to the _&time\_control_ section.
 
 
 
