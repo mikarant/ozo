@@ -18,12 +18,15 @@ It can be downloaded for free, but registration is required.
 
 2. Go to the local directory where you want to put the program
 
-3. Write to the command line:
+3. Write to the command line (provided that you are added as an user to the private repository):
 
-        wget --user=mika.p.rantanen@helsinki.fi --password=01Skjrpm05 https://bitbucket.org/mikarant/ozo/get/master.tar.gz
+        wget --user=<email> --password=<password> https://bitbucket.org/mikarant/ozo/get/master.tar.gz
 
+4. Extract the tarball by command
 
-If the clone was successful, you should now have ozo-directory appeared on your local drive.
+        tar -zxvf master.tar.gz
+
+If the download was succesful, you should now have folder called `mikarant-ozo-xxxx` appeared to your local drive. In the folder name, xxxx refers the last commit ID code.
 
 ## 3. Downloading test data
 
