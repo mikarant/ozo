@@ -67,7 +67,7 @@ These values can be changed according your taste, but provided numbers are more 
 
 ### 3. Running the model
 Once you have set correct values in the namelist, you have to link some files to running directory.  
-This can be done by executing _run\_me\_first.csh_ script and linking one other file:
+This can be done by executing _run\_me\_first.csh_ script and linking one other file in the same directory:
 
 ```sh
 ./run_me_first.csh
@@ -88,8 +88,7 @@ After that, start running the model:
 ```
 
 If the run was succesful, you should have _wrfout\_d01\_0001-01-01\_00:00:00_ appeared to your directory.  
-That file is the output netcdf-file of the simulation and contains the data on model levels. Before running OZO,  
-that data needs to be interpolated to pressure levels.
+That file is the output netcdf-file of the simulation and contains the data on model levels. Before running OZO, that data needs to be interpolated to pressure levels.
 
 ### 4. Interpolating to pressure levels
 
