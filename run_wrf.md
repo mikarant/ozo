@@ -40,23 +40,32 @@ Section _&time\_control_:
 `run_days = 10` Sets simulation time to 10 days.  
 `end_day = 10` Ending day of the simulation.  
 `history_interval = 60` Output interval in seconds.  
-`iofields_filename = = "iofield_list.txt"` This is optional. By default, WRF outputs huge number of unnecessary variables. With that file you can change the number of output variables. By default, there is no place for this in the namelist, but it can be added there to the _&time\_control_ section.
+`iofields_filename = = "iofield_list.txt"` This is optional. By default, WRF outputs huge number of unnecessary variables.  
+With that file you can change the number of output variables. There is no place for this in the namelist by default,  
+but it can be added there to the _&time\_control_ section.
 
-Section &physics:
+Section &physics:  
 `mp_physics = 2`  
 `sf_sfclay_physics = 1`  
 `sf_surface_physics = 1`  
 `bl_pbl_physics = 1`  
 `cu_physics = 1`  
 
-
+Once you have set correct values in the namelist, you have to link some files to running directory.  
+This can be done by executing _run\_me\_first.csh_ script and linking one other file:
 ```sh
-
 ./run_me_first.csh
 ln -s ../../run/LANDUSE.TBL
+```
 
-
+Now you are ready to create initial state of the simulation by running _ideal.exe_:
+```sh
 ./ideal.exe
+```
+
+If the file _wrfinput\_d01_ appears to directory, your initial state is created.  
+After that, start running the model:
+```sh
 ./wrf.exe
 ```
 
