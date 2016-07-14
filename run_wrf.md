@@ -31,6 +31,7 @@ export WRF_EM_CORE=1
 Check the compile.log file for any errors.
 
 ### 2. Editing the namelist 
+
 Go to the baroclinic wave directory:  
 ```sh
 cd test/em_b_wave/
@@ -51,7 +52,7 @@ With that file you can change the number of output variables. There is no place 
 
 
 Section &physics:  
-
+These values can be changed according your taste, but provided numbers are more or less the simplest schemes.  
 
 `mp_physics = 2`  
 
@@ -79,7 +80,7 @@ Now you are ready to create initial state of the simulation by running _ideal.ex
 ./ideal.exe
 ```
 
-If the file _wrfinput\_d01_ appears to directory, your initial state is created.  
+If the file _wrfinput\_d01_ appears to the directory, your initial state is created.  
 After that, start running the model:
 
 ```sh
