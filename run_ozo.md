@@ -39,10 +39,9 @@ For running the test case, you need to download test data. Datafile is in nc-for
         cd ozo/test
 
 
-2. Download the data by command (provided that you are added as an user to the private repository) (note this is all one line):
+2. Download the data by command (provided that you are added as an user to the private repository):
 
-        wget --user=<email> --password=<password>  
-        https://bitbucket.org/mikarant/ozo/downloads/wrf_4.nc
+        wget --user=<email> --password=<password> https://bitbucket.org/mikarant/ozo/downloads/test_WRF.nc
 
 
 ## 4. Compiling the program
@@ -76,6 +75,18 @@ Once you have compiled the program, you can test whether it is working by runnin
 make test
 ```
 in the ozo-directory.
+
+## 6. Editing the namelist
+
+        &PARAM
+        infile='/home/mikarant/ozo/test/test_WRF.nc',
+        outfile='/home/mikarant/ozo/test/ozo_output_test.nc',
+        time_1=2,time_n=3,
+        alfa=0.2,toler=5e-5,
+        ny1=4,ny2=2,
+        mode='G',
+        calc_omegas=.true.
+        /
 
 
 [//]: # (Reference links)
