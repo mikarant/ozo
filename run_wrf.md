@@ -1,5 +1,5 @@
 
-# Instructions to produce input data to OZO by WRF model
+# Instructions to produce input data for OZO by WRF model
 
 ## Download
 
