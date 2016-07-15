@@ -32,3 +32,14 @@ Source code files of the OZO are located in the directory called _src_.
 	
 9. ozo.f90  
 	This is the main program of the OZO.
+	
+## Running WRF and OZO
+_run\_wrf_ includes instructions to compile and run WRF model to produce input data for OZO.  
+
+_run\_ozo_ includes instrutions to compile and OZO itself. 
+
+## Test data
+Test data for testing the functionality of OZO can be found from the Downloads. It contains output of WRF baroclinic wave simulation from timesteps 117-120.  
+Thus, with that data, you can run OZO for two timesteps (h=118-119).
+
+## Namelist
