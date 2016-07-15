@@ -23,7 +23,7 @@ wget http://www2.mmm.ucar.edu/wrf/src/WRFV3.7.1.TAR.gz
 tar xvf WRFV3.7.1.TAR.gz
 ```
 
-Go to the appeared directory and run following commands. Those will compile the model for a single processor job with no nesting, using gfortran compiler. 
+Go to the appeared directory and run following commands. Those will compile the model for a single processor job with no nesting and using gfortran compiler. 
 
 ```sh
 cd WRFV3/
