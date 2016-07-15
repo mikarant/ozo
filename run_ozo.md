@@ -18,31 +18,37 @@ It can be downloaded for free, but registration is required.
 
 2. Go to the local directory where you want to put the program
 
-3. Write to the command line:
+3. Write to the command line (provided that you are added as an user to the private repository):
 
-        git clone git@bitbucket.org:mikarant/ozo.git`
+        wget --user=<email> --password=<password> https://bitbucket.org/mikarant/ozo/get/master.tar.gz
 
-If the clone was successful, you should now have ozo-directory appeared on your local drive.
+
+4. Extract the tarball by command
+
+        tar -zxvf master.tar.gz
+
+
+If the download was succesful, you should now have folder called `mikarant-ozo-xxxx` appeared to your local drive. In the folder name, xxxx refers the last commit ID.
 
 ## 3. Downloading test data
 
-For running the test case, you need to download test data. Datafile is in nc-format and contains WRF-output variables and calculated vertical motion fields from two timesteps.
+For running the test case, you need to download a test data. Data file is in netcdf-format and contains WRF-output at hours 117-120 of the idealized baroclinic wave simulation.
 
 1. Go to test-directory:
 
         cd ozo/test
 
-2. Download the data by command (provided that you are added as an user to the private repository) (note this is all one line):
 
-        wget --user=<email> --password=<password>  
-        https://bitbucket.org/mikarant/ozo/downloads/wrf_4.nc
+2. Download the data by command (provided that you are added as an user to the private repository):
+
+        wget --user=<email> --password=<password> https://bitbucket.org/mikarant/ozo/downloads/test_WRF.nc
 
 
 ## 4. Compiling the program
 
 Downloaded directory contains a makefile for compiling and running the program. At first, you should change paths for Netcdf- and MKL libraries.
 
-1. Go to ozo-directory
+1. Go back to the ozo-directory
 
 2. Open makefile, for example with emacs:
 
@@ -69,6 +75,20 @@ Once you have compiled the program, you can test whether it is working by runnin
 make test
 ```
 in the ozo-directory.
+
+## 6. Editing the namelist
+
+        &PARAM
+        infile='/ozo/test/test_WRF.nc',
+        outfile='/ozo/test/ozo_output_test.nc',
+        time_1=2,time_n=3,
+        alfa=0.2,toler=5e-5,
+        ny1=4,ny2=2,
+        mode='G',
+        calc_omegas=.true.
+        /
+
+`infile`: Complete path to the input file. 
 
 
 [//]: # (Reference links)
