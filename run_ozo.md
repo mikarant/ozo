@@ -76,19 +76,6 @@ make test
 ```
 in the ozo-directory.
 
-## 6. Editing the namelist
-
-        &PARAM
-        infile='/ozo/test/test_WRF.nc',
-        outfile='/ozo/test/ozo_output_test.nc',
-        time_1=2,time_n=3,
-        alfa=0.2,toler=5e-5,
-        ny1=4,ny2=2,
-        mode='G',
-        calc_omegas=.true.
-        /
-
-`infile`: Complete path to the input file. 
 
 
 [//]: # (Reference links)
