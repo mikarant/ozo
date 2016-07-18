@@ -67,42 +67,6 @@ contains
     end select
   end function calmul
 
-  subroutine nondivergentWind(zeta,dx,dy,uPsi,vPsi)
-!   This subroutine calculates nondivergent wind components (uPsi,vPsi) by using
-!   streamfunction (psi).
-!    use mod_poisson
-    implicit none
- 
-    real, dimension(:,:,:),intent(in) :: zeta
-    real,                  intent(in) :: dx,dy
-    real, dimension(:,:,:),intent(inout) :: uPsi,vPsi 
-
-    real, dimension(:,:,:),allocatable :: psi,dpsidx,dpsidy
-    double precision, dimension ( : ), allocatable ::  bd_0
-    integer :: nlon,nlat,nlev,k
-    nlon=size(zeta,1); nlat=size(zeta,2); nlev=size(zeta,3)
-    allocate(psi(nlon,nlat,nlev))
-    allocate(dpsidx(nlon,nlat,nlev),dpsidy(nlon,nlat,nlev))
-    allocate(bd_0(nlon+1))
-
-!   Calculating streamfunction from vorticity by using inverse laplacian
-
-    bd_0=0.0e0
-    do k=1,nlev
-!       call poisson_solver_2D(zeta(:,:,k),"PPDD",.false.,"DFT",dx,dy,&
-!            psi(:,:,k),bd_0,bd_0)
-    enddo
-
-!   X- and y-derivatives of streamfunction
-    call xder_cart(psi,dx,dpsidx)
-    call yder_cart(psi,dy,dpsidy)
-
-!   Wind components
-    uPsi=-dpsidy
-    vPsi=dpsidx
-
-  end subroutine nondivergentWind
-
   subroutine irrotationalWind(u,v,dx,dy,uKhi,vKhi)
 !   This subroutine calculates irrotational wind components (uKhi,vKhi) from
 !   velocity potential. 
@@ -145,46 +109,24 @@ contains
               
   end subroutine irrotationalWind
 
-  function vorticity ( u, v, file ) result ( zeta )
-    type ( wrf_file ), intent ( in ) :: file
+  function curl_cart ( u, v, dx, dy ) result ( zeta )
     real, dimension ( :, :, : ), intent ( in ) :: u, v
+    real,                        intent ( in ) :: dx,dy
     real, dimension ( :, :, : ), allocatable :: zeta
     real,dimension(:,:,:),allocatable :: du_dy,dv_dx
     
-    allocate ( zeta ( file % dims ( 1 ), file % dims ( 2 ), &
-         file % dims ( 3 ) ) )
-    allocate ( du_dy ( file % dims ( 1 ), file % dims ( 2 ), &
-         file % dims ( 3 ) ) )
-    allocate ( dv_dx ( file % dims ( 1 ), file % dims ( 2 ), &
-         file % dims ( 3 ) ) )
-      
-    call yder_cart( u, file % dy, du_dy )
-    call xder_cart( v, file % dx, dv_dx )
+    allocate ( zeta ( size (u, 1 ), size ( u, 2 ), &
+         size ( u, 3 ) ) )
+    allocate ( du_dy ( size (u, 1 ), size ( u, 2 ), &
+         size ( u, 3 ) ) )
+    allocate ( dv_dx ( size (u, 1 ), size ( u, 2 ), &
+         size ( u, 3 ) ) )
+
+    call yder_cart( u, dy, du_dy )
+    call xder_cart( v, dx, dv_dx )
     zeta = dv_dx - du_dy
     
-  end function vorticity
-
-  subroutine curl_cart(u,v,dx,dy,zeta)
-!   Relative vorticity in cartesian coordinates.
-!   The domain is assumed to be periodic in east-west-direction
-!   At the northern and southern boundaries, one-sided y derivatives are used.
-    implicit none
-    real,dimension(:,:,:),intent(in) :: u,v
-    real,                 intent(in) :: dx,dy
-    real,dimension(:,:,:),intent(inout) :: zeta
-
-    integer :: nlon,nlat,nlev
-    real,dimension(:,:,:),allocatable :: du_dy,dv_dx
-
-    nlon=size(u,1); nlat=size(u,2); nlev=size(u,3)
-    allocate(du_dy(nlon,nlat,nlev))
-    allocate(dv_dx(nlon,nlat,nlev))
-    
-    call yder_cart(u,dy,du_dy)
-    call xder_cart(v,dx,dv_dx)
-    zeta=dv_dx-du_dy
-       
-  end subroutine curl_cart
+  end function curl_cart
 
   subroutine pder(f,dp,dfdp)
 !   Estimation of pressure derivatives.

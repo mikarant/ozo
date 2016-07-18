@@ -369,7 +369,7 @@ contains
     nlev=size(fx,3)
     allocate(fcurl(nlon,nlat,nlev),dcurldp(nlon,nlat,nlev))
 
-    call curl_cart(fx,fy,dx,dy,fcurl)
+    fcurl = curl_cart(fx,fy,dx,dy)
     fcurl=fcurl*mulfact
     call pder(fcurl,dp,dcurldp) 
 

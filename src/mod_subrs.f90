@@ -246,7 +246,8 @@ contains
     vadvs=-vadvs*mulfact
 
 !   Friction-induced vorticity tendency
-    call curl_cart(xfrict,yfrict,dx,dy,fvort)
+!    call curl_cart(xfrict,yfrict,dx,dy,fvort)
+    fvort = curl_cart(xfrict,yfrict,dx,dy)
     fvort=fvort*mulfact
 
 !   Ageostrophic vorticity tendency

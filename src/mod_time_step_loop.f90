@@ -59,8 +59,8 @@ contains
          fy     = friction ( wrfin_file, time, 'V', mu_inv )
          p_sfc  = real2d ( wrfin_file, time, [ 'PSFC' ]  )
          w      = real3d ( wrfin_file, time, [ 'WW' ]  )
-         zeta   = vorticity ( u, v, wrfin_file )
-         zetatend = vorticity ( du_dt, dv_dt, wrfin_file )
+         zeta   = curl_cart ( u, v, dx, dy )
+         zetatend = curl_cart ( du_dt, dv_dt, dx, dy )
          mulfact  = calmul(p_sfc, p_levs, nlev)
          !   Calculation of velocity potential
          call irrotationalWind(u,v,dx,dy,uKhi,vKhi)
