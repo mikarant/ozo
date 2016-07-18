@@ -292,21 +292,19 @@ contains
     real,dimension(:),    intent(in) :: lev
     real,                 intent(in) :: dlev
     real,dimension(:,:,:),allocatable :: sigma
-
     integer :: k,nlon,nlat,nlev
-    real,dimension(:,:,:),allocatable :: apu1,apu2
+    real,dimension(:,:,:),allocatable :: theta,dThetaDp
 
     nlon=size(t,1); nlat=size(t,2); nlev=size(t,3)
-    allocate(apu1(nlon,nlat,nlev))
-    allocate(sigma(nlon,nlat,nlev))
+    allocate(theta(nlon,nlat,nlev),sigma(nlon,nlat,nlev))
 
     do k=1,nlev
-       apu1(:,:,k)=log(t(:,:,k))-(r/cp)*log(lev(k)/1e5)
+       theta(:,:,k)=log(t(:,:,k))-(r/cp)*log(lev(k)/1e5)
     enddo
-    apu2=pder(apu1,dlev)
+    dThetaDp=pder(theta,dlev)
 
     do k=1,nlev
-       sigma(:,:,k)=-R*t(:,:,k)/lev(k)*apu2(:,:,k)
+       sigma(:,:,k)=-R*t(:,:,k)/lev(k)*dThetaDp(:,:,k)
     enddo
     
   end function define_sigma
@@ -319,33 +317,32 @@ contains
     real,dimension(:,:,:),intent(in) :: sigma
     real,dimension(:),intent(in) :: lev
     real,dimension(:,:,:),allocatable :: sp
- 
-    integer :: nlon,nlat,nlev,k
-    nlon=size(sigma,1); nlat=size(sigma,2); nlev=size(sigma,3)
-    allocate(sp(nlon,nlat,nlev))
+    integer :: k
 
-    do k=1,nlev
+    allocate(sp(size(sigma,1),size(sigma,2),size(sigma,3)))
+
+    do k=1,size(sigma,3)
        sp(:,:,k)=sigma(:,:,k)*lev(k)/r
     enddo
     
   end function define_sp
 
-  subroutine laplace_cart(f,lapl,dx,dy)
-!     Laplace operator in cartesian coordinates
-!
+  function laplace_cart(f,dx,dy) result(lapl)
+!     Laplace operator in cartesian coordinates.
 !     The domain is assumed to be periodic in east-west-direction
-!     ** At the northern and southern boundaries, second y derivative is assumed to be zero
+!     ** At the northern and southern boundaries, second y derivative
+!     is assumed to be zero
     implicit none
 
     real,dimension(:,:,:),intent(in) :: f
     real,                 intent(in) :: dx,dy
-    real,dimension(:,:,:),intent(out) :: lapl
+    real,dimension(:,:,:),allocatable :: lapl
     integer :: nlon,nlat,nlev,acc,i,j,k
     
     nlon=size(f,1)
     nlat=size(f,2)
     nlev=size(f,3)
-
+    allocate(lapl(nlon,nlat,nlev))
     acc=1
 
     select case(acc)
@@ -411,6 +408,6 @@ contains
        
     end select     
           
-  end subroutine laplace_cart
+  end function laplace_cart
   
 end module mod_common_subrs

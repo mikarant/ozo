@@ -366,11 +366,10 @@ contains
     real,dimension(:,:,:),allocatable :: lapl,gvort
     integer :: nlon,nlat,nlev,j
     nlon=size(ztend,1); nlat=size(ztend,2); nlev=size(ztend,3)
-    allocate(gvort(nlon,nlat,nlev),lapl(nlon,nlat,nlev))
+    allocate(gvort(nlon,nlat,nlev))
 
 !   Laplacian of height tendency
-    lapl=0.
-    call laplace_cart(ztend,lapl,dx,dy)
+    lapl = laplace_cart(ztend,dx,dy)
 
 !   Geostrophic vorticity tendency
     do j=1,nlat
@@ -513,7 +512,7 @@ contains
     nlat=size(vorttend,2)
     nlev=size(vorttend,3)
     allocate(temp_mean(nlon,nlat),vort_mean(nlon,nlat))
-    allocate(lapltemp(nlon,nlat,nlev),inttemp(nlon,nlat,nlev))
+    allocate(inttemp(nlon,nlat,nlev))
     allocate(int_tot(nlon,nlat,nlev))
 
 !   Vertical mean of vorticity tendency. It's multiplied by coriolisparameter 
@@ -528,8 +527,7 @@ contains
     vort_mean(:,:)=vort_mean(:,:)*corpar(:,:,1)
 
 !   Laplacian of temperature tendency
-    lapltemp=0.
-    call laplace_cart(temptend,lapltemp,dx,dy)
+    lapltemp = laplace_cart(temptend,dx,dy)
 
 !   Divide laplacian of temperature tendency by "pressure" (Actually it is
 !   divided only by k (index), but that has been taken into account in the

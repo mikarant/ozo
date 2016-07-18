@@ -26,10 +26,10 @@ contains
     nlon=size(omegaan,1)
     nlat=size(omegaan,2)
     nlev=size(omegaan,3)
-    allocate(df2dp2(nlon,nlat,nlev),lapl(nlon,nlat,nlev))
+    allocate(df2dp2(nlon,nlat,nlev))
 
     call p2der(omegaan,dlev,df2dp2)
-    call laplace_cart(omegaan,lapl,dx,dy)
+    lapl = laplace_cart(omegaan,dx,dy)
 
     ftest(:,:,:,1)=sigma(:,:,:,1)*lapl+feta(:,:,:,1)*df2dp2 
 
@@ -55,14 +55,14 @@ contains
     nlat=size(omegaan,2)
     nlev=size(omegaan,3)
 
-    allocate(dum2(nlon,nlat,nlev),dum1(nlon,nlat,nlev))
+    allocate(dum2(nlon,nlat,nlev))
     allocate(dum3(nlon,nlat,nlev))
     allocate(dum5(nlon,nlat,nlev),dum6(nlon,nlat,nlev))
     allocate(dvdp(nlon,nlat,nlev),dudp(nlon,nlat,nlev))
 
     dum2=sigmaraw*omegaan
           
-    call laplace_cart(dum2,dum1,dx,dy)
+    dum1 = laplace_cart(dum2,dx,dy)
     call p2der(omegaan,dlev,dum3)
     call p2der(zetaraw,dlev,dum5)
     
@@ -327,17 +327,16 @@ contains
     real,dimension(:),intent(in) :: lev
     real,intent(in) :: dx,dy
     real,dimension(:,:,:),allocatable :: adv,lapladv
-
     integer :: i,j,k,nlon,nlat,nlev
 
     nlon=size(u,1)
     nlat=size(u,2)
     nlev=size(u,3)
-    allocate(lapladv(nlon,nlat,nlev))
 
     adv = advect_cart(u,v,t,dx,dy)
-    adv=adv*mulfact
-    call laplace_cart(adv,lapladv,dx,dy)         
+    adv = adv*mulfact
+
+    lapladv = laplace_cart(adv,dx,dy)
 
     do k=1,nlev
        do j=1,nlat      
@@ -402,7 +401,7 @@ contains
     nlev=size(q,3)
     
     q=q*mulfact
-    call laplace_cart(q,fq,dx,dy)         
+    fq = laplace_cart(q,dx,dy)
 
     do k=1,nlev
        do j=1,nlat      
@@ -432,14 +431,13 @@ contains
     nlon=size(dtdt,1)
     nlat=size(dtdt,2)
     nlev=size(dtdt,3)
-    allocate(lapldtdt(nlon,nlat,nlev))
 
     dzetadt=dzetadt*mulfact
     dtdt=dtdt*mulfact
 
     ddpdzetadt = pder(dzetadt,dp)
 
-    call laplace_cart(dtdt,lapldtdt,dx,dy)         
+    lapldtdt = laplace_cart(dtdt,dx,dy)
 
     do k=1,nlev
        do j=1,nlat      
@@ -690,9 +688,9 @@ contains
     nlat=size(rhs,2)
     nlev=size(rhs,3)
 
-    allocate(laplome(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
+    allocate(domedp2(nlon,nlat,nlev))
 
-    call laplace_cart(omega,laplome,dx,dy)         
+    laplome = laplace_cart(omega,dx,dy)
     call p2der(omega,dlev,domedp2) 
  
     do k=1,nlev
@@ -928,7 +926,6 @@ contains
     allocate(lapl2(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
     allocate(coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev))
     allocate(coeff(nlon,nlat,nlev),dum0(nlon,nlat,nlev))
-    allocate(dum1(nlon,nlat,nlev))
     allocate(dum6(nlon,nlat,nlev))
 !
 !   Top and bottom levels: omega directly from the boundary conditions,
@@ -944,7 +941,7 @@ contains
     do k=2,nlev-1
        dum0(:,:,k)=omegaold(:,:,k)*(sigma(:,:,k)-sigma0(k))
     enddo
-    call laplace_cart(dum0,dum1,dx,dy)         
+    dum1 = laplace_cart(dum0,dx,dy)
 !
 !   b) f*omega*(d2zetadp): explicitly, later
 !          
@@ -1013,7 +1010,7 @@ contains
     nlev=size(rhs,3)
 
     allocate(dum0(nlon,nlat,nlev),dum2(nlon,nlat,nlev))
-    allocate(dum1(nlon,nlat,nlev),dum3(nlon,nlat,nlev))
+    allocate(dum3(nlon,nlat,nlev))
     allocate(dum6(nlon,nlat,nlev))    
 !
 !   Calculate L(omega)
@@ -1022,7 +1019,7 @@ contains
 
     dum0=omega*sigma
 
-    call laplace_cart(dum0,dum1,dx,dy)         
+    dum1 = laplace_cart(dum0,dx,dy)
 !
 !   f*eta*d2omegadp
 !       
