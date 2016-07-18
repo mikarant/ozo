@@ -267,22 +267,21 @@ contains
 
   end function yder_cart
   
-  subroutine advect_cart(u,v,f,dx,dy,adv)
+  function advect_cart(u,v,f,dx,dy) result(adv)
 !   Computing u*dfdx + v*dfdy in cartesian coordinates
     implicit none
 
     real,dimension(:,:,:),intent(in) :: u,v,f
     real,                 intent(in) :: dx,dy
-    real,dimension(:,:,:),intent(inout) :: adv
-
-    real,dimension(:,:,:),allocatable :: dfdx,dfdy
+    real,dimension(:,:,:),allocatable :: dfdx,dfdy,adv
+    allocate(adv(size(u,1),size(u,2),size(u,3)))
 
     dfdx = xder_cart(f,dx)
     dfdy = yder_cart(f,dy)
     
     adv=u*dfdx+v*dfdy   
   
-  end subroutine advect_cart
+  end function advect_cart
 
   subroutine define_sigma(t,lev,dlev,sigma)
 !   Calculatig sigma stability parameter in isobaric coordinates

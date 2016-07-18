@@ -37,7 +37,6 @@ contains
     
     allocate(vortTends(nlon,nlat,nlev,n_terms))
     allocate(sigma(nlon,nlat,nlev),sp(nlon,nlat,nlev))
-    allocate(tadv(nlon,nlat,nlev),tadvs(nlon,nlat,nlev))
     allocate(temptend(nlon,nlat,nlev,n_terms))
     allocate(vorTend_omegaWRF(nlon,nlat,nlev))
 
@@ -59,11 +58,11 @@ contains
     call define_sp(sigma,lev,sp)
 
 !   Calculation of thermal advection
-    call advect_cart(u,v,t,dx,dy,tadv)
+    tadv = advect_cart(u,v,t,dx,dy)
     tadv=-tadv*mulfact ! Minus sign because it's usually considered as negative
 
 !   Calculation of thermal advection by nondivergent/irrotational wind
-    call advect_cart(uKhi,vKhi,t,dx,dy,tadvs)
+    tadvs = advect_cart(uKhi,vKhi,t,dx,dy)
     tadvs=-tadvs*mulfact
 
 !   Vorticity tendencies were multiplied by 'mulfact' in  'vorticity_tendencies'
@@ -216,8 +215,6 @@ contains
     nlon=size(u,1); nlat=size(u,2); nlev=size(u,3)
 
     allocate(eta(nlon,nlat,nlev))
-    allocate(vadv(nlon,nlat,nlev))
-    allocate(vadvs(nlon,nlat,nlev))
     allocate(avortt(nlon,nlat,nlev))
     allocate(fvort(nlon,nlat,nlev))
     allocate(vTend(nlon,nlat,nlev,3,n_terms))
@@ -238,15 +235,14 @@ contains
     call vorterms(w,dx,dy,eta,u,v,zeta,dlev,vTend_omegaWRF)
 
 !   Vorticity advection term
-    call advect_cart(u,v,eta,dx,dy,vadv)
+    vadv = advect_cart(u,v,eta,dx,dy)
     vadv=-vadv*mulfact ! Minus sign because it's considered negative
 
 !   Irrotational/nondivergent vorticity advection term
-    call advect_cart(uKhi,vKhi,eta,dx,dy,vadvs)
+    vadvs = advect_cart(uKhi,vKhi,eta,dx,dy)
     vadvs=-vadvs*mulfact
 
 !   Friction-induced vorticity tendency
-!    call curl_cart(xfrict,yfrict,dx,dy,fvort)
     fvort = curl_cart(xfrict,yfrict,dx,dy)
     fvort=fvort*mulfact
 

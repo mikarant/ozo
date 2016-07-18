@@ -290,7 +290,7 @@ contains
     nlon=size(u,1)
     nlat=size(u,2)
     nlev=size(u,3)
-    allocate(eta(nlon,nlat,nlev),adv(nlon,nlat,nlev))
+    allocate(eta(nlon,nlat,nlev))
 
     do k=1,nlev
        do j=1,nlat
@@ -300,7 +300,7 @@ contains
        enddo
     enddo
 
-    call advect_cart(u,v,eta,dx,dy,adv)
+    adv = advect_cart(u,v,eta,dx,dy)
     adv=adv*mulfact
     
     dadvdp = pder(adv,dp)
@@ -333,9 +333,9 @@ contains
     nlon=size(u,1)
     nlat=size(u,2)
     nlev=size(u,3)
-    allocate(adv(nlon,nlat,nlev),lapladv(nlon,nlat,nlev))
+    allocate(lapladv(nlon,nlat,nlev))
 
-    call advect_cart(u,v,t,dx,dy,adv)
+    adv = advect_cart(u,v,t,dx,dy)
     adv=adv*mulfact
     call laplace_cart(adv,lapladv,dx,dy)         
 
