@@ -1,4 +1,5 @@
 module mod_common_subrs
+  use mod_wrf_file
   implicit none
 contains
 
@@ -161,6 +162,25 @@ contains
     vKhi=dkhidy
               
   end subroutine irrotationalWind
+
+  function vorticity ( u, v, file ) result ( zeta )
+    type ( wrf_file ), intent ( in ) :: file
+    real, dimension ( :, :, : ), intent ( in ) :: u, v
+    real, dimension ( :, :, : ), allocatable :: zeta
+    real,dimension(:,:,:),allocatable :: du_dy,dv_dx
+    
+    allocate ( zeta ( file % dims ( 1 ), file % dims ( 2 ), &
+         file % dims ( 3 ) ) )
+    allocate ( du_dy ( file % dims ( 1 ), file % dims ( 2 ), &
+         file % dims ( 3 ) ) )
+    allocate ( dv_dx ( file % dims ( 1 ), file % dims ( 2 ), &
+         file % dims ( 3 ) ) )
+      
+    call yder_cart( u, file % dy, du_dy )
+    call xder_cart( v, file % dx, dv_dx )
+    zeta = dv_dx - du_dy
+    
+  end function vorticity
 
   subroutine curl_cart(u,v,dx,dy,zeta)
 !   Relative vorticity in cartesian coordinates.

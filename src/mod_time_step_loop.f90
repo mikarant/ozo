@@ -2,6 +2,8 @@ module mod_time_step_loop
   use mod_wrf_file
   use mod_subrs
   use mod_omega
+  use mod_const
+  use mod_common_subrs
   implicit none
 
 contains
@@ -101,7 +103,7 @@ contains
   contains
 
     subroutine write_dimensions ( file, tdim )
-      ! This subroutine puts dimension data to the output file.
+      ! This subroutine writes dimension data to the output file.
       type ( wrf_file ) :: file
       integer,dimension(:) :: tdim
       integer :: varids(4),varid
@@ -114,12 +116,15 @@ contains
       
       call check( nf90_put_var(file % ncid, varids(1), file%xdim(:)) )
       call check( nf90_put_var(file % ncid, varids(2), file%ydim(:)) )
-      call check( nf90_put_var(file % ncid, varids(3), file%pressure_levels(:)/100.) )
+      call check( nf90_put_var(file % ncid, varids(3), &
+                  file%pressure_levels(:)/100.) )
       call check( nf90_put_var(file % ncid, varids(4), tdim(:)) )
    
     end subroutine write_dimensions
 
     subroutine read_T_u_v_z ( file, time )
+      ! This subroutine reads T,u,v and Z fields from the input file
+      ! and calculate tendencies of them
       type ( wrf_file ) :: file
       integer, intent ( in ) :: time
       real, dimension ( :, :, :, :, : ), allocatable, target, save :: dtvars
@@ -148,11 +153,11 @@ contains
               [ trim ( dtvar_names ( i ) ) ] )
       end do
       if ( time .gt. lbound ( file % times, 1 ) ) then
-         dt2inv = 1.0 / ( file % times ( time + 1 ) - file % times ( time - 1 ) )
-         dT_dt = ( dtvars ( :, :, :, 1, next ) - dtvars ( :, :, :, 1,prev ) ) * dt2inv
-         du_dt = ( dtvars ( :, :, :, 2, next ) - dtvars ( :, :, :, 2,prev ) ) * dt2inv
-         dv_dt = ( dtvars ( :, :, :, 3, next ) - dtvars ( :, :, :, 3,prev ) ) * dt2inv
-         dz_dt = ( dtvars ( :, :, :, 4, next ) - dtvars ( :, :, :, 4,prev ) ) * dt2inv
+         dt2inv = 1.0 / ( file % times ( time + 1 ) - file % times ( time - 1 ))
+         dT_dt = (dtvars( :, :, :, 1, next) - dtvars( :, :, :, 1,prev)) * dt2inv
+         du_dt = (dtvars( :, :, :, 2, next) - dtvars( :, :, :, 2,prev)) * dt2inv
+         dv_dt = (dtvars( :, :, :, 3, next) - dtvars( :, :, :, 3,prev)) * dt2inv
+         dz_dt = (dtvars( :, :, :, 4, next) - dtvars( :, :, :, 4,prev)) * dt2inv
       end if
     end subroutine read_T_u_v_z
 
@@ -195,7 +200,7 @@ contains
         end do
         q = q + real3d ( file, time, [ 'H_DIABATIC' ] )
         do lev = 1, size ( plev )
-           a_lev = ( plev ( lev ) / 100000.0 ) ** ( 287.0 / 1004.0 )
+           a_lev = ( plev ( lev ) / 100000.0 ) ** ( r / cp )
            q ( :, :, lev ) = q ( :, :, lev ) * a_lev
         end do
       end associate
@@ -223,25 +228,6 @@ contains
          friction ( :, :, lev ) = friction ( :, :, lev ) * mu_inv
       end do
     end function friction
-
-    function vorticity ( u, v, file ) result ( zeta )
-      type ( wrf_file ), intent ( in ) :: file
-      real, dimension ( :, :, : ), intent ( in ) :: u, v
-      real, dimension ( :, :, : ), allocatable :: zeta
-      real,dimension(:,:,:),allocatable :: du_dy,dv_dx
-
-      allocate ( zeta ( file % dims ( 1 ), file % dims ( 2 ), &
-           file % dims ( 3 ) ) )
-      allocate ( du_dy ( file % dims ( 1 ), file % dims ( 2 ), &
-           file % dims ( 3 ) ) )
-      allocate ( dv_dx ( file % dims ( 1 ), file % dims ( 2 ), &
-           file % dims ( 3 ) ) )
-      
-      call yder_cart( u, file % dy, du_dy )
-      call xder_cart( v, file % dx, dv_dx )
-      zeta = dv_dx - du_dy
-
-    end function vorticity
 
     subroutine write_tendencies ( file, time, calc_b, hTends )
       type ( wrf_file ), intent ( in ) :: file
