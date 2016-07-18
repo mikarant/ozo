@@ -36,7 +36,6 @@ contains
     nlon=size(t,1); nlat=size(t,2); nlev=size(t,3)
     
     allocate(vortTends(nlon,nlat,nlev,n_terms))
-    allocate(sigma(nlon,nlat,nlev),sp(nlon,nlat,nlev))
     allocate(temptend(nlon,nlat,nlev,n_terms))
     allocate(vorTend_omegaWRF(nlon,nlat,nlev))
 
@@ -54,8 +53,8 @@ contains
                         vorTend_omegaWRF)
 
 !   Calculation of stability sigma and Sp (stability parameter)
-    call define_sigma(t,lev,dlev,sigma)
-    call define_sp(sigma,lev,sp)
+    sigma = define_sigma(t,lev,dlev)
+    sp = define_sp(sigma,lev)
 
 !   Calculation of thermal advection
     tadv = advect_cart(u,v,t,dx,dy)

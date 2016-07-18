@@ -49,7 +49,7 @@ contains
     nlat=size(t,2)
     nlev=size(t,3)
 
-    allocate(sigmaraw(nlon,nlat,nlev),zeta(nlon,nlat,nlev))
+    allocate(zeta(nlon,nlat,nlev))
  
 !   Number of different resolutions in solving the equation = nres 
 !   Choose so that the coarsest grid has at least 5 points
@@ -120,8 +120,7 @@ contains
     dvdp(:,:,:,1) = pder(v,dlev)
 !
 !   2. Stability sigma
-!
-    call define_sigma(t,lev,dlev,sigmaraw)
+    sigmaraw = define_sigma(t,lev,dlev)
 !
 !   3. Modifying stability and vorticity on the LHS to keep
 !   the solution elliptic

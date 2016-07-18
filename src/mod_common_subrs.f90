@@ -283,7 +283,7 @@ contains
   
   end function advect_cart
 
-  subroutine define_sigma(t,lev,dlev,sigma)
+  function define_sigma(t,lev,dlev) result(sigma)
 !   Calculatig sigma stability parameter in isobaric coordinates
     use mod_const
     implicit none
@@ -291,13 +291,14 @@ contains
     real,dimension(:,:,:),intent(in) :: t
     real,dimension(:),    intent(in) :: lev
     real,                 intent(in) :: dlev
-    real,dimension(:,:,:),intent(inout) :: sigma
+    real,dimension(:,:,:),allocatable :: sigma
 
     integer :: k,nlon,nlat,nlev
     real,dimension(:,:,:),allocatable :: apu1,apu2
 
     nlon=size(t,1); nlat=size(t,2); nlev=size(t,3)
     allocate(apu1(nlon,nlat,nlev))
+    allocate(sigma(nlon,nlat,nlev))
 
     do k=1,nlev
        apu1(:,:,k)=log(t(:,:,k))-(r/cp)*log(lev(k)/1e5)
@@ -308,25 +309,26 @@ contains
        sigma(:,:,k)=-R*t(:,:,k)/lev(k)*apu2(:,:,k)
     enddo
     
-  end subroutine define_sigma
+  end function define_sigma
 
-  subroutine define_sp(sigma,lev,sp)
+  function define_sp(sigma,lev) result(sp)
 !   Calculating Sp stability parameter
     use mod_const
     implicit none
 
     real,dimension(:,:,:),intent(in) :: sigma
     real,dimension(:),intent(in) :: lev
-    real,dimension(:,:,:),intent(inout) :: sp
+    real,dimension(:,:,:),allocatable :: sp
  
     integer :: nlon,nlat,nlev,k
     nlon=size(sigma,1); nlat=size(sigma,2); nlev=size(sigma,3)
+    allocate(sp(nlon,nlat,nlev))
 
     do k=1,nlev
        sp(:,:,k)=sigma(:,:,k)*lev(k)/r
     enddo
     
-  end subroutine define_sp
+  end function define_sp
 
   subroutine laplace_cart(f,lapl,dx,dy)
 !     Laplace operator in cartesian coordinates
