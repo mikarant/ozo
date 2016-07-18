@@ -116,8 +116,10 @@ contains
 
 !   1. Pressure derivatives of wind components
 
-    call pder(u,dlev,dudp(:,:,:,1)) 
-    call pder(v,dlev,dvdp(:,:,:,1)) 
+    dudp(:,:,:,1) = pder(u,dlev)
+    dvdp(:,:,:,1) = pder(v,dlev)
+!    call pder(u,dlev,dudp(:,:,:,1)) 
+!    call pder(v,dlev,dvdp(:,:,:,1)) 
 !
 !   2. Stability sigma
 !

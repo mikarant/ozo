@@ -128,7 +128,7 @@ contains
     
   end function curl_cart
 
-  subroutine pder(f,dp,dfdp)
+  function pder(f,dp) result (dfdp)
 !   Estimation of pressure derivatives.
 !   One-sided derivatives are used at top and bottom levels
 !   Accuracy=1 means second-order accuracy
@@ -137,13 +137,14 @@ contains
 
     real,dimension(:,:,:),intent(in) :: f
     real,                 intent(in) :: dp
-    real,dimension(:,:,:),intent(inout) :: dfdp
+    real,dimension(:,:,:),allocatable :: dfdp
     
     integer :: nlon,nlat,nlev,accuracy,k
-    nlon=size(f,1); nlat=size(f,2); nlev=size(f,3)
- 
-    accuracy=1
 
+    nlon=size(f,1); nlat=size(f,2); nlev=size(f,3)
+    allocate(dfdp(nlon,nlat,nlev))
+    
+    accuracy=1
     select case (accuracy)
 
        case(1)
@@ -165,7 +166,7 @@ contains
 
        end select
 
-  end subroutine pder
+  end function pder
 
   subroutine xder_cart(f,dx,dfdx)
 !   Calculation of x derivatives. Periodic domain in x assumed
@@ -211,7 +212,8 @@ contains
                    i1=1
                    i2=2
                 end if
-                dfdx(i,j,k)=(f(i_2,j,k)-8*f(i_1,j,k)+8*f(i1,j,k)-f(i2,j,k))/(12*dx)
+                dfdx(i,j,k)=(f(i_2,j,k)-8*f(i_1,j,k)+8*f(i1,j,k)-f(i2,j,k))&
+                            /(12*dx)
              enddo
           enddo
        enddo
@@ -256,9 +258,11 @@ contains
                 else if(j==nlat-1)then
                    dfdy(i,nlat-1,k)=(f(i,nlat,k)-f(i,nlat-2,k))/(2*dy)
                 else if(j==nlat)then
-                   dfdy(i,nlat,k)=(f(i,nlat-2,k)-4*f(i,nlat-1,k)+3*f(i,nlat,k))/(2*dy)
+                   dfdy(i,nlat,k)=(f(i,nlat-2,k)-4*f(i,nlat-1,k) &
+                                 +3*f(i,nlat,k))/(2*dy)
                 else
-                   dfdy(i,j,k)=(f(i,j-2,k)-8*f(i,j-1,k)+8*f(i,j+1,k)-f(i,j+2,k))/(12*dy)
+                   dfdy(i,j,k)=(f(i,j-2,k)-8*f(i,j-1,k)+8*f(i,j+1,k)& 
+                               -f(i,j+2,k))/(12*dy)
                 end if
              enddo
           enddo
@@ -302,12 +306,13 @@ contains
     real,dimension(:,:,:),allocatable :: apu1,apu2
 
     nlon=size(t,1); nlat=size(t,2); nlev=size(t,3)
-    allocate(apu1(nlon,nlat,nlev),apu2(nlon,nlat,nlev))
+    allocate(apu1(nlon,nlat,nlev))
 
     do k=1,nlev
        apu1(:,:,k)=log(t(:,:,k))-(r/cp)*log(lev(k)/1e5)
     enddo
-    call pder(apu1,dlev,apu2)
+    apu2=pder(apu1,dlev)
+
     do k=1,nlev
        sigma(:,:,k)=-R*t(:,:,k)/lev(k)*apu2(:,:,k)
     enddo

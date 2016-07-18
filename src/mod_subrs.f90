@@ -304,10 +304,9 @@ contains
     real,dimension(:,:,:),intent(inout) :: vortadv
     
     real,dimension(:,:,:),allocatable :: dvortdp
-    allocate(dvortdp(size(omega,1),size(omega,2),size(omega,3)))
 
 !   Pressure derivative of vorticity
-    call pder(zeta,dlev,dvortdp)
+    dvortdp = pder(zeta,dlev)
 
 !   Vertical advection
     vortadv=-omega*dvortdp
@@ -324,10 +323,9 @@ contains
     real,dimension(:,:,:),intent(inout) :: vortdiv
     
     real,dimension(:,:,:),allocatable :: domegadp
-    allocate(domegadp(size(omega,1),size(omega,2),size(omega,3)))
 
 !   Pressure derivative of omega
-    call pder(omega,dlev,domegadp)
+    domegadp = pder(omega,dlev)
 
 !   Product of absolute vorticity and pressure derivative of omega
     vortdiv=eta*domegadp
@@ -346,16 +344,14 @@ contains
     real,dimension(:,:,:),allocatable :: domegadx,domegady,dudp,dvdp
     allocate(domegadx(size(omega,1),size(omega,2),size(omega,3)))
     allocate(domegady(size(omega,1),size(omega,2),size(omega,3)))
-    allocate(dudp(size(omega,1),size(omega,2),size(omega,3)))
-    allocate(dvdp(size(omega,1),size(omega,2),size(omega,3)))
       
 !   Gradient of omega
     call xder_cart(omega,dx,domegadx)
     call yder_cart(omega,dy,domegady)
 
 !   Pressure derivative of wind vectors
-    call pder(u,dlev,dudp)
-    call pder(v,dlev,dvdp)
+    dudp = pder(u,dlev)
+    dvdp = pder(v,dlev)
 
     vortt4=(dudp*domegady-dvdp*domegadx)
 

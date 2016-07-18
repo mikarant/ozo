@@ -80,7 +80,7 @@ contains
     do j=1,nlat
        dum6(:,j,:)=-corpar(j)*(dvdp(:,j,:)*dum4(:,j,:)-dudp(:,j,:)*dum5(:,j,:))
     enddo
-    call pder(dum6,dlev,dum4) 
+    dum4 = pder(dum6,dlev)
     
     ftest(:,:,:,1)=dum1+dum2+dum3+dum4 
 
@@ -291,7 +291,6 @@ contains
     nlat=size(u,2)
     nlev=size(u,3)
     allocate(eta(nlon,nlat,nlev),adv(nlon,nlat,nlev))
-    allocate(dadvdp(nlon,nlat,nlev))
 
     do k=1,nlev
        do j=1,nlat
@@ -303,9 +302,9 @@ contains
 
     call advect_cart(u,v,eta,dx,dy,adv)
     adv=adv*mulfact
-    call pder(adv,dp,dadvdp) 
-!    print*,"fvort"
-!    write(*,"(20E11.3E2)")sum(dadvdp)
+    
+    dadvdp = pder(adv,dp)
+
     do k=1,nlev
        do j=1,nlat      
           do i=1,nlon
@@ -367,11 +366,12 @@ contains
     nlon=size(fx,1)
     nlat=size(fx,2)
     nlev=size(fx,3)
-    allocate(fcurl(nlon,nlat,nlev),dcurldp(nlon,nlat,nlev))
+    allocate(fcurl(nlon,nlat,nlev))
 
     fcurl = curl_cart(fx,fy,dx,dy)
     fcurl=fcurl*mulfact
-    call pder(fcurl,dp,dcurldp) 
+
+    dcurldp = pder(fcurl,dp)
 
     do k=1,nlev
        do j=1,nlat      
@@ -432,12 +432,13 @@ contains
     nlon=size(dtdt,1)
     nlat=size(dtdt,2)
     nlev=size(dtdt,3)
-    allocate(ddpdzetadt(nlon,nlat,nlev),lapldtdt(nlon,nlat,nlev))
+    allocate(lapldtdt(nlon,nlat,nlev))
 
     dzetadt=dzetadt*mulfact
     dtdt=dtdt*mulfact
 
-    call pder(dzetadt,dp,ddpdzetadt) 
+    ddpdzetadt = pder(dzetadt,dp)
+
     call laplace_cart(dtdt,lapldtdt,dx,dy)         
 
     do k=1,nlev
@@ -927,7 +928,7 @@ contains
     allocate(lapl2(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
     allocate(coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev))
     allocate(coeff(nlon,nlat,nlev),dum0(nlon,nlat,nlev))
-    allocate(dum1(nlon,nlat,nlev),dum3(nlon,nlat,nlev))
+    allocate(dum1(nlon,nlat,nlev))
     allocate(dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev))
     allocate(dum6(nlon,nlat,nlev))
 !
@@ -956,7 +957,7 @@ contains
     do j=1,nlat
        dum6(:,j,:)=f(j)*(dudp(:,j,:)*dum5(:,j,:)-dvdp(:,j,:)*dum4(:,j,:))
     enddo
-    call pder(dum6,dlev,dum3) 
+    dum3 = pder(dum6,dlev)
 !
 !   Solving for omega 
 !   Old values are retained at y and z boundaries.
@@ -1045,7 +1046,7 @@ contains
           enddo
        enddo
     enddo
-    call pder(dum6,dlev,dum2) 
+    dum2 = pder(dum6,dlev)
 
     do k=1,nlev
        do j=1,nlat
