@@ -19,16 +19,9 @@ contains
     real,dimension(:,:,:),intent(in) :: omegaan
     real,intent(in) :: dx,dy,dlev
     real,dimension(:,:,:,:),intent(out) :: ftest 
-
     real,dimension(:,:,:),allocatable :: df2dp2,lapl
-    integer :: nlon,nlat,nlev
 
-    nlon=size(omegaan,1)
-    nlat=size(omegaan,2)
-    nlev=size(omegaan,3)
-    allocate(df2dp2(nlon,nlat,nlev))
-
-    call p2der(omegaan,dlev,df2dp2)
+    df2dp2 = p2der(omegaan,dlev)
     lapl = laplace_cart(omegaan,dx,dy)
 
     ftest(:,:,:,1)=sigma(:,:,:,1)*lapl+feta(:,:,:,1)*df2dp2 
@@ -56,15 +49,14 @@ contains
     nlev=size(omegaan,3)
 
     allocate(dum2(nlon,nlat,nlev))
-    allocate(dum3(nlon,nlat,nlev))
-    allocate(dum5(nlon,nlat,nlev),dum6(nlon,nlat,nlev))
+    allocate(dum6(nlon,nlat,nlev))
     allocate(dvdp(nlon,nlat,nlev),dudp(nlon,nlat,nlev))
 
     dum2=sigmaraw*omegaan
           
     dum1 = laplace_cart(dum2,dx,dy)
-    call p2der(omegaan,dlev,dum3)
-    call p2der(zetaraw,dlev,dum5)
+    dum3 = p2der(omegaan,dlev)
+    dum5 = p2der(zetaraw,dlev)
     
     do j=1,nlat       
        dum2(:,j,:)=(corpar(j)+zetaraw(:,j,:))*corpar(j)*dum3(:,j,:)
@@ -166,8 +158,8 @@ contains
 
   subroutine gwinds(z,dx,dy,corpar,u,v)
 !
-!      Calculation of geostrophic winds (u,v) from z. At the equator, mean of
-!      the two neighbouring latitudes is used (should not be a relevant case).
+!   Calculation of geostrophic winds (u,v) from z. At the equator, mean of
+!   the two neighbouring latitudes is used (should not be a relevant case).
 !
     implicit none
 
@@ -209,8 +201,8 @@ contains
   subroutine modify(sigmaraw,sigmamin,etamin,zetaraw,&
                         corpar,dudp,dvdp,sigma,feta,zeta)      
 !
-!      Modifying stability and vorticity to keep the LHS of the genearlized
-!      omega equation elliptic
+!   Modifying stability and vorticity to keep the LHS of the genearlized
+!   omega equation elliptic
 !
     implicit none
 
@@ -248,10 +240,10 @@ contains
 
   end subroutine modify
 
-  subroutine aave(f,res)                      
+  function aave(f) result(res)                      
 !
-!     Calculation of area mean (res) of field f in cartesian coordinates.
-!     Simplest possible way.
+!   Calculation of area mean (res) of field f in cartesian coordinates.
+!   Simplest possible way.
 !
     implicit none
 
@@ -271,67 +263,56 @@ contains
     enddo
     res=sum/wsum
 
-  end subroutine aave
+  end function aave
 
-  subroutine fvort(u,v,zeta,corpar,dx,dy,dp,mulfact,fv)
-!
-!     Calculation of vorticity advection forcing
-!     Input: u,v,zeta
-!     Output: stored in "fv"
+  function fvort(u,v,zeta,corpar,dx,dy,dp,mulfact) result(fv)
+!   Calculation of vorticity advection forcing
+!   Input: u,v,zeta
+!   Output: stored in "fv"
 !
     implicit none
     real,dimension(:,:,:),intent(in) :: u,v,zeta,mulfact
-    real,dimension(:,:,:),intent(out) :: fv
     real,dimension(:),intent(in) :: corpar
-    real,dimension(:,:,:),allocatable :: eta,adv,dadvdp
+    real,dimension(:,:,:),allocatable :: eta,adv,dadvdp,fv
     real,intent(in) :: dx,dy,dp
-    integer :: i,j,k,nlon,nlat,nlev
+    integer :: j,nlon,nlat,nlev
 
     nlon=size(u,1)
     nlat=size(u,2)
     nlev=size(u,3)
-    allocate(eta(nlon,nlat,nlev))
+    allocate(eta(nlon,nlat,nlev),fv(nlon,nlat,nlev))
 
-    do k=1,nlev
-       do j=1,nlat
-          do i=1,nlon
-             eta(i,j,k)=zeta(i,j,k)+corpar(j)
-          enddo
-       enddo
+    do j=1,nlat
+       eta(:,j,:)=zeta(:,j,:)+corpar(j)
     enddo
 
     adv = advect_cart(u,v,eta,dx,dy)
-    adv=adv*mulfact
+    adv = adv*mulfact
     
     dadvdp = pder(adv,dp)
 
-    do k=1,nlev
-       do j=1,nlat      
-          do i=1,nlon
-             fv(i,j,k)=corpar(j)*dadvdp(i,j,k)
-          enddo
-       enddo
+    do j=1,nlat      
+       fv(:,j,:)=corpar(j)*dadvdp(:,j,:)
     enddo
 
-  end subroutine fvort
+  end function fvort
 
-  subroutine ftemp(u,v,t,lev,dx,dy,mulfact,ft)
-!
-!     Calculation of temperature advection forcing
-!     Input: u,v,t
-!     Output: stored in "adv" (bad style ...)
+  function ftemp(u,v,t,lev,dx,dy,mulfact) result(ft)
+!   Calculation of temperature advection forcing
+!   Input: u,v,t
+!   Output: stored in "adv" (bad style ...)
 !
     implicit none
     real,dimension(:,:,:),intent(in) :: u,v,t,mulfact
-    real,dimension(:,:,:),intent(out) :: ft
     real,dimension(:),intent(in) :: lev
     real,intent(in) :: dx,dy
-    real,dimension(:,:,:),allocatable :: adv,lapladv
-    integer :: i,j,k,nlon,nlat,nlev
+    real,dimension(:,:,:),allocatable :: adv,lapladv,ft
+    integer :: k,nlon,nlat,nlev
 
     nlon=size(u,1)
     nlat=size(u,2)
     nlev=size(u,3)
+    allocate(ft(nlon,nlat,nlev))
 
     adv = advect_cart(u,v,t,dx,dy)
     adv = adv*mulfact
@@ -339,59 +320,48 @@ contains
     lapladv = laplace_cart(adv,dx,dy)
 
     do k=1,nlev
-       do j=1,nlat      
-          do i=1,nlon
-             ft(i,j,k)=lapladv(i,j,k)*r/lev(k)
-          enddo
-       enddo
+       ft(:,:,k)=lapladv(:,:,k)*r/lev(k)
     enddo
 
-  end subroutine ftemp
+  end function ftemp
 
-  subroutine ffrict(fx,fy,corpar,dx,dy,dp,mulfact,ff)
-!
-!     Calculation of friction forcing
-!     Input: fx,fy = x and y components of "friction force"
-!     Output: res 
+  function ffrict(fx,fy,corpar,dx,dy,dp,mulfact) result(ff)
+!   Calculation of friction forcing
+!   Input: fx,fy = x and y components of "friction force"
+!   Output: res 
 !
     implicit none
     real,dimension(:,:,:),intent(in) :: fx,fy,mulfact
     real,dimension(:),intent(in) :: corpar
-    real,dimension(:,:,:),intent(out) :: ff
-    real,dimension(:,:,:),allocatable :: fcurl,dcurldp
+    real,dimension(:,:,:),allocatable :: fcurl,dcurldp,ff
     real,intent(in) :: dx,dy,dp
-    integer :: i,j,k,nlon,nlat,nlev
+    integer :: j,nlon,nlat,nlev
 
     nlon=size(fx,1)
     nlat=size(fx,2)
     nlev=size(fx,3)
-    allocate(fcurl(nlon,nlat,nlev))
+    allocate(ff(nlon,nlat,nlev))
 
     fcurl = curl_cart(fx,fy,dx,dy)
     fcurl=fcurl*mulfact
 
     dcurldp = pder(fcurl,dp)
 
-    do k=1,nlev
-       do j=1,nlat      
-          do i=1,nlon
-             ff(i,j,k)=-corpar(j)*dcurldp(i,j,k)
-          enddo
-       enddo
+    do j=1,nlat      
+       ff(:,j,:)=-corpar(j)*dcurldp(:,j,:)
     enddo
 
-  end subroutine ffrict
+  end function ffrict
 
-  subroutine fdiab(q,lev,dx,dy,mulfact,fq)
-!
-!     Calculation of diabatic heaging forcing
-!     Input: q = diabatic temperature tendency (already normalized by cp)
-!     Output: stored in "fq"
+  function fdiab(q,lev,dx,dy,mulfact) result(fq)
+!   Calculation of diabatic heaging forcing
+!   Input: q = diabatic temperature tendency (already normalized by cp)
+!   Output: stored in "fq"
 !
     implicit none
     real,dimension(:,:,:),intent(inout) :: q
     real,dimension(:,:,:),intent(in) :: mulfact
-    real,dimension(:,:,:),intent(out) :: fq
+    real,dimension(:,:,:),allocatable :: fq
     real,dimension(:),intent(in) :: lev
     real,intent(in) :: dx,dy      
     integer :: i,j,k,nlon,nlat,nlev
@@ -399,38 +369,34 @@ contains
     nlon=size(q,1)
     nlat=size(q,2)
     nlev=size(q,3)
-    
+    allocate(fq(nlon,nlat,nlev))
+
     q=q*mulfact
     fq = laplace_cart(q,dx,dy)
 
     do k=1,nlev
-       do j=1,nlat      
-          do i=1,nlon
-             fq(i,j,k)=-r*fq(i,j,k)/lev(k)
-          enddo
-       enddo
+       fq(:,:,k)=-r*fq(:,:,k)/lev(k)
     enddo
     
-  end subroutine fdiab
+  end function fdiab
 
-  subroutine fimbal(dzetadt,dtdt,corpar,lev,dx,dy,dp,mulfact,fa)
-!
-!     Calculation of the FA ("imbalance") forcing term
-!     Input: dzetadt, dtdt = vorticity & temperature tendencies
-!     Output: fa
+  function fimbal(dzetadt,dtdt,corpar,lev,dx,dy,dp,mulfact) result(fa)
+!   Calculation of the FA ("imbalance") forcing term
+!   Input: dzetadt, dtdt = vorticity & temperature tendencies
+!   Output: fa
 !
     implicit none
     real,dimension(:,:,:),intent(inout) :: dzetadt,dtdt
     real,dimension(:,:,:),intent(in) ::  mulfact
-    real,dimension(:,:,:),intent(out) :: fa
     real,dimension(:),intent(in) :: lev,corpar
     real,intent(in) :: dx,dy,dp
-    real,dimension(:,:,:),allocatable :: ddpdzetadt,lapldtdt
+    real,dimension(:,:,:),allocatable :: ddpdzetadt,lapldtdt,fa
     integer i,j,k,nlon,nlat,nlev
 
     nlon=size(dtdt,1)
     nlat=size(dtdt,2)
     nlev=size(dtdt,3)
+    allocate(fa(nlon,nlat,nlev))
 
     dzetadt=dzetadt*mulfact
     dtdt=dtdt*mulfact
@@ -448,7 +414,7 @@ contains
        enddo
     enddo
     
-  end subroutine fimbal
+  end function fimbal
 
   subroutine callsolveQG(rhs,boundaries,omega,nlonx,nlatx,nlevx,&
                          dx,dy,dlev,sigma0,feta,nres,alfa,toler)
@@ -545,7 +511,7 @@ contains
 !
     if(lzeromean)then
        do k=1,nlevx(1) 
-          call aave(omega(:,:,k,1),aomega)
+          aomega = aave(omega(:,:,k,1))
           do j=1,nlatx(1)
              do i=1,nlonx(1)
                 omega(i,j,k,1)=omega(i,j,k,1)-aomega
@@ -688,10 +654,8 @@ contains
     nlat=size(rhs,2)
     nlev=size(rhs,3)
 
-    allocate(domedp2(nlon,nlat,nlev))
-
     laplome = laplace_cart(omega,dx,dy)
-    call p2der(omega,dlev,domedp2) 
+    domedp2 = p2der(omega,dlev)
  
     do k=1,nlev
        do j=1,nlat
@@ -808,7 +772,7 @@ contains
    !       Subtracting area mean of omega
     if(lzeromean)then
        do k=1,nlev(1) 
-          call aave(omega(:,:,k,1),aomega)
+          aomega = aave(omega(:,:,k,1))
           do j=1,nlat(1)
              do i=1,nlon(1)
                 omega(i,j,k,1)=omega(i,j,k,1)-aomega
@@ -935,7 +899,7 @@ contains
     call p2der2(omegaold,dlev,domedp2,coeff2) 
 !
 !   Calculate non-constant terms on the left-hand-side, based on 'omegaold'
-!
+ !
 !   a) Deviation of sigma from its normal value
 
     do k=2,nlev-1
@@ -1009,7 +973,7 @@ contains
     nlat=size(rhs,2)
     nlev=size(rhs,3)
 
-    allocate(dum0(nlon,nlat,nlev),dum2(nlon,nlat,nlev))
+    allocate(dum0(nlon,nlat,nlev))
     allocate(dum3(nlon,nlat,nlev))
     allocate(dum6(nlon,nlat,nlev))    
 !
@@ -1021,9 +985,8 @@ contains
 
     dum1 = laplace_cart(dum0,dx,dy)
 !
-!   f*eta*d2omegadp
-!       
-    call p2der(omega,dlev,dum2) 
+!   f*eta*d2omegadp       
+    dum2 = p2der(omega,dlev)
 !
     dum3=feta*dum2
 !
@@ -1134,18 +1097,21 @@ contains
 
   end subroutine laplace2_cart
 
-  subroutine p2der(f,dp,df2dp2) 
+  function p2der(f,dp) result(df2dp2) 
 !
 !      Estimation of second pressure derivatives.
 !      At top and bottom levels, these are set to zero
 !
     implicit none
     real,dimension(:,:,:),intent(in) :: f
-    real,dimension(:,:,:),intent(out) :: df2dp2
+    real,dimension(:,:,:),allocatable :: df2dp2
     real,intent(in) :: dp
-    integer :: nlev,c,k
+    integer :: nlon,nlat,nlev,c,k
 
+    nlon=size(f,1)
+    nlat=size(f,2)
     nlev=size(f,3)
+    allocate(df2dp2(nlon,nlat,nlev))
     c=1
     select case(c)
        
@@ -1165,7 +1131,7 @@ contains
        df2dp2(:,:,1)=0.
        df2dp2(:,:,nlev)=0.
     end select
- end subroutine p2der
+ end function p2der
 
  subroutine p2der2(f,dp,df2dp22,coeff) 
 !

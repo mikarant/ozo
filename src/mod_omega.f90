@@ -98,17 +98,17 @@ contains
 !   Calculation of forcing terms 
 !
     if(mode.eq.'G'.or.mode.eq.'Q')then
-       call fvort(u,v,zetaraw,corpar,dx,dy,dlev,mulfact,rhs(:,:,:,1,termV))
+       rhs(:,:,:,1,termV) = fvort(u,v,zetaraw,corpar,dx,dy,dlev,mulfact)
        
-       call ftemp(u,v,t,lev,dx,dy,mulfact,rhs(:,:,:,1,termT))
+       rhs(:,:,:,1,termT) = ftemp(u,v,t,lev,dx,dy,mulfact)
     endif
 
     if(mode.eq.'G')then
-       call ffrict(xfrict,yfrict,corpar,dx,dy,dlev,mulfact,rhs(:,:,:,1,termF))
-       call fdiab(q,lev,dx,dy,mulfact,rhs(:,:,:,1,termQ))
-       call fimbal(zetatend,ttend,corpar,lev,dx,dy,dlev,mulfact,rhs(:,:,:,1,termA))
-       call fvort(ukhi,vkhi,zetaraw,corpar,dx,dy,dlev,mulfact,rhs(:,:,:,1,termvkhi))
-       call ftemp(ukhi,vkhi,t,lev,dx,dy,mulfact,rhs(:,:,:,1,termtkhi))
+       rhs(:,:,:,1,termF) = ffrict(xfrict,yfrict,corpar,dx,dy,dlev,mulfact)
+       rhs(:,:,:,1,termQ) = fdiab(q,lev,dx,dy,mulfact)
+       rhs(:,:,:,1,termA) = fimbal(zetatend,ttend,corpar,lev,dx,dy,dlev,mulfact)
+       rhs(:,:,:,1,termVKhi) = fvort(ukhi,vkhi,zetaraw,corpar,dx,dy,dlev,mulfact)
+       rhs(:,:,:,1,termTKhi) = ftemp(ukhi,vkhi,t,lev,dx,dy,mulfact)
     endif
 !
 !   Deriving quantities needed for the LHS of the 
@@ -130,12 +130,12 @@ contains
 !
 !   4. Second pressure derivative of vorticity 
 !
-    call p2der(zeta,dlev,d2zetadp(:,:,:,1)) 
+    d2zetadp(:,:,:,1) = p2der(zeta,dlev)
 !
 !   5. Area mean of static stability over the whole grid
 !
     do k=1,nlev
-       call aave(sigmaraw(:,:,k),sigma0(k,1))                      
+       sigma0(k,1) = aave(sigmaraw(:,:,k))
     enddo
 !
 !   Left-hand side coefficients for the QG equation

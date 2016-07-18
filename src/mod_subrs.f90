@@ -405,7 +405,7 @@ contains
     real,dimension(:,:,:),intent(inout) :: vorTend_omegaWRF
     real,dimension(:,:,:,:),intent(inout) :: hTends
 
-    real,dimension(:,:,:),allocatable :: corf,laplz
+    real,dimension(:,:,:),allocatable :: corf
     real,dimension(:,:,:),allocatable :: ttend_omegaWRF,gvtend_omegaWRF
     real,dimension(:,:,:,:),allocatable :: tempTends,gvortTends
     integer :: nlon,nlat,nlev,i,j,k
@@ -418,7 +418,7 @@ contains
     allocate(gvortTends(nlon,nlat,nlev,n_terms))
     allocate ( bd_ay ( nlon + 1, nlev ), bd_by ( nlon + 1, nlev ) )
     allocate ( bd_0 ( nlon + 1, nlev ) )
-    allocate(laplz(nlon,nlat,nlev),ttend_omegaWRF(nlon,nlat,nlev))
+    allocate(ttend_omegaWRF(nlon,nlat,nlev))
     allocate(corf(nlon,nlat,nlev))
     allocate(gvtend_omegaWRF(nlon,nlat,nlev))
 
