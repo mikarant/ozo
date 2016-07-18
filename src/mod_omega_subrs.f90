@@ -56,7 +56,7 @@ contains
     nlev=size(omegaan,3)
 
     allocate(dum2(nlon,nlat,nlev),dum1(nlon,nlat,nlev))
-    allocate(dum3(nlon,nlat,nlev),dum4(nlon,nlat,nlev))
+    allocate(dum3(nlon,nlat,nlev))
     allocate(dum5(nlon,nlat,nlev),dum6(nlon,nlat,nlev))
     allocate(dvdp(nlon,nlat,nlev),dudp(nlon,nlat,nlev))
 
@@ -74,9 +74,10 @@ contains
        dum3(:,j,:)=-corpar(j)*omegaan(:,j,:)*dum5(:,j,:)
     enddo
     
-    call xder_cart(omegaan,dx,dum4) 
-    call yder_cart(omegaan,dy,dum5) 
-    
+    dum4 = xder_cart(omegaan,dx)
+    dum5 = yder_cart(omegaan,dy)
+
+
     do j=1,nlat
        dum6(:,j,:)=-corpar(j)*(dvdp(:,j,:)*dum4(:,j,:)-dudp(:,j,:)*dum5(:,j,:))
     enddo
@@ -180,10 +181,9 @@ contains
     nlon=size(u,1)
     nlat=size(u,2)
     nlev=size(u,3)
-    allocate(dzdx(nlon,nlat,nlev),dzdy(nlon,nlat,nlev))
 
-    call xder_cart(z,dx,dzdx) 
-    call yder_cart(z,dy,dzdy) 
+    dzdx = xder_cart(z,dx)
+    dzdy = yder_cart(z,dy) 
 
     do k=1,nlev
        do j=1,nlat
@@ -929,7 +929,6 @@ contains
     allocate(coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev))
     allocate(coeff(nlon,nlat,nlev),dum0(nlon,nlat,nlev))
     allocate(dum1(nlon,nlat,nlev))
-    allocate(dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev))
     allocate(dum6(nlon,nlat,nlev))
 !
 !   Top and bottom levels: omega directly from the boundary conditions,
@@ -950,10 +949,10 @@ contains
 !   b) f*omega*(d2zetadp): explicitly, later
 !          
 !   c) tilting
-!
-    call xder_cart(omegaold,dx,dum4) 
-    call yder_cart(omegaold,dy,dum5) 
- 
+
+    dum4 = xder_cart(omegaold,dx)
+    dum5 = yder_cart(omegaold,dy)
+
     do j=1,nlat
        dum6(:,j,:)=f(j)*(dudp(:,j,:)*dum5(:,j,:)-dvdp(:,j,:)*dum4(:,j,:))
     enddo
@@ -1015,7 +1014,6 @@ contains
 
     allocate(dum0(nlon,nlat,nlev),dum2(nlon,nlat,nlev))
     allocate(dum1(nlon,nlat,nlev),dum3(nlon,nlat,nlev))
-    allocate(dum4(nlon,nlat,nlev),dum5(nlon,nlat,nlev))
     allocate(dum6(nlon,nlat,nlev))    
 !
 !   Calculate L(omega)
@@ -1035,9 +1033,8 @@ contains
 !   c) -f*omega*(d2zetadp): explicitly, later
 !                  
 !   d) tilting
-!
-    call xder_cart(omega,dx,dum4) 
-    call yder_cart(omega,dy,dum5) 
+    dum4 = xder_cart(omega,dx)
+    dum5 = yder_cart(omega,dy)
  
     do k=1,nlev
        do j=1,nlat

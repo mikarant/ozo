@@ -82,14 +82,13 @@ contains
     real,dimension(:,:,:),allocatable :: dudx,dvdy,khi,dkhidx,dkhidy
 
     nlon=size(u,1); nlat=size(u,2); nlev=size(u,3)
-    allocate(dudx(nlon,nlat,nlev),dvdy(nlon,nlat,nlev))
     allocate(khi(nlon,nlat,nlev))
-    allocate(dkhidx(nlon,nlat,nlev),dkhidy(nlon,nlat,nlev))
     allocate(bd_0(nlon+1))
 
 !   Calculate the divergence of wind
-    call xder_cart(u,dx,dudx)
-    call yder_cart(v,dy,dvdy)
+    dudx = xder_cart(u,dx)
+    dvdy = yder_cart(v,dy)
+    
 
 !   Velocity potential is equal to inverse laplacian of divergence
 
@@ -100,8 +99,8 @@ contains
     enddo
 
 !   Derivatives of velocity potential
-    call xder_cart(khi,dx,dkhidx)
-    call yder_cart(khi,dy,dkhidy)
+    dkhidx = xder_cart(khi,dx)
+    dkhidy = yder_cart(khi,dy)
 
 !   Wind components are equal to derivatives
     uKhi=dkhidx
@@ -112,18 +111,13 @@ contains
   function curl_cart ( u, v, dx, dy ) result ( zeta )
     real, dimension ( :, :, : ), intent ( in ) :: u, v
     real,                        intent ( in ) :: dx,dy
-    real, dimension ( :, :, : ), allocatable :: zeta
-    real,dimension(:,:,:),allocatable :: du_dy,dv_dx
+    real, dimension ( :, :, : ), allocatable :: zeta, du_dy, dv_dx
     
     allocate ( zeta ( size (u, 1 ), size ( u, 2 ), &
          size ( u, 3 ) ) )
-    allocate ( du_dy ( size (u, 1 ), size ( u, 2 ), &
-         size ( u, 3 ) ) )
-    allocate ( dv_dx ( size (u, 1 ), size ( u, 2 ), &
-         size ( u, 3 ) ) )
 
-    call yder_cart( u, dy, du_dy )
-    call xder_cart( v, dx, dv_dx )
+    du_dy = yder_cart(u,dy)
+    dv_dx = xder_cart(v,dx)
     zeta = dv_dx - du_dy
     
   end function curl_cart
@@ -168,17 +162,17 @@ contains
 
   end function pder
 
-  subroutine xder_cart(f,dx,dfdx)
+  function xder_cart(f,dx) result(dfdx)
 !   Calculation of x derivatives. Periodic domain in x assumed
     implicit none
 
     real,dimension(:,:,:),intent(in) :: f
     real,                 intent(in) :: dx
-    real,dimension(:,:,:),intent(inout) :: dfdx
+    real,dimension(:,:,:),allocatable  :: dfdx
 
     integer :: i,j,k,nlon,nlat,nlev,i1,i2,acc,i_1,i_2
     nlon=size(f,1); nlat=size(f,2); nlev=size(f,3)
-
+    allocate(dfdx(nlon,nlat,nlev))
     acc=1
 
     select case (acc)
@@ -219,19 +213,20 @@ contains
        enddo
     end select
 
-  end subroutine xder_cart
+  end function xder_cart
 
-  subroutine yder_cart(f,dy,dfdy)                          
+  function yder_cart(f,dy) result(dfdy)                          
 !   Calculation of y derivatives
 !   One-sided estimates are used at the southern and northern boundaries
     implicit none
 
     real,dimension(:,:,:),intent(in) :: f
     real,                 intent(in) :: dy
-    real,dimension(:,:,:),intent(inout) :: dfdy
+    real,dimension(:,:,:),allocatable  :: dfdy
 
     integer :: i,j,k,nlon,nlat,nlev,acc
     nlon=size(f,1); nlat=size(f,2); nlev=size(f,3)
+    allocate(dfdy(nlon,nlat,nlev))
 
     acc=1
     select case(acc)
@@ -270,7 +265,7 @@ contains
     end select
 
 
-  end subroutine yder_cart
+  end function yder_cart
   
   subroutine advect_cart(u,v,f,dx,dy,adv)
 !   Computing u*dfdx + v*dfdy in cartesian coordinates
@@ -281,12 +276,9 @@ contains
     real,dimension(:,:,:),intent(inout) :: adv
 
     real,dimension(:,:,:),allocatable :: dfdx,dfdy
-    integer :: nlon,nlat,nlev
-    nlon=size(u,1); nlat=size(u,2); nlev=size(u,3)
-    allocate(dfdx(nlon,nlat,nlev),dfdy(nlon,nlat,nlev))
-    
-    call xder_cart(f,dx,dfdx)
-    call yder_cart(f,dy,dfdy)
+
+    dfdx = xder_cart(f,dx)
+    dfdy = yder_cart(f,dy)
     
     adv=u*dfdx+v*dfdy   
   

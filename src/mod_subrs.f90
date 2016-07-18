@@ -339,15 +339,12 @@ contains
     implicit none
     real,dimension(:,:,:),intent(in) :: omega,u,v
     real,                 intent(in) :: dx,dy,dlev
-    real,dimension(:,:,:),intent(inout) :: vortt4
-    
+    real,dimension(:,:,:),intent(inout) :: vortt4  
     real,dimension(:,:,:),allocatable :: domegadx,domegady,dudp,dvdp
-    allocate(domegadx(size(omega,1),size(omega,2),size(omega,3)))
-    allocate(domegady(size(omega,1),size(omega,2),size(omega,3)))
-      
+       
 !   Gradient of omega
-    call xder_cart(omega,dx,domegadx)
-    call yder_cart(omega,dy,domegady)
+    domegadx = xder_cart(omega,dx)
+    domegady = yder_cart(omega,dy)
 
 !   Pressure derivative of wind vectors
     dudp = pder(u,dlev)
