@@ -364,7 +364,7 @@ contains
     real,dimension(:,:,:),allocatable :: fq
     real,dimension(:),intent(in) :: lev
     real,intent(in) :: dx,dy      
-    integer :: i,j,k,nlon,nlat,nlev
+    integer :: k,nlon,nlat,nlev
 
     nlon=size(q,1)
     nlat=size(q,2)
@@ -669,7 +669,7 @@ contains
   end subroutine residQG
 
   subroutine callsolvegen(rhs,boundaries,omega,nlon,nlat,nlev,&
-       dx,dy,dlev,sigma0,sigma,feta,corpar,d2zetadp,dudp,dvdp,&
+       dx,dy,dlev,sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,&
        nres,alfa,toler,ny1,ny2)
 !
 !      Calling solvegen + writing out omega. Multigrid algorithm
@@ -678,8 +678,8 @@ contains
 
     real,dimension(:,:,:,:),intent(inout) :: rhs,omega
     real,dimension(:,:,:,:),intent(in) :: boundaries,sigma,feta,d2zetadp
-    real,dimension(:,:,:,:),intent(in) :: dudp,dvdp
-    real,dimension(:,:),    intent(in) :: sigma0,corpar
+    real,dimension(:,:,:,:),intent(in) :: dudp,dvdp,corfield
+    real,dimension(:,:),    intent(in) :: sigma0
     real,dimension(:),      intent(in) :: dx,dy,dlev
     real,                   intent(in) :: alfa,toler
     integer,dimension(:),   intent(in) :: nlon,nlat,nlev
@@ -700,6 +700,7 @@ contains
 
     omega=0.
     omegaold=boundaries
+
 !
 !      This far: the whole multigrid cycle is written explicitly here  
 !
@@ -715,7 +716,7 @@ contains
                omega(:,:,:,ires),omegaold(1,1,1,ires),nlon(ires),&
                nlat(ires),nlev(ires),dx(ires),dy(ires),dlev(ires),&
                sigma0(:,ires),sigma(:,:,:,ires),feta(:,:,:,ires),&
-               corpar(:,ires),d2zetadp(:,:,:,ires),dudp(:,:,:,ires),&
+               corfield(:,:,:,ires),d2zetadp(:,:,:,ires),dudp(:,:,:,ires),&
                dvdp(:,:,:,ires),ny1,alfa,.true.,resid)
 !             write(*,*)'ires,omega',ires,omega(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2,1)
 !             write(*,*)'ires,resid',ires,resid(nlon(ires)/2,nlat(ires)/2,nlev(ires)/2)
@@ -744,7 +745,7 @@ contains
           call solvegen(rhs(:,:,:,ires),boundaries(:,:,:,ires),& 
                omega(:,:,:,ires),omegaold(:,:,:,ires),nlon(ires),nlat(ires),&
                nlev(ires),dx(ires),dy(ires),dlev(ires),sigma0(:,ires),&
-               sigma(:,:,:,ires),feta(:,:,:,ires),corpar(:,ires),&
+               sigma(:,:,:,ires),feta(:,:,:,ires),corfield(:,:,:,ires),&
                d2zetadp(:,:,:,ires),dudp(:,:,:,ires),dvdp(:,:,:,ires),ny2,alfa,&
                .false.,resid)
        enddo
@@ -759,7 +760,7 @@ contains
        enddo
 !       write(*,*)iter,maxdiff
        if(maxdiff.lt.toler.or.iter.eq.itermax)then
-          write(*,*)'iter,maxdiff',iter,maxdiff
+!          write(*,*)'iter,maxdiff',iter,maxdiff
           goto 10
        endif
 
@@ -813,10 +814,10 @@ contains
     integer,intent(in) :: nlon,nlat,nlev,niter
     real,dimension(nlon,nlat,nlev),intent(inout) :: omega,omegaold
     real,dimension(nlon,nlat,nlev),intent(in) :: rhs,feta,sigma,boundaries
-    real,dimension(nlon,nlat,nlev),intent(in) :: d2zetadp,dudp,dvdp
+    real,dimension(nlon,nlat,nlev),intent(in) :: d2zetadp,dudp,dvdp,corpar
     real,dimension(nlon,nlat,nlev),intent(out) :: resid
     real,dimension(nlev),intent(in) :: sigma0
-    real,dimension(nlat),intent(in) :: corpar
+!    real,dimension(nlat),intent(in) :: corpar
     real,                intent(in) :: dx,dy,dlev,alfa
     logical,             intent(in) :: lres
     integer :: i,j,k
@@ -874,10 +875,10 @@ contains
 !
     implicit none
 
-    integer i,j,k,nlon,nlat,nlev
+    integer j,k,nlon,nlat,nlev
     real,dimension(:,:,:),intent(inout) :: omegaold,omega 
-    real,dimension(:,:,:),intent(in) :: sigma,feta,rhs,d2zetadp,dudp,dvdp
-    real,dimension(:),    intent(in) :: sigma0,f
+    real,dimension(:,:,:),intent(in) :: sigma,feta,rhs,d2zetadp,dudp,dvdp,f
+    real,dimension(:),    intent(in) :: sigma0
     real,                 intent(in) :: dx,dy,dlev,alfa
     
     real,dimension(:,:,:),allocatable :: lapl2,domedp2,coeff1,coeff2,coeff
@@ -914,9 +915,7 @@ contains
     dum4 = xder_cart(omegaold,dx)
     dum5 = yder_cart(omegaold,dy)
 
-    do j=1,nlat
-       dum6(:,j,:)=f(j)*(dudp(:,j,:)*dum5(:,j,:)-dvdp(:,j,:)*dum4(:,j,:))
-    enddo
+    dum6 = f*(dudp*dum5-dvdp*dum4)
     dum3 = pder(dum6,dlev)
 !
 !   Solving for omega 
@@ -924,21 +923,17 @@ contains
 !       
 
     do k=2,nlev-1
-       do j=2,nlat-1
-          coeff(:,j,k)=sigma0(k)*coeff1(:,j,k)+feta(:,j,k)*coeff2(:,j,k)-&
-                          f(j)*d2zetadp(:,j,k)
-          omega(:,j,k)=(rhs(:,j,k)-dum1(:,j,k)-dum3(:,j,k)-&
-               sigma0(k)*lapl2(:,j,k)-feta(:,j,k)*domedp2(:,j,k)) &
-               /coeff(:,j,k)
+          coeff(:,2:nlat-1,k)=sigma0(k)*coeff1(:,2:nlat-1,k)+feta(:,2:nlat-1,k)*coeff2(:,2:nlat-1,k)-&
+                          f(:,2:nlat-1,k)*d2zetadp(:,2:nlat-1,k)
+          omega(:,2:nlat-1,k)=(rhs(:,2:nlat-1,k)-dum1(:,2:nlat-1,k)-dum3(:,2:nlat-1,k)-&
+               sigma0(k)*lapl2(:,2:nlat-1,k)-feta(:,2:nlat-1,k)*domedp2(:,2:nlat-1,k)) &
+               /coeff(:,2:nlat-1,k)
        enddo
-    enddo
      
 !    write(*,*)'updating omega'
     do k=2,nlev-1
        do j=2,nlat-1
-          do i=1,nlon
-             omegaold(i,j,k)=alfa*omega(i,j,k)+(1-alfa)*omegaold(i,j,k)
-          enddo
+          omegaold(:,j,k)=alfa*omega(:,j,k)+(1-alfa)*omegaold(:,j,k)
        enddo
     enddo
 
@@ -962,11 +957,10 @@ contains
     implicit none
 
     real,dimension(:,:,:),intent(in) :: rhs,omega,sigma,feta,d2zetadp
-    real,dimension(:,:,:),intent(in) :: dudp,dvdp
+    real,dimension(:,:,:),intent(in) :: dudp,dvdp,f
     real,dimension(:,:,:),intent(out) :: resid
-    real,dimension(:),intent(in) :: f 
     real,intent(in) :: dx,dy,dlev
-    integer :: i,j,k,nlon,nlat,nlev
+    integer :: nlon,nlat,nlev
     real,dimension(:,:,:),allocatable :: dum0,dum1,dum2,dum3,dum4,dum5,dum6
     
     nlon=size(rhs,1)
@@ -980,12 +974,11 @@ contains
 !   Calculate L(omega)
 
 !    a) nabla^2(sigma*omega)
-
     dum0=omega*sigma
 
     dum1 = laplace_cart(dum0,dx,dy)
 !
-!   f*eta*d2omegadp       
+!   b) f*eta*d2omegadp       
     dum2 = p2der(omega,dlev)
 !
     dum3=feta*dum2
@@ -996,24 +989,11 @@ contains
     dum4 = xder_cart(omega,dx)
     dum5 = yder_cart(omega,dy)
  
-    do k=1,nlev
-       do j=1,nlat
-          do i=1,nlon
-             dum6(i,j,k)=f(j)*(dudp(i,j,k)*dum5(i,j,k)-dvdp(i,j,k)*dum4(i,j,k))
-          enddo
-       enddo
-    enddo
+    dum6=f*(dudp*dum5-dvdp*dum4)
     dum2 = pder(dum6,dlev)
 
-    do k=1,nlev
-       do j=1,nlat
-          do i=1,nlon
-             resid(i,j,k)=rhs(i,j,k)-(dum1(i,j,k)+dum2(i,j,k)+dum3(i,j,k)- &
-                  f(j)*d2zetadp(i,j,k)*omega(i,j,k))
-          enddo
-       enddo
-    enddo
-    
+    resid=rhs-(dum1+dum2+dum3-f*d2zetadp*omega)
+   
   end subroutine residgen
 
   subroutine laplace2_cart(f,dx,dy,lapl2,coeff)

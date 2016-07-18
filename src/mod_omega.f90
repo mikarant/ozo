@@ -21,14 +21,14 @@ contains
     logical,                intent(in) :: calc_b
 
     real,dimension(:,:,:,:,:),allocatable :: rhs
-    real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta
+    real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta,corfield
     real,dimension(:,:,:,:),allocatable :: dudp,dvdp,ftest,d2zetadp,omega
     real,dimension(:,:,:),  allocatable :: sigmaraw,zeta
     real,dimension(:,:),    allocatable :: corpar2,sigma0
     real,dimension(:),      allocatable :: dx2,dy2,dlev2
     integer,dimension(:),   allocatable :: nlonx,nlatx,nlevx
 
-    integer :: nlev,nlon,nlat,nres,i,k
+    integer :: nlev,nlon,nlat,nres,i,k,j
     real :: dlev
 
 !   Threshold values to keep the generalized omega equation elliptic.
@@ -58,7 +58,7 @@ contains
 !    write(*,*)'nres=',nres
 !
     allocate(omega(nlon,nlat,nlev,nres),ftest(nlon,nlat,nlev,nres))
-    allocate(boundaries(nlon,nlat,nlev,nres))
+    allocate(boundaries(nlon,nlat,nlev,nres),corfield(nlon,nlat,nlev,nres))
     allocate(zero(nlon,nlat,nlev,nres),sigma(nlon,nlat,nlev,nres))
     allocate(d2zetadp(nlon,nlat,nlev,nres),feta(nlon,nlat,nlev,nres))
     allocate(dudp(nlon,nlat,nlev,nres),dvdp(nlon,nlat,nlev,nres))
@@ -110,7 +110,12 @@ contains
        rhs(:,:,:,1,termVKhi) = fvort(ukhi,vkhi,zetaraw,corpar,dx,dy,dlev,mulfact)
        rhs(:,:,:,1,termTKhi) = ftemp(ukhi,vkhi,t,lev,dx,dy,mulfact)
     endif
-!
+
+!   Calculation of coriolisparameter field
+    do j=1,nlat
+       corfield(:,j,:,1)=corpar(j)
+    enddo
+
 !   Deriving quantities needed for the LHS of the 
 !   QG and/or generalised omega equation.
 
@@ -189,6 +194,7 @@ contains
        call coarsen3d(d2zetadp(:,:,:,1),d2zetadp(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
        call coarsen3d(dudp(:,:,:,1),dudp(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
        call coarsen3d(dvdp(:,:,:,1),dvdp(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+       call coarsen3d(corfield(:,:,:,1),corfield(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
        call coarsen3d(sigma0(:,1),sigma0(:,i),1,1,nlev,1,1,nlevx(i))
        call coarsen3d(corpar,corpar2(:,i),1,nlat,1,1,nlatx(i),1)
     enddo
@@ -209,7 +215,7 @@ contains
 
     if(mode.eq.'T')then
        call callsolvegen(ftest,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+            sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
     endif
 
     if(mode.eq.'t')then
@@ -221,22 +227,22 @@ contains
 
        do i=1,5
           call callsolvegen(rhs(:,:,:,:,i),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-               sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+               sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
           omegas(:,:,:,i)=omega(:,:,:,1)
        enddo
        
        if (calc_b) then
           !       Write(*,*)'Boundary conditions'        
           call callsolvegen(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-               sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+               sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
           omegas(:,:,:,8)=omega(:,:,:,1)
        end if
 
        call callsolvegen(rhs(:,:,:,:,termvkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+            sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
        omegas(:,:,:,termvkhi)=omega(:,:,:,1)
        call callsolvegen(rhs(:,:,:,:,termtkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corpar2,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+            sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
        omegas(:,:,:,termtkhi)=omega(:,:,:,1)
     endif
 
