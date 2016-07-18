@@ -42,7 +42,6 @@ contains
       allocate ( hTends ( nlon, nlat, nlev, n_terms ) )
       allocate ( omegas ( nlon, nlat, nlev, n_terms ) )
       allocate ( omegas_QG ( nlon, nlat, nlev, 3 ) )
-      allocate ( mulfact ( nlon, nlat, nlev) )
       allocate ( ukhi (nlon, nlat, nlev) )
       allocate ( vkhi (nlon, nlat, nlev) )
 
@@ -62,7 +61,7 @@ contains
          w      = real3d ( wrfin_file, time, [ 'WW' ]  )
          zeta   = vorticity ( u, v, wrfin_file )
          zetatend = vorticity ( du_dt, dv_dt, wrfin_file )
-         call calmul(p_sfc, p_levs, nlev, mulfact)
+         mulfact  = calmul(p_sfc, p_levs, nlev)
          !   Calculation of velocity potential
          call irrotationalWind(u,v,dx,dy,uKhi,vKhi)
 

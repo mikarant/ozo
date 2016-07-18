@@ -8,82 +8,64 @@ contains
 ! generalized omega equation and Zwack-okossi equation. 
 !-------------------------------------------------------------------------------
 
-  subroutine calmul(psfc,lev,nlev,mulfact) 
-!
-!   Calculation of multiplication factors (1 if above surface)
-!
-    implicit none
+  function calmul(psfc,lev,nlev) result (mulfact)
+!   Calculation of multiplication factors for the attenuation of
+!   below-ground forcings
     real,dimension(:,:),  intent(in) :: psfc
     real,dimension(:),    intent(in) :: lev 
     integer,              intent(in) :: nlev
-    real,dimension(:,:,:),intent(inout) :: mulfact
+    real,dimension(:,:,:),allocatable :: mulfact
     real :: pm1
     integer :: i,j,k,nlon,nlat,factor 
     nlon=size(psfc,1); nlat=size(psfc,2)
-    
-    factor=3
+    allocate(mulfact(nlon,nlat,nlev))
+    factor=2
 
     select case (factor)
 
-       case (1) ! current version
-          mulfact=1.
-          do i=1,nlon
-             do j=1,nlat
-                do k=1,nlev-1
-                   if(psfc(i,j) .le. lev(k+1) )then
-                      mulfact(i,j,k)=0.
-                   else
-                      if(psfc(i,j).le.lev(k))then
-                         mulfact(i,j,k)=(psfc(i,j)-lev(k+1))/(lev(k)-lev(k+1))
-                         !mulfact(i,j,k)=0.
-                      endif
+    case (1) ! old version
+       mulfact=1.
+       do i=1,nlon
+          do j=1,nlat
+             do k=1,nlev-1
+                if(psfc(i,j) .le. lev(k+1) )then
+                   mulfact(i,j,k)=0.
+                else
+                   if(psfc(i,j).le.lev(k))then
+                      mulfact(i,j,k)=(psfc(i,j)-lev(k+1))/(lev(k)-lev(k+1))
+                      !mulfact(i,j,k)=0.
                    endif
-                enddo
+                endif
              enddo
           enddo
-
-       case(2) ! old version, should not be used
-          mulfact=1.
-          do i=1,nlon
-             do j=1,nlat
-                do k=2,nlev
-                   if(psfc(i,j).le.lev(k-1))then
-                      mulfact(i,j,k)=0.
-                   else
-                      if(psfc(i,j).le.lev(k))then
-                         mulfact(i,j,k)=(psfc(i,j)-lev(k-1))/(lev(k)-lev(k-1))
-                      endif
-                   endif
-                enddo
-             enddo
-          enddo
-
-       case (3)
-          mulfact=1.
-          do i=1,nlon
-             do j=1,nlat
-                do k=1,nlev-1
-                   if(k==1)then
-                      pm1=2*lev(1)-lev(2)
-                   else
-                      pm1=lev(k-1)
-                   end if
-                   if (psfc(i,j) <= lev(k)-((lev(k)-lev(k+1))/2) )then
-                      mulfact(i,j,k)=0.
-                   else if (psfc(i,j) > lev(k)-((lev(k)-lev(k+1))/2) .and. &
-                        psfc(i,j) <= lev(k)+((pm1-lev(k))/2)) then
-                      mulfact(i,j,k)=(psfc(i,j)-(lev(k+1)+(lev(k)-lev(k+1))/2))&
-                           /((pm1-lev(k))/2+(lev(k)-lev(k+1))/2)
-                   else if (psfc(i,j) >= (2*lev(1)-lev(2))) then
-                      mulfact(i,j,k) = 1 + (psfc(i,j)-((lev(1)+pm1)/2))/(pm1-lev(1)) 
-                   
-                   endif
-                enddo
-             enddo
-          enddo
+       enddo
        
-       end select
-  end subroutine calmul
+    case (2) ! new version with mass-centered cells
+       mulfact=1.
+       do i=1,nlon
+          do j=1,nlat
+             do k=1,nlev-1
+                if(k==1)then
+                   pm1=2*lev(1)-lev(2)
+                else
+                   pm1=lev(k-1)
+                end if
+                if (psfc(i,j) <= lev(k)-((lev(k)-lev(k+1))/2) )then
+                   mulfact(i,j,k)=0.
+                else if (psfc(i,j) > lev(k)-((lev(k)-lev(k+1))/2) .and. &
+                     psfc(i,j) <= lev(k)+((pm1-lev(k))/2)) then
+                   mulfact(i,j,k)=(psfc(i,j)-(lev(k+1)+(lev(k)-lev(k+1))/2))&
+                        /((pm1-lev(k))/2+(lev(k)-lev(k+1))/2)
+                else if (psfc(i,j) >= (2*lev(1)-lev(2))) then
+                   mulfact(i,j,k) = 1 + (psfc(i,j)-((lev(1)+pm1)/2))/&
+                        (pm1-lev(1))
+                endif
+             enddo
+          enddo
+       enddo
+          
+    end select
+  end function calmul
 
   subroutine nondivergentWind(zeta,dx,dy,uPsi,vPsi)
 !   This subroutine calculates nondivergent wind components (uPsi,vPsi) by using
