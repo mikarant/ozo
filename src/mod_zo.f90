@@ -7,7 +7,7 @@ contains
 !------------SUBROUTINES--------------
 !
   subroutine calculate_tendencies(omegas,t,u,v,w,z,lev,dx,dy,corpar,q,xfrict,&
-       yfrict,ztend,ttend,zeta,zetatend,uKhi,vKhi,mulfact,calc_b,hTends)
+       yfrict,ztend,ttend,zeta,zetatend,uKhi,vKhi,sigma,mulfact,calc_b,hTends)
 
 !   This is the main subroutine of solving the Zwack-Okossi equation. Input 
 !   arguments are variables from WRF and omegas, and output of this subroutine
@@ -19,7 +19,7 @@ contains
 
     real,dimension(:,:,:,:),intent(in) :: omegas
     real,dimension(:,:,:),  intent(in) :: t,u,v,w,xfrict,yfrict,zeta
-    real,dimension(:,:,:),  intent(in) :: ttend,mulfact,uKhi,vKhi
+    real,dimension(:,:,:),  intent(in) :: ttend,mulfact,uKhi,vKhi,sigma
     real,dimension(:),      intent(in) :: lev,corpar
     real,                   intent(in) :: dx,dy 
     logical,                intent(in) :: calc_b
@@ -27,7 +27,7 @@ contains
     real,dimension(:,:,:),  intent(inout) :: z,q,ztend,zetatend
 
     real,dimension(:,:,:,:),allocatable :: vortTends
-    real,dimension(:,:,:),allocatable :: sigma,sp,tadv,tadvs
+    real,dimension(:,:,:),allocatable :: sp,tadv,tadvs
     real,dimension(:,:,:),allocatable :: vorTend_omegaWRF
     real,dimension(:,:,:,:),allocatable :: temptend
     integer :: nlon,nlat,nlev
@@ -53,7 +53,6 @@ contains
                         vorTend_omegaWRF)
 
 !   Calculation of stability sigma and Sp (stability parameter)
-    sigma = define_sigma(t,lev,dlev)
     sp = define_sp(sigma,lev)
 
 !   Calculation of thermal advection

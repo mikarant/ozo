@@ -19,7 +19,7 @@ contains
     real, dimension ( :, :, : ), pointer :: T, u, v, z
     real, dimension ( :, :, : ), allocatable :: &
          dT_dt, du_dt, dv_dt, dz_dt, fx, fy, q, w, mulfact,zeta,zetatend,&
-         ukhi,vkhi
+         ukhi,vkhi,sigma
     real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
     integer, dimension (:), allocatable :: tdim
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends, omegas_QG
@@ -62,21 +62,22 @@ contains
          zeta   = curl_cart ( u, v, dx, dy )
          zetatend = curl_cart ( du_dt, dv_dt, dx, dy )
          mulfact  = calmul(p_sfc, p_levs, nlev)
+         sigma = define_sigma(T, p_levs)
          !   Calculation of velocity potential
          call irrotationalWind(u,v,dx,dy,uKhi,vKhi)
 
          if ( calc_omegas ) then
             call calculate_omegas( T, u, v, w, z, p_levs, dx, dy, &
                  corpar, q, fx, fy, dT_dt, zeta, zetatend, uKhi, vKhi, &
-                 mulfact, alfa, toler, ny1, ny2, mode, calc_b, omegas, &
-                 omegas_QG )
+                 sigma, mulfact, alfa, toler, ny1, ny2, mode, calc_b, &
+                 omegas, omegas_QG )
          else
             omegas = read_omegas ( omegafile, time-time_1+1 )
          end if
 
          call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
               dx, dy, corpar, q, fx, fy, dz_dt, dT_dt, zeta, zetatend, &
-              uKhi, vKhi, mulfact, calc_b, hTends )
+              uKhi, vKhi, sigma, mulfact, calc_b, hTends )
          
          ! Write data to the output file
          if ( mode .eq. 'Q' ) then

@@ -7,12 +7,12 @@ module mod_omega
 contains
 
   subroutine calculate_omegas( t, u, v, omegaan, z, lev, dx, dy, corpar, q, &
-       xfrict, yfrict, ttend, zetaraw, zetatend, uKhi, vKhi, mulfact, alfa, &
-       toler, ny1, ny2, mode, calc_b, omegas, omegas_QG )
+       xfrict, yfrict, ttend, zetaraw, zetatend, uKhi, vKhi, sigmaraw, &
+       mulfact, alfa, toler, ny1, ny2, mode, calc_b, omegas, omegas_QG )
 
     real,dimension(:,:,:,:),intent(inout) :: omegas, omegas_QG
     real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend,zetatend
-    real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict
+    real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict,sigmaraw
     real,dimension(:,:,:),  intent(in) :: mulfact,zetaraw,uKhi,vKhi
     real,dimension(:),      intent(in) :: lev,corpar
     real,                   intent(in) :: dx,dy,alfa,toler
@@ -23,8 +23,8 @@ contains
     real,dimension(:,:,:,:,:),allocatable :: rhs
     real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta,corfield
     real,dimension(:,:,:,:),allocatable :: dudp,dvdp,ftest,d2zetadp,omega
-    real,dimension(:,:,:),  allocatable :: sigmaraw,zeta
-    real,dimension(:,:),    allocatable :: corpar2,sigma0
+    real,dimension(:,:,:),  allocatable :: zeta
+    real,dimension(:,:),    allocatable :: sigma0
     real,dimension(:),      allocatable :: dx2,dy2,dlev2
     integer,dimension(:),   allocatable :: nlonx,nlatx,nlevx
 
@@ -62,7 +62,7 @@ contains
     allocate(zero(nlon,nlat,nlev,nres),sigma(nlon,nlat,nlev,nres))
     allocate(d2zetadp(nlon,nlat,nlev,nres),feta(nlon,nlat,nlev,nres))
     allocate(dudp(nlon,nlat,nlev,nres),dvdp(nlon,nlat,nlev,nres))
-    allocate(corpar2(nlat,nres),sigma0(nlev,nres))
+    allocate(sigma0(nlev,nres))
     allocate(nlonx(nres),nlatx(nres),nlevx(nres))
     allocate(dx2(nres),dy2(nres),dlev2(nres))
     allocate(rhs(nlon,nlat,nlev,nres,n_terms))
@@ -85,36 +85,34 @@ contains
        dx2(i)=dx*real(nlon)/real(nlonx(i))
        dy2(i)=dy*real(nlat)/real(nlatx(i))
        dlev2(i)=dlev*real(nlev)/real(nlevx(i))
-!       write(*,*)'i,nlonx,nlatx,nlevx',i,nlonx(i),nlatx(i),nlevx(i)
-!       write(*,*)'i,dx2,dy2,dlev2',i,dx2(i),dy2(i),dlev2(i)
     enddo
-!
-!   For quasi-geostrophic equation: calculation of geostrophic winds
-!
-    if(mode.eq.'Q')then
-       call gwinds(z,dx,dy,corpar,u,v)
-    endif
-
-!   Calculation of forcing terms 
-!
-    if(mode.eq.'G'.or.mode.eq.'Q')then
-       rhs(:,:,:,1,termV) = fvort(u,v,zetaraw,corpar,dx,dy,dlev,mulfact)
-       
-       rhs(:,:,:,1,termT) = ftemp(u,v,t,lev,dx,dy,mulfact)
-    endif
-
-    if(mode.eq.'G')then
-       rhs(:,:,:,1,termF) = ffrict(xfrict,yfrict,corpar,dx,dy,dlev,mulfact)
-       rhs(:,:,:,1,termQ) = fdiab(q,lev,dx,dy,mulfact)
-       rhs(:,:,:,1,termA) = fimbal(zetatend,ttend,corpar,lev,dx,dy,dlev,mulfact)
-       rhs(:,:,:,1,termVKhi) = fvort(ukhi,vkhi,zetaraw,corpar,dx,dy,dlev,mulfact)
-       rhs(:,:,:,1,termTKhi) = ftemp(ukhi,vkhi,t,lev,dx,dy,mulfact)
-    endif
 
 !   Calculation of coriolisparameter field
     do j=1,nlat
        corfield(:,j,:,1)=corpar(j)
     enddo
+
+!   For quasi-geostrophic equation: calculation of geostrophic winds
+!
+    if(mode.eq.'Q')then
+       call gwinds(z,dx,dy,corfield(:,:,:,1),u,v)
+    endif
+
+!   Calculation of forcing terms 
+!
+    if(mode.eq.'G'.or.mode.eq.'Q')then
+       rhs(:,:,:,1,termV) = fvort(u,v,zetaraw,corfield(:,:,:,1),dx,dy,dlev,mulfact)
+       
+       rhs(:,:,:,1,termT) = ftemp(u,v,t,lev,dx,dy,mulfact)
+    endif
+
+    if(mode.eq.'G')then
+       rhs(:,:,:,1,termF) = ffrict(xfrict,yfrict,corfield(:,:,:,1),dx,dy,dlev,mulfact)
+       rhs(:,:,:,1,termQ) = fdiab(q,lev,dx,dy,mulfact)
+       rhs(:,:,:,1,termA) = fimbal(zetatend,ttend,corfield(:,:,:,1),lev,dx,dy,dlev,mulfact)
+       rhs(:,:,:,1,termVKhi) = fvort(ukhi,vkhi,zetaraw,corfield(:,:,:,1),dx,dy,dlev,mulfact)
+       rhs(:,:,:,1,termTKhi) = ftemp(ukhi,vkhi,t,lev,dx,dy,mulfact)
+    endif
 
 !   Deriving quantities needed for the LHS of the 
 !   QG and/or generalised omega equation.
@@ -123,21 +121,18 @@ contains
 
     dudp(:,:,:,1) = pder(u,dlev)
     dvdp(:,:,:,1) = pder(v,dlev)
-!
-!   2. Stability sigma
-    sigmaraw = define_sigma(t,lev,dlev)
-!
-!   3. Modifying stability and vorticity on the LHS to keep
+!!
+!   2. Modifying stability and vorticity on the LHS to keep
 !   the solution elliptic
 !
     call modify(sigmaraw,sigmamin,etamin,zetaraw,&
          corpar,dudp(:,:,:,1),dvdp(:,:,:,1),sigma(:,:,:,1),feta(:,:,:,1),zeta)      
 !
-!   4. Second pressure derivative of vorticity 
+!   3. Second pressure derivative of vorticity 
 !
     d2zetadp(:,:,:,1) = p2der(zeta,dlev)
 !
-!   5. Area mean of static stability over the whole grid
+!   4. Area mean of static stability over the whole grid
 !
     do k=1,nlev
        sigma0(k,1) = aave(sigmaraw(:,:,k))
@@ -148,8 +143,8 @@ contains
     if(mode.eq.'Q'.or.mode.eq.'t')then
        do k=1,nlev
           sigma(:,:,k,1)=sigma0(k,1)
-          feta(:,:,k,1)=corpar(1)**2.
        enddo
+       feta=corfield**2.
     endif
 !
 !   Forcing for quasigeostrophic test case ('t')
@@ -165,7 +160,7 @@ contains
 !   and substituting it to the RHS
        
     if(mode.eq.'T')then
-       call gen_test(sigmaraw,omegaan,zetaraw,corpar,dx,dy,dlev,ftest)
+       call gen_test(sigmaraw,omegaan,zetaraw,corfield(:,:,:,1),dx,dy,dlev,ftest)
     endif ! (forcing for the general test case if mode.eq.'T')
 
 !   Boundary conditions from WRF omega?  
@@ -196,7 +191,6 @@ contains
        call coarsen3d(dvdp(:,:,:,1),dvdp(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
        call coarsen3d(corfield(:,:,:,1),corfield(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
        call coarsen3d(sigma0(:,1),sigma0(:,i),1,1,nlev,1,1,nlevx(i))
-       call coarsen3d(corpar,corpar2(:,i),1,nlat,1,1,nlatx(i),1)
     enddo
 
 ! *************************************************************************

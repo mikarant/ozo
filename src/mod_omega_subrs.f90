@@ -36,14 +36,13 @@ contains
 
     implicit none
 
-    real,dimension(:,:,:),intent(in) :: sigmaraw,omegaan,zetaraw
-    real,dimension(:),intent(in) :: corpar
+    real,dimension(:,:,:),intent(in) :: sigmaraw,omegaan,zetaraw,corpar
     real,intent(in) :: dx,dy,dlev
     real,dimension(:,:,:,:),intent(out) :: ftest 
     real,dimension(:,:,:),allocatable :: dum2,dum1,dum3,dum4,dum5,dum6
     real,dimension(:,:,:),allocatable :: dvdp,dudp
+    integer :: nlon,nlat,nlev
 
-    integer :: nlon,nlat,nlev,j
     nlon=size(omegaan,1)
     nlat=size(omegaan,2)
     nlev=size(omegaan,3)
@@ -58,21 +57,16 @@ contains
     dum3 = p2der(omegaan,dlev)
     dum5 = p2der(zetaraw,dlev)
     
-    do j=1,nlat       
-       dum2(:,j,:)=(corpar(j)+zetaraw(:,j,:))*corpar(j)*dum3(:,j,:)
-    enddo
+    dum2=(corpar+zetaraw)*corpar*dum3
     
-    do j=1,nlat       
-       dum3(:,j,:)=-corpar(j)*omegaan(:,j,:)*dum5(:,j,:)
-    enddo
+    dum3=-corpar*omegaan*dum5
     
     dum4 = xder_cart(omegaan,dx)
     dum5 = yder_cart(omegaan,dy)
 
 
-    do j=1,nlat
-       dum6(:,j,:)=-corpar(j)*(dvdp(:,j,:)*dum4(:,j,:)-dudp(:,j,:)*dum5(:,j,:))
-    enddo
+    dum6=-corpar*(dvdp*dum4-dudp*dum5)
+       
     dum4 = pder(dum6,dlev)
     
     ftest(:,:,:,1)=dum1+dum2+dum3+dum4 
@@ -163,9 +157,8 @@ contains
 !
     implicit none
 
-    real,dimension(:,:,:),intent(in) :: z
+    real,dimension(:,:,:),intent(in) :: z,corpar
     real,dimension(:,:,:),intent(out) :: u,v
-    real,dimension(:),intent(in) :: corpar
     real,intent(in) :: dx,dy
     integer :: nlon,nlat,nlev,i,j,k
     real,dimension(:,:,:),allocatable :: dzdx,dzdy
@@ -177,17 +170,18 @@ contains
     dzdx = xder_cart(z,dx)
     dzdy = yder_cart(z,dy) 
 
+    i=1
     do k=1,nlev
        do j=1,nlat
-          if(abs(corpar(j)).gt.1e-7)then
+          if(abs(corpar(i,j,k)).gt.1e-7)then
              do i=1,nlon
-                u(i,j,k)=-g*dzdy(i,j,k)/corpar(j) 
-                v(i,j,k)=g*dzdx(i,j,k)/corpar(j) 
+                u(i,j,k)=-g*dzdy(i,j,k)/corpar(i,j,k) 
+                v(i,j,k)=g*dzdx(i,j,k)/corpar(i,j,k) 
              enddo
           endif
        enddo
        do j=1,nlat
-          if(abs(corpar(j)).lt.1e-7)then
+          if(abs(corpar(i,j,k)).lt.1e-7)then
              do i=1,nlon
                 u(i,j,k)=(u(i,j+1,k)+u(i,j-1,k))/2.
                 v(i,j,k)=(v(i,j+1,k)+v(i,j-1,k))/2.
@@ -271,30 +265,23 @@ contains
 !   Output: stored in "fv"
 !
     implicit none
-    real,dimension(:,:,:),intent(in) :: u,v,zeta,mulfact
-    real,dimension(:),intent(in) :: corpar
-    real,dimension(:,:,:),allocatable :: eta,adv,dadvdp,fv
+    real,dimension(:,:,:),intent(in) :: u,v,zeta,mulfact,corpar
+    real,dimension(:,:,:),allocatable :: adv,dadvdp,fv
     real,intent(in) :: dx,dy,dp
-    integer :: j,nlon,nlat,nlev
+    integer :: nlon,nlat,nlev
 
     nlon=size(u,1)
     nlat=size(u,2)
     nlev=size(u,3)
-    allocate(eta(nlon,nlat,nlev),fv(nlon,nlat,nlev))
+    allocate(fv(nlon,nlat,nlev))
 
-    do j=1,nlat
-       eta(:,j,:)=zeta(:,j,:)+corpar(j)
-    enddo
-
-    adv = advect_cart(u,v,eta,dx,dy)
+    adv = advect_cart(u,v,zeta+corpar,dx,dy)
     adv = adv*mulfact
     
     dadvdp = pder(adv,dp)
 
-    do j=1,nlat      
-       fv(:,j,:)=corpar(j)*dadvdp(:,j,:)
-    enddo
-
+    fv=corpar*dadvdp
+    
   end function fvort
 
   function ftemp(u,v,t,lev,dx,dy,mulfact) result(ft)
@@ -331,11 +318,10 @@ contains
 !   Output: res 
 !
     implicit none
-    real,dimension(:,:,:),intent(in) :: fx,fy,mulfact
-    real,dimension(:),intent(in) :: corpar
+    real,dimension(:,:,:),intent(in) :: fx,fy,mulfact,corpar
     real,dimension(:,:,:),allocatable :: fcurl,dcurldp,ff
     real,intent(in) :: dx,dy,dp
-    integer :: j,nlon,nlat,nlev
+    integer :: nlon,nlat,nlev
 
     nlon=size(fx,1)
     nlat=size(fx,2)
@@ -347,9 +333,7 @@ contains
 
     dcurldp = pder(fcurl,dp)
 
-    do j=1,nlat      
-       ff(:,j,:)=-corpar(j)*dcurldp(:,j,:)
-    enddo
+    ff=-corpar*dcurldp
 
   end function ffrict
 
@@ -387,11 +371,11 @@ contains
 !
     implicit none
     real,dimension(:,:,:),intent(inout) :: dzetadt,dtdt
-    real,dimension(:,:,:),intent(in) ::  mulfact
-    real,dimension(:),intent(in) :: lev,corpar
+    real,dimension(:,:,:),intent(in) ::  mulfact,corpar
+    real,dimension(:),intent(in) :: lev
     real,intent(in) :: dx,dy,dp
     real,dimension(:,:,:),allocatable :: ddpdzetadt,lapldtdt,fa
-    integer i,j,k,nlon,nlat,nlev
+    integer k,nlon,nlat,nlev
 
     nlon=size(dtdt,1)
     nlat=size(dtdt,2)
@@ -405,13 +389,9 @@ contains
 
     lapldtdt = laplace_cart(dtdt,dx,dy)
 
+    ddpdzetadt = corpar*ddpdzetadt
     do k=1,nlev
-       do j=1,nlat      
-          do i=1,nlon
-             ddpdzetadt(i,j,k)=corpar(j)*ddpdzetadt(i,j,k)
-             fa(i,j,k)=ddpdzetadt(i,j,k)+lapldtdt(i,j,k)*r/lev(k)
-          enddo
-       enddo
+       fa(:,:,k)=ddpdzetadt(:,:,k)+lapldtdt(:,:,k)*r/lev(k)
     enddo
     
   end function fimbal

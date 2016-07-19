@@ -284,19 +284,20 @@ contains
   
   end function advect_cart
 
-  function define_sigma(t,lev,dlev) result(sigma)
+  function define_sigma(t,lev) result(sigma)
 !   Calculatig sigma stability parameter in isobaric coordinates
     use mod_const
     implicit none
    
     real,dimension(:,:,:),intent(in) :: t
     real,dimension(:),    intent(in) :: lev
-    real,                 intent(in) :: dlev
+    real                             :: dlev
     real,dimension(:,:,:),allocatable :: sigma
     integer :: k,nlon,nlat,nlev
     real,dimension(:,:,:),allocatable :: theta,dThetaDp
 
     nlon=size(t,1); nlat=size(t,2); nlev=size(t,3)
+    dlev=lev(2)-lev(1)
     allocate(theta(nlon,nlat,nlev),sigma(nlon,nlat,nlev))
 
     do k=1,nlev
