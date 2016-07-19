@@ -882,7 +882,7 @@ contains
     real,                 intent(in) :: dx,dy,dlev,alfa
     
     real,dimension(:,:,:),allocatable :: lapl2,domedp2,coeff1,coeff2,coeff
-    real,dimension(:,:,:),allocatable :: dum0,dum1,dum3,dum4,dum5,dum6
+    real,dimension(:,:,:),allocatable :: dum0,dum1,dum3,dum4,dum5,dum6,inv_coeff
 
     nlon=size(rhs,1)
     nlat=size(rhs,2)
@@ -891,7 +891,7 @@ contains
     allocate(lapl2(nlon,nlat,nlev),domedp2(nlon,nlat,nlev))
     allocate(coeff1(nlon,nlat,nlev),coeff2(nlon,nlat,nlev))
     allocate(coeff(nlon,nlat,nlev),dum0(nlon,nlat,nlev))
-    allocate(dum6(nlon,nlat,nlev))
+    allocate(dum6(nlon,nlat,nlev),inv_coeff(nlon,nlat,nlev))
 !
 !   Top and bottom levels: omega directly from the boundary conditions,
 !   does not need to be solved.
@@ -921,15 +921,14 @@ contains
 !   Solving for omega 
 !   Old values are retained at y and z boundaries.
 !       
-
     do k=2,nlev-1
-          coeff(:,2:nlat-1,k)=sigma0(k)*coeff1(:,2:nlat-1,k)+feta(:,2:nlat-1,k)*coeff2(:,2:nlat-1,k)-&
-                          f(:,2:nlat-1,k)*d2zetadp(:,2:nlat-1,k)
-          omega(:,2:nlat-1,k)=(rhs(:,2:nlat-1,k)-dum1(:,2:nlat-1,k)-dum3(:,2:nlat-1,k)-&
-               sigma0(k)*lapl2(:,2:nlat-1,k)-feta(:,2:nlat-1,k)*domedp2(:,2:nlat-1,k)) &
-               /coeff(:,2:nlat-1,k)
-       enddo
-     
+       coeff(:,2:nlat-1,k)=sigma0(k)*coeff1(:,2:nlat-1,k)+feta(:,2:nlat-1,k)*coeff2(:,2:nlat-1,k)-&
+            f(:,2:nlat-1,k)*d2zetadp(:,2:nlat-1,k)
+       omega(:,2:nlat-1,k)=(rhs(:,2:nlat-1,k)-dum1(:,2:nlat-1,k)-dum3(:,2:nlat-1,k)-&
+            sigma0(k)*lapl2(:,2:nlat-1,k)-feta(:,2:nlat-1,k)*domedp2(:,2:nlat-1,k)) &
+            /coeff(:,2:nlat-1,k)
+    enddo
+    
 !    write(*,*)'updating omega'
     do k=2,nlev-1
        do j=2,nlat-1
@@ -1006,10 +1005,12 @@ contains
     real,dimension(:,:,:),intent(out) :: lapl2,coeff
     real,intent(in) :: dx,dy
     integer :: nlon,nlat,nlev,i,j,k,c
-    
+    real :: inv_dx,inv_dy
     nlon=size(f,1)
     nlat=size(f,2)
     nlev=size(f,3)
+    inv_dx = 1.0 / (dx * dx)
+    inv_dy = 1.0 / (dy * dy)
     c=1
     select case (c)
     case(1)
@@ -1018,15 +1019,15 @@ contains
        lapl2 ( 2 : nlon - 1, :, : ) = f( 1: nlon - 2, :, : ) + f ( 3: nlon, :, : ) 
        lapl2 ( 1, :, : )    = f( nlon, :, : ) + f ( 2, :, : ) 
        lapl2 ( nlon, :, : ) = f( nlon - 1, :, : ) + f ( 1, :, : ) 
-       lapl2 = lapl2 / ( dx * dx )
+       lapl2 = lapl2 * inv_dx
        
        ! y-direction
        lapl2 ( :, 2 : nlat -1, : ) = lapl2 ( :, 2 : nlat -1, : ) &
-            + ( f ( :, 1 : nlat -2, : ) + f ( :, 3 : nlat, :) ) / ( dy * dy )
+            + ( f ( :, 1 : nlat -2, : ) + f ( :, 3 : nlat, :) ) * inv_dy
        
-       coeff ( :, 2 : nlat -1, : ) = -2 / (dy**2.) -2 / (dx**2.)
-       coeff ( :, 1, : ) = -2 / ( dx**2. )
-       coeff ( :, nlat, : ) = -2 / ( dx**2. )
+       coeff ( :, 2 : nlat -1, : ) = -2 * (inv_dx + inv_dy)
+       coeff ( :, 1, : ) = -2 * ( inv_dx )
+       coeff ( :, nlat, : ) = -2 * ( inv_dx )
     case(2)
        do j=1,nlat
           do k=1,nlev

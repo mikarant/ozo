@@ -132,18 +132,18 @@ contains
     real,dimension(:,:,:),intent(in) :: f
     real,                 intent(in) :: dp
     real,dimension(:,:,:),allocatable :: dfdp
-    
+    real :: inv_dp
     integer :: nlon,nlat,nlev,accuracy,k
 
     nlon=size(f,1); nlat=size(f,2); nlev=size(f,3)
     allocate(dfdp(nlon,nlat,nlev))
-    
+    inv_dp = 1.0 / (2.*dp)
     accuracy=1
     select case (accuracy)
 
        case(1)
           dfdp(:,:,2:nlev-1)=f(:,:,3:nlev)-f(:,:,1:nlev-2)
-          dfdp(:,:,2:nlev-1)=dfdp(:,:,2:nlev-1)/(2.*dp)
+          dfdp(:,:,2:nlev-1)=dfdp(:,:,2:nlev-1)*inv_dp
           
           dfdp(:,:,1)=(f(:,:,2)-f(:,:,1))/dp
           dfdp(:,:,nlev)=(f(:,:,nlev)-f(:,:,nlev-1))/dp
@@ -169,22 +169,23 @@ contains
     real,dimension(:,:,:),intent(in) :: f
     real,                 intent(in) :: dx
     real,dimension(:,:,:),allocatable  :: dfdx
-
+    real :: inv_dx
     integer :: i,j,k,nlon,nlat,nlev,i1,i2,acc,i_1,i_2
     nlon=size(f,1); nlat=size(f,2); nlev=size(f,3)
     allocate(dfdx(nlon,nlat,nlev))
     acc=1
-
+    inv_dx = 1.0 / (2.*dx)
+    
     select case (acc)
     case (1)
        do k=1,nlev
-          do i=1,nlon
-             i1=max(i-1,1)
-             i2=min(i+1,nlon)
-             if(i1.eq.i)i1=nlon
-             if(i2.eq.i)i2=1
-             do j=1,nlat
-                dfdx(i,j,k)=(f(i2,j,k)-f(i1,j,k))/(2.*dx)
+          do j=1,nlat
+             do i=1,nlon
+                i1=max(i-1,1)
+                i2=min(i+1,nlon)
+                if(i1.eq.i)i1=nlon
+                if(i2.eq.i)i2=1
+                dfdx(i,j,k)=(f(i2,j,k)-f(i1,j,k))*inv_dx
              enddo
           enddo
        enddo
@@ -223,24 +224,24 @@ contains
     real,dimension(:,:,:),intent(in) :: f
     real,                 intent(in) :: dy
     real,dimension(:,:,:),allocatable  :: dfdy
-
+    real :: inv_dy
     integer :: i,j,k,nlon,nlat,nlev,acc
     nlon=size(f,1); nlat=size(f,2); nlev=size(f,3)
     allocate(dfdy(nlon,nlat,nlev))
-
+    inv_dy = 1.0 / (2.*dy)
     acc=1
     select case(acc)
        
     case(1)
        do k=1,nlev
-          do i=1,nlon
-             do j=2,nlat-1
-                dfdy(i,j,k)=(f(i,j+1,k)-f(i,j-1,k))/(2*dy)
+          do j=2,nlat-1
+             do i=1,nlon
+                dfdy(i,j,k)=(f(i,j+1,k)-f(i,j-1,k))*inv_dy
              enddo
-             dfdy(i,1,k)=(f(i,2,k)-f(i,1,k))/dy
-             dfdy(i,nlat,k)=(f(i,nlat,k)-f(i,nlat-1,k))/dy
           enddo
        enddo
+       dfdy(:,1,:)=(f(:,2,:)-f(:,1,:))/dy
+       dfdy(:,nlat,:)=(f(:,nlat,:)-f(:,nlat-1,:))/dy
 
     case (2)
        do k=1,nlev
@@ -338,11 +339,13 @@ contains
     real,                 intent(in) :: dx,dy
     real,dimension(:,:,:),allocatable :: lapl
     integer :: nlon,nlat,nlev,acc,i,j,k
-    
+    real :: inv_dx,inv_dy
     nlon=size(f,1)
     nlat=size(f,2)
     nlev=size(f,3)
     allocate(lapl(nlon,nlat,nlev))
+    inv_dx = 1.0 / (dx * dx)
+    inv_dy = 1.0 / (dy * dy)
     acc=1
 
     select case(acc)
@@ -354,12 +357,12 @@ contains
             - 2 * f( 1, :, : )
        lapl ( nlon, :, : ) = f( nlon - 1, :, : ) + f ( 1, :, : ) &
             - 2 * f( nlon, :, : )
-       lapl = lapl / ( dx * dx )
+       lapl = lapl * inv_dx
        
        ! y-directon
        lapl ( :, 2 : nlat -1, : ) = lapl ( :, 2 : nlat -1, : ) &
             + ( f ( :, 1 : nlat -2, : ) + f ( :, 3 : nlat, :) &
-            - 2 * f( :, 2 : nlat -1, : ) ) / ( dy * dy )
+            - 2 * f( :, 2 : nlat -1, : ) ) * inv_dy
 
     case(2)
 
