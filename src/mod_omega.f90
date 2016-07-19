@@ -160,7 +160,7 @@ contains
 !   and substituting it to the RHS
        
     if(mode.eq.'T')then
-       call gen_test(sigmaraw,omegaan,zetaraw,corfield(:,:,:,1),dx,dy,dlev,ftest)
+       call gen_test(sigmaraw,omegaan,zetaraw,dudp(:,:,:,1),dvdp(:,:,:,1),corfield(:,:,:,1),dx,dy,dlev,ftest)
     endif ! (forcing for the general test case if mode.eq.'T')
 
 !   Boundary conditions from WRF omega?  

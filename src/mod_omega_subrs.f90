@@ -13,13 +13,11 @@ contains
 !   In essence: calculating the LHS from the WRF omega (omegaan) 
 !   and substituting it to the RHS
 
-    implicit none
-
     real,dimension(:,:,:,:),intent(in) :: sigma,feta
-    real,dimension(:,:,:),intent(in) :: omegaan
-    real,intent(in) :: dx,dy,dlev
+    real,dimension(:,:,:),  intent(in) :: omegaan
+    real,                   intent(in) :: dx,dy,dlev
     real,dimension(:,:,:,:),intent(out) :: ftest 
-    real,dimension(:,:,:),allocatable :: df2dp2,lapl
+    real,dimension(:,:,:),  allocatable :: df2dp2,lapl
 
     df2dp2 = p2der(omegaan,dlev)
     lapl = laplace_cart(omegaan,dx,dy)
@@ -28,61 +26,42 @@ contains
 
   end subroutine QG_test
 
-  subroutine gen_test(sigmaraw,omegaan,zetaraw,corpar,dx,dy,dlev,ftest)
-
+  subroutine gen_test(sigmaraw,omegaan,zetaraw,dudp,dvdp,corpar,dx,dy,dlev,ftest)
 !   Forcing for the general test case
 !   In essence: calculating the LHS from the WRF omega (omegaan) 
 !   and substituting it to the RHS
 
-    implicit none
-
-    real,dimension(:,:,:),intent(in) :: sigmaraw,omegaan,zetaraw,corpar
-    real,intent(in) :: dx,dy,dlev
+    real,dimension(:,:,:),  intent(in) :: sigmaraw,omegaan,zetaraw,corpar,dudp,dvdp
+    real,                   intent(in) :: dx,dy,dlev
     real,dimension(:,:,:,:),intent(out) :: ftest 
-    real,dimension(:,:,:),allocatable :: dum2,dum1,dum3,dum4,dum5,dum6
-    real,dimension(:,:,:),allocatable :: dvdp,dudp
-    integer :: nlon,nlat,nlev
+    real,dimension(:,:,:),  allocatable :: lhs1,lhs2,lhs3,lhs4,dOmega_dx,dOmega_dy,lhs4_0
 
-    nlon=size(omegaan,1)
-    nlat=size(omegaan,2)
-    nlev=size(omegaan,3)
+    ! Calculate LHS terms of the omega equation
+    lhs1 = laplace_cart(sigmaraw*omegaan,dx,dy)
 
-    allocate(dum2(nlon,nlat,nlev))
-    allocate(dum6(nlon,nlat,nlev))
-    allocate(dvdp(nlon,nlat,nlev),dudp(nlon,nlat,nlev))
+    lhs2 = (corpar+zetaraw)*corpar*p2der(omegaan,dlev)
 
-    dum2=sigmaraw*omegaan
-          
-    dum1 = laplace_cart(dum2,dx,dy)
-    dum3 = p2der(omegaan,dlev)
-    dum5 = p2der(zetaraw,dlev)
+    lhs3 = -corpar*omegaan*p2der(zetaraw,dlev) 
     
-    dum2=(corpar+zetaraw)*corpar*dum3
-    
-    dum3=-corpar*omegaan*dum5
-    
-    dum4 = xder_cart(omegaan,dx)
-    dum5 = yder_cart(omegaan,dy)
+    dOmega_dx = xder_cart(omegaan,dx)
+    dOmega_dy = yder_cart(omegaan,dy)
 
-
-    dum6=-corpar*(dvdp*dum4-dudp*dum5)
+    lhs4_0=-corpar*(dvdp*dOmega_dx-dudp*dOmega_dy)
        
-    dum4 = pder(dum6,dlev)
+    lhs4 = pder(lhs4_0,dlev)
     
-    ftest(:,:,:,1)=dum1+dum2+dum3+dum4 
+    ftest(:,:,:,1) = lhs1 + lhs2 + lhs3 + lhs4 
 
   end subroutine gen_test
 
   subroutine coarsen3D(f,g,nlon1,nlat1,nlev1,nlon2,nlat2,nlev2)
-!
-!      Averages the values of field f (grid size nlon1 x nlat1 x nlev1) over larger
-!      grid boxes (grid size nlon2 x nlat2 x nlev2), to field g
+!   Averages the values of field f (grid size nlon1 x nlat1 x nlev1) over larger
+!   grid boxes (grid size nlon2 x nlat2 x nlev2), to field g
 
-!      To keep the algorithm
-!      simple, only 0/1 weights are used -> works only well if
-!      div(nlon1/nlon2)=div(nlat1/nlat2)=div(nlev1/nlev2)
+!   To keep the algorithm
+!   simple, only 0/1 weights are used -> works only well if
+!   div(nlon1/nlon2)=div(nlat1/nlat2)=div(nlev1/nlev2)
 !
-    implicit none
     integer,intent(in) :: nlon1,nlat1,nlon2,nlat2,nlev1,nlev2
     real,dimension(nlon1,nlat1,nlev1),intent(in) :: f
     real,dimension(nlon2,nlat2,nlev2),intent(out) :: g
@@ -114,18 +93,16 @@ contains
   end subroutine coarsen3D
 
   subroutine finen3D(f,g,nlon1,nlat1,nlev1,nlon2,nlat2,nlev2)
+!   Distributes the values of field f (grid size nlon2 x nlat2 x nlev2) to a
+!   finer grid g (grid size nlon1 x nlat1 x nlev1), assuming that f is
+!   constant in each grid box of the original grid 
 !
-!      Distributes the values of field f (grid size nlon2 x nlat2 x nlev2) to a
-!      finer grid g (grid size nlon1 x nlat1 x nlev1), assuming that f is
-!      constant in each grid box of the original grid 
-!
-!      ** PERHAPS THIS SHOULD BE REPLACED BY BILINEAR INTERPOLATION 
-!      ** TO AVOID ARTIFICIAL JUMPS
+!   ** PERHAPS THIS SHOULD BE REPLACED BY BILINEAR INTERPOLATION 
+!   ** TO AVOID ARTIFICIAL JUMPS
 
-    implicit none
     integer,intent(in) :: nlon1,nlat1,nlev1,nlon2,nlat2,nlev2
-    real,intent(in) :: f(nlon2,nlat2,nlev2)
-    real,intent(out) :: g(nlon1,nlat1,nlev1)
+    real,dimension(nlon2,nlat2,nlev2),intent(in) :: f
+    real,dimension(nlon1,nlat1,nlev1),intent(out) :: g
     integer :: i,i2,j,j2,k,k2,imin,imax,jmin,jmax,kmin,kmax
 
     do i2=1,nlon2
@@ -151,12 +128,9 @@ contains
   end subroutine finen3D
 
   subroutine gwinds(z,dx,dy,corpar,u,v)
-!
 !   Calculation of geostrophic winds (u,v) from z. At the equator, mean of
 !   the two neighbouring latitudes is used (should not be a relevant case).
 !
-    implicit none
-
     real,dimension(:,:,:),intent(in) :: z,corpar
     real,dimension(:,:,:),intent(out) :: u,v
     real,intent(in) :: dx,dy
@@ -194,16 +168,13 @@ contains
 
   subroutine modify(sigmaraw,sigmamin,etamin,zetaraw,&
                         corpar,dudp,dvdp,sigma,feta,zeta)      
-!
 !   Modifying stability and vorticity to keep the LHS of the genearlized
 !   omega equation elliptic
 !
-    implicit none
-
     real,dimension(:,:,:),intent(in) :: sigmaraw,zetaraw,dudp,dvdp
-    real,dimension(:),intent(in) :: corpar
+    real,dimension(:),    intent(in) :: corpar
     real,dimension(:,:,:),intent(inout) :: zeta,feta,sigma
-    real,intent(in) :: sigmamin,etamin
+    real,                 intent(in) :: sigmamin,etamin
     integer :: nlon,nlat,nlev,i,j,k
     
     nlon=size(sigmaraw,1)
@@ -235,12 +206,9 @@ contains
   end subroutine modify
 
   function aave(f) result(res)                      
-!
 !   Calculation of area mean (res) of field f in cartesian coordinates.
 !   Simplest possible way.
 !
-    implicit none
-
     real,dimension(:,:),intent(in) :: f
     real :: res,sum,wsum
     integer :: i,j,nlon,nlat
@@ -264,7 +232,6 @@ contains
 !   Input: u,v,zeta
 !   Output: stored in "fv"
 !
-    implicit none
     real,dimension(:,:,:),intent(in) :: u,v,zeta,mulfact,corpar
     real,dimension(:,:,:),allocatable :: adv,dadvdp,fv
     real,intent(in) :: dx,dy,dp
@@ -289,7 +256,6 @@ contains
 !   Input: u,v,t
 !   Output: stored in "adv" (bad style ...)
 !
-    implicit none
     real,dimension(:,:,:),intent(in) :: u,v,t,mulfact
     real,dimension(:),intent(in) :: lev
     real,intent(in) :: dx,dy
@@ -315,9 +281,8 @@ contains
   function ffrict(fx,fy,corpar,dx,dy,dp,mulfact) result(ff)
 !   Calculation of friction forcing
 !   Input: fx,fy = x and y components of "friction force"
-!   Output: res 
+!   Output: ff 
 !
-    implicit none
     real,dimension(:,:,:),intent(in) :: fx,fy,mulfact,corpar
     real,dimension(:,:,:),allocatable :: fcurl,dcurldp,ff
     real,intent(in) :: dx,dy,dp
@@ -342,7 +307,6 @@ contains
 !   Input: q = diabatic temperature tendency (already normalized by cp)
 !   Output: stored in "fq"
 !
-    implicit none
     real,dimension(:,:,:),intent(inout) :: q
     real,dimension(:,:,:),intent(in) :: mulfact
     real,dimension(:,:,:),allocatable :: fq
@@ -369,7 +333,6 @@ contains
 !   Input: dzetadt, dtdt = vorticity & temperature tendencies
 !   Output: fa
 !
-    implicit none
     real,dimension(:,:,:),intent(inout) :: dzetadt,dtdt
     real,dimension(:,:,:),intent(in) ::  mulfact,corpar
     real,dimension(:),intent(in) :: lev
@@ -399,9 +362,8 @@ contains
   subroutine callsolveQG(rhs,boundaries,omega,nlonx,nlatx,nlevx,&
                          dx,dy,dlev,sigma0,feta,nres,alfa,toler)
 !
-!   Calling solveQG + writing out omega. Multigrid algorithm.
+!   Calling solveQG. Multigrid algorithm.
 !
-    implicit none
     integer,intent(in) :: nres
     integer,dimension(:),intent(in) :: nlonx,nlatx,nlevx
     real,dimension(:),intent(in) :: dx,dy,dlev
@@ -738,7 +700,7 @@ contains
              enddo
           enddo
        enddo
-!       write(*,*)iter,maxdiff
+       write(*,*)iter,maxdiff
        if(maxdiff.lt.toler.or.iter.eq.itermax)then
 !          write(*,*)'iter,maxdiff',iter,maxdiff
           goto 10
