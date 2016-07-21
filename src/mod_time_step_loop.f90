@@ -8,12 +8,13 @@ module mod_time_step_loop
 
 contains
 
-  subroutine time_step_loop ( wrfin_file, omegafile, time_1, time_n, alfa, &
-                              toler, ny1, ny2, mode, calc_omegas, calc_b )
+  subroutine time_step_loop ( wrfin_file, outfile, time_1, time_n, alfa, &
+                              toler, ny1, ny2, mode, calc_omegas, calc_b, &
+                              debug )
     ! This subroutine contains the main time stepping loop. It gets both
     ! input and output files as input arguments. 
     character :: mode
-    type ( wrf_file ) :: wrfin_file, omegafile
+    type ( wrf_file ) :: wrfin_file, outfile
     integer :: time_1, time_n, time, i, ny1, ny2
     real :: alfa, toler
     real, dimension ( :, :, : ), pointer :: T, u, v, z
@@ -23,7 +24,7 @@ contains
     real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
     integer, dimension (:), allocatable :: tdim
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends, omegas_QG
-    logical, intent(in) :: calc_omegas,calc_b
+    logical, intent(in) :: calc_omegas,calc_b,debug
     
     if (calc_b) then 
        n_terms = n_terms + 1
@@ -33,8 +34,8 @@ contains
          nlon   => wrfin_file % dims ( 1 ), &
          nlat   => wrfin_file % dims ( 2 ), &
          nlev   => wrfin_file % dims ( 3 ), &
-         dx     => wrfin_file % dx, &
-         dy     => wrfin_file % dy, &
+         dx     => wrfin_file % dx(1), &
+         dy     => wrfin_file % dy(1), &
          p_levs => wrfin_file % pressure_levels, &
          corpar => wrfin_file % corpar )
  
@@ -67,35 +68,35 @@ contains
          call irrotationalWind(u,v,dx,dy,uKhi,vKhi)
 
          if ( calc_omegas ) then
-            call calculate_omegas( T, u, v, w, z, p_levs, dx, dy, &
-                 corpar, q, fx, fy, dT_dt, zeta, zetatend, uKhi, vKhi, &
-                 sigma, mulfact, alfa, toler, ny1, ny2, mode, calc_b, &
+            call calculate_omegas( wrfin_file, T, u, v, w, z, &
+                 q, fx, fy, dT_dt, zeta, zetatend, uKhi, vKhi, sigma, &
+                 mulfact, alfa, toler, ny1, ny2, mode, calc_b, debug, &
                  omegas, omegas_QG )
          else
-            omegas = read_omegas ( omegafile, time-time_1+1 )
+            omegas = read_omegas ( outfile, time-time_1+1 )
          end if
 
          call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
               dx, dy, corpar, q, fx, fy, dz_dt, dT_dt, zeta, zetatend, &
-              uKhi, vKhi, sigma, mulfact, calc_b, hTends )
+              uKhi, vKhi, sigma, mulfact, calc_b, debug, hTends )
          
          ! Write data to the output file
          if ( mode .eq. 'Q' ) then
-            call write_omegas_QG ( omegafile, time-time_1+1, omegas_QG )
+            call write_omegas_QG ( outfile, time-time_1+1, omegas_QG )
          else if ( mode .eq. 'G' ) then
             if (calc_omegas) then
-               call write_omegas ( omegafile, time-time_1+1, calc_b, omegas )
-               call write3d ( omegafile, time-time_1+1, ome_name, w)
+               call write_omegas ( outfile, time-time_1+1, calc_b, omegas )
+               call write3d ( outfile, time-time_1+1, ome_name, w)
             end if
-            call write_tendencies ( omegafile, time-time_1+1, calc_b, hTends )
-            call write3d ( omegafile, time-time_1+1, ztend_name, dz_dt )
+            call write_tendencies ( outfile, time-time_1+1, calc_b, hTends )
+            call write3d ( outfile, time-time_1+1, ztend_name, dz_dt )
          end if
 
       end do
 
       ! Write dimension data to the output file
       if ( calc_omegas .or. mode .eq. 'Q' ) then
-         call write_dimensions ( omegafile, tdim )
+         call write_dimensions ( outfile, tdim )
       end if
       
     end associate

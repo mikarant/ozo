@@ -54,9 +54,11 @@ module mod_wrf_file
   type wrf_file
      integer :: ncid, dims ( 4 )
      integer :: wrf_cu_phys
-     real :: dx, dy
+!     real :: dx, dy
      real, dimension ( : ), allocatable :: times, pressure_levels, corpar
-     integer,dimension(:),allocatable :: xdim,ydim
+     integer, dimension ( : ), allocatable :: xdim,ydim
+     integer, dimension ( : ), allocatable :: nlon, nlat, nlev
+     real, dimension ( : ), allocatable :: dx, dy, dlev
   end type wrf_file
 
 contains
@@ -193,7 +195,7 @@ contains
   function open_wrf_file ( fname ) result ( f )
     character ( * ), intent ( in ) :: fname
     type ( wrf_file ) :: f
-    integer :: i, dimid, varid, dimids ( 4 )
+    integer :: i, dimid, varid, dimids ( 4 ), nres
 
     print*,"Opening file: ",fname
     call check( nf90_open ( fname, NF90_WRITE, f % ncid ) )
@@ -202,18 +204,46 @@ contains
     do i = 1, 4
        call check ( nf90_inq_dimid ( &
             f % ncid, trim ( rname ( i ) ), dimid ) )
-       dimids ( i ) = dimid
+!       dimids ( i ) = dimid
        call check ( nf90_inquire_dimension ( &
             f % ncid, dimid, len = f % dims ( i ) ) )
     end do
     
+    ! Number of resolutions in the solving of omega equation 
+    nres=1+int(log(max(f%dims(1),f%dims(2),f%dims(3))/5.)/log(2.))
+    allocate(f % nlon ( nres ), f % nlat ( nres ), f % nlev ( nres ) )
+    allocate(f % dx ( nres ), f % dy ( nres ), f % dlev ( nres ) )
+   
     print*,"Getting attributes from the input file..."
     call check ( nf90_get_att ( &
-         f % ncid, NF90_GLOBAL, 'DX', f % dx ) )
+         f % ncid, NF90_GLOBAL, 'DX', f % dx(1) ) )
     call check ( nf90_get_att ( &
-         f % ncid, NF90_GLOBAL, 'DY', f % dy ) )
+         f % ncid, NF90_GLOBAL, 'DY', f % dy(1) ) )
     call check ( nf90_get_att ( &
          f % ncid, NF90_GLOBAL, 'CU_PHYSICS', f % wrf_cu_phys ) )
+
+    print*,"Getting pressure level information from the input file..."
+    allocate ( f % pressure_levels ( f % dims ( 3 ) ) )
+    call check ( nf90_inq_varid ( f % ncid, 'PRES', varid ) )
+    call check ( nf90_get_var ( f % ncid, varid, f % pressure_levels, &
+         start = [ 1, 1, 1, 2 ], &
+         count = [ 1, 1, size ( f % pressure_levels ), 1 ] ) )
+
+    f % nlon(1) = f % dims(1)
+    f % nlat(1) = f % dims(2)
+    f % nlev(1) = f % dims(3)    
+    f % dlev(1) = f % pressure_levels(2) - f % pressure_levels(1)
+
+    ! Number of different resolutions in solving the equation = nres 
+    ! Choose so that the coarsest grid has at least 5 points
+    do i=2,nres
+       f % nlon(i) = max(f % nlon(i-1)/2,5)
+       f % nlat(i) = max(f % nlat(i-1)/2,5)
+       f % nlev(i) = max(f % nlev(i-1)/2,5)
+       f % dx(i) = f % dx(1)*real(f % nlon(1))/real(f % nlon(i))
+       f % dy(i) = f % dy(1)*real(f % nlat(1))/real(f % nlat(i))
+       f % dlev(i) = f % dlev(1)*real(f % nlev(1))/real(f % nlev(i))
+    enddo
     
     print*,"Getting time information from the input file..."
     allocate ( f % times ( f % dims ( 4 ) ) )
@@ -222,13 +252,6 @@ contains
          start = [ 1 ], &
          count = [ size ( f % times ) ] ) )
     f % times = f % times * 3600
-
-    print*,"Getting pressure level information from the input file..."
-    allocate ( f % pressure_levels ( f % dims ( 3 ) ) )
-    call check ( nf90_inq_varid ( f % ncid, 'PRES', varid ) )
-    call check ( nf90_get_var ( f % ncid, varid, f % pressure_levels, &
-         start = [ 1, 1, 1, 2 ], &
-         count = [ 1, 1, size ( f % pressure_levels ), 1 ] ) )
 
     print*,"Getting coriolisparameter from the input file..."
     allocate ( f % corpar ( f % dims ( 2 ) ) )

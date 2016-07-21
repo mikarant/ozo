@@ -6,30 +6,26 @@ module mod_omega
 
 contains
 
-  subroutine calculate_omegas( t, u, v, omegaan, z, lev, dx, dy, corpar, q, &
-       xfrict, yfrict, ttend, zetaraw, zetatend, uKhi, vKhi, sigmaraw, &
-       mulfact, alfa, toler, ny1, ny2, mode, calc_b, omegas, omegas_QG )
+  subroutine calculate_omegas( file, t, u, v, omegaan, z, q, xfrict, yfrict, &
+       ttend, zetaraw, zetatend, uKhi, vKhi, sigmaraw, mulfact, alfa, toler, &
+       ny1, ny2, mode, calc_b, debug, omegas, omegas_QG )
 
     real,dimension(:,:,:,:),intent(inout) :: omegas, omegas_QG
     real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend,zetatend
     real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict,sigmaraw
     real,dimension(:,:,:),  intent(in) :: mulfact,zetaraw,uKhi,vKhi
-    real,dimension(:),      intent(in) :: lev,corpar
-    real,                   intent(in) :: dx,dy,alfa,toler
+    real,                   intent(in) :: alfa,toler
     integer,                intent(in) :: ny1,ny2
     character,              intent(in) :: mode
-    logical,                intent(in) :: calc_b
+    logical,                intent(in) :: calc_b,debug
+    type ( wrf_file ),      intent(in) :: file
 
     real,dimension(:,:,:,:,:),allocatable :: rhs
     real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta,corfield
     real,dimension(:,:,:,:),allocatable :: dudp,dvdp,ftest,d2zetadp,omega
     real,dimension(:,:,:),  allocatable :: zeta
     real,dimension(:,:),    allocatable :: sigma0
-    real,dimension(:),      allocatable :: dx2,dy2,dlev2
-    integer,dimension(:),   allocatable :: nlonx,nlatx,nlevx
-
-    integer :: nlev,nlon,nlat,nres,i,k,j
-    real :: dlev
+    integer :: i,j,k
 
 !   Threshold values to keep the generalized omega equation elliptic.
     real,parameter :: sigmamin=2e-7,etamin=2e-6
@@ -45,51 +41,35 @@ contains
     ilbound=1 ! 1 for "real" omega as upper-boundary condition
     iybound=1 ! 1 for "real" omega as north/south boundary condtion
 
-    nlon=size(t,1)
-    nlat=size(t,2)
-    nlev=size(t,3)
+    associate ( &
+         nlon => file % nlon(1), &
+         nlat => file % nlat(1), &
+         nlev => file % nlev(1), &
+         dx => file % dx(1), &
+         dy => file % dy(1), &
+         dlev => file % dlev(1), &
+         lev => file % pressure_levels, &
+         ! Grid sizes for the different resolutions
+         nres => size(file % nlat), &
+         nlonx => file % nlon, &
+         nlatx => file % nlat, &
+         nlevx => file % nlev, &
+         dx2 => file % dx, &
+         dy2 => file % dy, &
+         dlev2 => file % dlev )
 
     allocate(zeta(nlon,nlat,nlev))
- 
-!   Number of different resolutions in solving the equation = nres 
-!   Choose so that the coarsest grid has at least 5 points
-!
-    nres=1+int(log(max(nlon,nlat,nlev)/5.)/log(2.))
-!    write(*,*)'nres=',nres
-!
     allocate(omega(nlon,nlat,nlev,nres),ftest(nlon,nlat,nlev,nres))
     allocate(boundaries(nlon,nlat,nlev,nres),corfield(nlon,nlat,nlev,nres))
     allocate(zero(nlon,nlat,nlev,nres),sigma(nlon,nlat,nlev,nres))
     allocate(d2zetadp(nlon,nlat,nlev,nres),feta(nlon,nlat,nlev,nres))
     allocate(dudp(nlon,nlat,nlev,nres),dvdp(nlon,nlat,nlev,nres))
     allocate(sigma0(nlev,nres))
-    allocate(nlonx(nres),nlatx(nres),nlevx(nres))
-    allocate(dx2(nres),dy2(nres),dlev2(nres))
     allocate(rhs(nlon,nlat,nlev,nres,n_terms))
-
-    dlev=lev(2)-lev(1)
-    zero=0.
-
-!   Grid sizes for the different resolutions
-!
-    nlonx(1)=nlon
-    nlatx(1)=nlat
-    nlevx(1)=nlev
-    dx2(1)=dx
-    dy2(1)=dy
-    dlev2(1)=dlev
-    do i=2,nres
-       nlonx(i)=max(nlonx(i-1)/2,5)
-       nlatx(i)=max(nlatx(i-1)/2,5)
-       nlevx(i)=max(nlevx(i-1)/2,5)
-       dx2(i)=dx*real(nlon)/real(nlonx(i))
-       dy2(i)=dy*real(nlat)/real(nlatx(i))
-       dlev2(i)=dlev*real(nlev)/real(nlevx(i))
-    enddo
 
 !   Calculation of coriolisparameter field
     do j=1,nlat
-       corfield(:,j,:,1)=corpar(j)
+       corfield(:,j,:,1) = file % corpar(j)
     enddo
 
 !   For quasi-geostrophic equation: calculation of geostrophic winds
@@ -125,8 +105,8 @@ contains
 !   2. Modifying stability and vorticity on the LHS to keep
 !   the solution elliptic
 !
-    call modify(sigmaraw,sigmamin,etamin,zetaraw,&
-         corpar,dudp(:,:,:,1),dvdp(:,:,:,1),sigma(:,:,:,1),feta(:,:,:,1),zeta)      
+    call modify(sigmaraw,sigmamin,etamin,zetaraw, file % corpar,&
+         dudp(:,:,:,1),dvdp(:,:,:,1),sigma(:,:,:,1),feta(:,:,:,1),zeta)      
 !
 !   3. Second pressure derivative of vorticity 
 !
@@ -253,6 +233,8 @@ contains
        omegas_QG(:,:,:,3)=omega(:,:,:,1)
 
     endif
+
+  end associate
 
   end subroutine calculate_omegas
 

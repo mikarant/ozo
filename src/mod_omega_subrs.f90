@@ -1,13 +1,46 @@
 module mod_omega_subrs
   use mod_const
   use mod_common_subrs
+  use mod_wrf_file
   implicit none
 
 contains
 
 !
-!****************** SUBROUTINES **************************************************
-!
+!****************** SUBROUTINES ***********************************************
+!  subroutine calc_res(file,nlonx,nlatx,nlevx,dx2,dy2,dlev2)
+!    type (wrf_file) :: file
+!    real,dimension(:),      allocatable :: dx2,dy2,dlev2
+!    integer,dimension(:),   allocatable :: nlonx,nlatx,nlevx
+!    
+!    nres=1+int(log(max(nlon,nlat,nlev)/5.)/log(2.))
+!    if(debug) write(*,*)'nres=',nres
+
+!    allocate(nlonx(nres),nlatx(nres),nlevx(nres))
+!    allocate(dx2(nres),dy2(nres),dlev2(nres))
+
+!    nlonx(1)=file % dims(1)
+!    nlatx(1)=file % dims(2)
+!    nlevx(1)=file % dims(3)
+!    dx2(1)=file % dx
+!    dy2(1)=file % dy
+!    dlev2(1)=file % pressure_levels(2) - file % pressure_levels(1)
+!    do i=2,nres
+!       nlonx(i)=max(nlonx(i-1)/2,5)
+!       nlatx(i)=max(nlatx(i-1)/2,5)
+!       nlevx(i)=max(nlevx(i-1)/2,5)
+!       dx2(i)=dx*real(nlon)/real(nlonx(i))
+!       dy2(i)=dy*real(nlat)/real(nlatx(i))
+!       dlev2(i)=dlev*real(nlev)/real(nlevx(i))
+!       if(debug)then
+!          print*,"nlon",nlonx(i)
+!       end if
+!    enddo
+
+!  end subroutine calc_res
+    
+
+
   subroutine QG_test(omegaan,sigma,feta,dx,dy,dlev,ftest)
 !   Forcing for quasigeostrophic test case ('t')
 !   In essence: calculating the LHS from the WRF omega (omegaan) 
@@ -700,7 +733,7 @@ contains
              enddo
           enddo
        enddo
-       write(*,*)iter,maxdiff
+!       write(*,*)iter,maxdiff
        if(maxdiff.lt.toler.or.iter.eq.itermax)then
 !          write(*,*)'iter,maxdiff',iter,maxdiff
           goto 10
