@@ -1,4 +1,8 @@
 module mod_subrs
+  use mod_const
+  use mod_wrf_file
+  use mod_common_subrs
+  use mod_poisson_DFT
   implicit none
 contains
 !
@@ -13,10 +17,6 @@ contains
 !   This is the main subroutine of solving the Zwack-Okossi equation. Input 
 !   arguments are variables from WRF and omegas, and output of this subroutine
 !   is height tendencies, stored in hTends.
-    use mod_const
-    use mod_wrf_file
-    use mod_common_subrs
-    implicit none
 
     real,dimension(:,:,:,:),intent(in) :: omegas
     real,dimension(:,:,:),  intent(in) :: t,u,v,w,xfrict,yfrict,zeta
@@ -77,19 +77,15 @@ contains
   end subroutine calculate_tendencies
 
   subroutine ht_correction(hTends,temptend,lev,omegas,sp,tadv,tadvs,q,calc_b)
-
 !   This subroutine does area mean correction for height tendencies
 !   by using mean temperature tendencies and hypsometric equation.
-!    use mod_type_vars
-    use mod_wrf_file
-    use mod_const
-    implicit none
-    real,dimension(:,:,:,:),intent(in) :: omegas
-    real,dimension(:,:,:),intent(in) :: sp,tadv,tadvs,q
-    real,dimension(:),    intent(in) :: lev
+
+    real,dimension(:,:,:,:),   intent(in) :: omegas
+    real,dimension(:,:,:),     intent(in) :: sp,tadv,tadvs,q
+    real,dimension(:),         intent(in) :: lev
     real,dimension(:,:,:,:),intent(inout) :: hTends
     real,dimension(:,:,:,:),intent(inout) :: temptend
-    logical,intent(in) :: calc_b
+    logical,                   intent(in) :: calc_b
 
     integer :: i,j,k,l,m,nlon,nlat,nlev
     real,dimension(:,:),    allocatable :: mtt,mht,mzo,diff
@@ -98,7 +94,7 @@ contains
 
     nlon=size(q,1);nlat=size(q,2);nlev=size(q,3)
 
-    allocate(pres(nlev),terms(n_terms-1),diffsum(nlev))
+    allocate(diffsum(nlev))
     allocate(help1(n_terms),help2(n_terms))
     allocate(mtt(n_terms,nlev),mht(n_terms,nlev))
     allocate(mzo(n_terms,nlev),diff(n_terms,nlev))
@@ -106,14 +102,13 @@ contains
     terms=(/1,2,3,4,5,6,7/)
     if (calc_b) terms=(/1,2,3,4,5,6,7,8/)
 
-
 !   Pressure levels       
     pres=lev(1:size(lev))/100.
 
 !   Initializate variables    
     help1=0.
     help2=0.
-    temptend=0.
+!    temptend=0.
 
 !   Temperature tendencies of all terms
     do m=1,size(terms)
@@ -193,11 +188,6 @@ contains
 !   Input: omegas,u,v and vorticity
 !   output: vorticity tendencies of six forcings 
 
-    use mod_const
-    use mod_wrf_file
-    use mod_common_subrs
-    implicit none
-
     real,dimension(:,:,:,:),intent(in) :: omegas
     real,dimension(:,:,:),intent(in) :: u,v,w,zeta,zetatend,uKhi,vKhi,ztend
     real,dimension(:,:,:),intent(in) :: xfrict,yfrict,mulfact
@@ -270,9 +260,8 @@ contains
   end subroutine vorticity_tendencies
 
   subroutine vorterms(omega,dx,dy,eta,u,v,zeta,dlev,vortt)
-
 !   This function calculates omega-related terms of vorticity equation
-    implicit none
+
     real,dimension(:,:,:),intent(in) :: omega,eta,u,v,zeta
     real,                 intent(in) :: dx,dy,dlev  
     real,dimension(:,:,:,:),intent(inout) :: vortt
@@ -289,11 +278,9 @@ contains
   end subroutine vorterms
 
   subroutine f2(omega,zeta,dlev,vortadv)
-    use mod_common_subrs
 !   This function calculates the vertical vorticity advection term,
 !   stored in vortadv.
 
-    implicit none
     real,dimension(:,:,:),intent(in) :: omega,zeta
     real,                 intent(in) :: dlev
     real,dimension(:,:,:),intent(inout) :: vortadv
@@ -309,10 +296,9 @@ contains
   end subroutine f2
 
   subroutine f3(omega,dlev,eta,vortdiv)
-    use mod_common_subrs
-    implicit none
 !   This function calculates divergence term of vorticity equation,
 !   stored in vortdiv.
+
     real,dimension(:,:,:),intent(in) :: omega,eta
     real,                 intent(in) :: dlev
     real,dimension(:,:,:),intent(inout) :: vortdiv
@@ -328,10 +314,9 @@ contains
   end subroutine f3
 
   subroutine f4(omega,u,v,dx,dy,dlev,vortt4)
-    use mod_common_subrs
 !   This function calculates tilting/twisting term of vorticity equation,
 !   stored in vortt4.      
-    implicit none
+
     real,dimension(:,:,:),intent(in) :: omega,u,v
     real,                 intent(in) :: dx,dy,dlev
     real,dimension(:,:,:),intent(inout) :: vortt4  
@@ -350,16 +335,13 @@ contains
   end subroutine f4
   
   subroutine ageo_tend(zetatend,ztend,dx,dy,corpar,avortt)
-    use mod_const
-    use mod_common_subrs
-    implicit none
 !   This function calculates ageostrophic vorticity tendency (needed in 
 !   ageostrophic vorticity tendency forcing).
 !   Input: Real vorticity tendency (zetatend), real height tendency (ztend)
 !   Output: Ageostrophic vorticity tendency (avortt)
 
     real,dimension(:,:,:),intent(in) :: zetatend,ztend
-    real,dimension(:),intent(in) :: corpar
+    real,dimension(:),    intent(in) :: corpar
     real,                 intent(in) :: dx,dy
     real,dimension(:,:,:),intent(inout) :: avortt
 
@@ -389,12 +371,7 @@ contains
 !   Input: vorticity tendencies of forcings, omegas, thermal advection and
 !   diabatic heating.
 !   Output: Height tendencies of different forcingterms.  
-    use mod_const
-    use mod_wrf_file
-    use mod_common_subrs
-    use mod_poisson_DFT
-    implicit none
-    
+
     real,dimension(:,:,:,:),intent(in) :: omegas
     real,dimension(:,:,:,:),intent(inout) :: vortTends
     real,dimension(:,:,:),intent(in) :: tadv,tadvs,q,sp
@@ -493,13 +470,9 @@ contains
   end subroutine zwack_okossi
 
   subroutine zo_integral(vorttend,temptend,dx,dy,corpar,geo_vort)
-!
 !   This function calculates integrals of zwack-okossi equation. 
 !   It is done by slightly undocumented way.
-!   
-    use mod_const
-    use mod_common_subrs
-    implicit none
+
     real,dimension(:,:,:),intent(in) :: vorttend,temptend,corpar
     real,                 intent(in) :: dx,dy
     real,dimension(:,:,:),intent(inout) :: geo_vort 
@@ -518,11 +491,6 @@ contains
 !   Vertical mean of vorticity tendency. It's multiplied by coriolisparameter 
 !   so that temperature tendency doesn't have to be divided by f 
 !   (problems in equator). 
-!   vort_mean=sum(vorttend,dim=3)/nlev
-!
-!   Changed 9.12.2015: half-weight for lowest and highest level 
-!   (hope this is correct ...) 
-!
     call vertave(vorttend,vort_mean,nlon,nlat,nlev)
     vort_mean(:,:)=vort_mean(:,:)*corpar(:,:,1)
 
@@ -543,14 +511,8 @@ contains
     enddo
 
 !   Mean of that integration (outer integral of the equation)      
-!    temp_mean=sum(inttemp,dim=3)/nlev
-!
-!   Changed 9.12.2015: half-weight for lowest and highest level 
-!   (hope this is correct ...) 
-!
     call vertave(inttemp,temp_mean,nlon,nlat,nlev)
 
-!   Actually not sure what's going on in this line (copied from matlab-scripts)
     do k=1,nlev
        int_tot(:,:,k)=-temp_mean(:,:)+inttemp(:,:,k)
     enddo
@@ -566,13 +528,10 @@ contains
   end subroutine zo_integral
 
   subroutine vertave(f,fmean,nlon,nlat,nlev)
-!
 !   Vertical average, half-weight to top and bottom levels
-!
-    implicit none
+
     real,dimension(:,:,:),intent(in) :: f
     real,dimension(:,:),intent(inout) :: fmean
-
     integer :: i,j,k,nlon,nlat,nlev
 
     do i=1,nlon
@@ -588,11 +547,9 @@ contains
   end subroutine vertave
 
   subroutine interp1000(z,ztend,t,ttend)
-!
 !   Interpolation of 1000 hPa geopotential height from 950 hPa height by using
 !   mean temperature of 1000-950 hPa layer.
-    use mod_const
-    implicit none
+
     real,dimension(:,:,:),intent(inout) :: z,ztend
     real,dimension(:,:,:),intent(in) :: t,ttend
     real,dimension(:,:),allocatable :: meanTemp,meanTempTend
