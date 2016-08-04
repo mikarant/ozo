@@ -81,17 +81,20 @@ contains
 !   Calculation of forcing terms 
 !
     if(mode.eq.'G'.or.mode.eq.'Q')then
-       rhs(:,:,:,1,termV) = fvort(u,v,zetaraw,corfield(:,:,:,1),dx,dy,dlev,mulfact)
-       
+       rhs(:,:,:,1,termV) = fvort(u,v,zetaraw,corfield(:,:,:,1),dx,dy,dlev,&
+                                  mulfact)
        rhs(:,:,:,1,termT) = ftemp(u,v,t,lev,dx,dy,mulfact)
     endif
 
     if(mode.eq.'G')then
-       rhs(:,:,:,1,termF) = ffrict(xfrict,yfrict,corfield(:,:,:,1),dx,dy,dlev,mulfact)
+       rhs(:,:,:,1,termF) = ffrict(xfrict,yfrict,corfield(:,:,:,1),dx,dy,dlev,&
+                                   mulfact)
        rhs(:,:,:,1,termQ) = fdiab(q,lev,dx,dy,mulfact)
-       rhs(:,:,:,1,termA) = fimbal(zetatend,ttend,corfield(:,:,:,1),lev,dx,dy,dlev,mulfact)
+       rhs(:,:,:,1,termA) = fimbal(zetatend,ttend,corfield(:,:,:,1),lev,dx,dy,&
+                                   dlev,mulfact)
        if(calc_div)then
-          rhs(:,:,:,1,termVKhi) = fvort(ukhi,vkhi,zetaraw,corfield(:,:,:,1),dx,dy,dlev,mulfact)
+          rhs(:,:,:,1,termVKhi) = fvort(ukhi,vkhi,zetaraw,corfield(:,:,:,1),&
+                                        dx,dy,dlev,mulfact)
           rhs(:,:,:,1,termTKhi) = ftemp(ukhi,vkhi,t,lev,dx,dy,mulfact)
        endif
     endif
@@ -142,7 +145,8 @@ contains
 !   and substituting it to the RHS
        
     if(mode.eq.'T')then
-       call gen_test(sigmaraw,omegaan,zetaraw,dudp(:,:,:,1),dvdp(:,:,:,1),corfield(:,:,:,1),dx,dy,dlev,ftest)
+       call gen_test(sigmaraw,omegaan,zetaraw,dudp(:,:,:,1),dvdp(:,:,:,1),&
+                     corfield(:,:,:,1),dx,dy,dlev,ftest)
     endif ! (forcing for the general test case if mode.eq.'T')
 
 !   Boundary conditions from WRF omega?  
@@ -161,17 +165,26 @@ contains
 
     do i=1,nres
        if(i.eq.1)then
-          call coarsen3d(boundaries(:,:,:,1),boundaries(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+          call coarsen3d(boundaries(:,:,:,1),boundaries(:,:,:,i),nlon,nlat,&
+               nlev,nlonx(i),nlatx(i),nlevx(i))
        else
-          call coarsen3d(zero(:,:,:,1),boundaries(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+          call coarsen3d(zero(:,:,:,1),boundaries(:,:,:,i),nlon,nlat,nlev,&
+               nlonx(i),nlatx(i),nlevx(i))
        endif
-       call coarsen3d(zero(:,:,:,1),zero(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-       call coarsen3d(sigma(:,:,:,1),sigma(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-       call coarsen3d(feta(:,:,:,1),feta(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-       call coarsen3d(d2zetadp(:,:,:,1),d2zetadp(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-       call coarsen3d(dudp(:,:,:,1),dudp(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-       call coarsen3d(dvdp(:,:,:,1),dvdp(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
-       call coarsen3d(corfield(:,:,:,1),corfield(:,:,:,i),nlon,nlat,nlev,nlonx(i),nlatx(i),nlevx(i))
+       call coarsen3d(zero(:,:,:,1),zero(:,:,:,i),nlon,nlat,nlev,nlonx(i),&
+            nlatx(i),nlevx(i))
+       call coarsen3d(sigma(:,:,:,1),sigma(:,:,:,i),nlon,nlat,nlev,nlonx(i),&
+            nlatx(i),nlevx(i))
+       call coarsen3d(feta(:,:,:,1),feta(:,:,:,i),nlon,nlat,nlev,nlonx(i),&
+            nlatx(i),nlevx(i))
+       call coarsen3d(d2zetadp(:,:,:,1),d2zetadp(:,:,:,i),nlon,nlat,nlev,&
+            nlonx(i),nlatx(i),nlevx(i))
+       call coarsen3d(dudp(:,:,:,1),dudp(:,:,:,i),nlon,nlat,nlev,nlonx(i),&
+            nlatx(i),nlevx(i))
+       call coarsen3d(dvdp(:,:,:,1),dvdp(:,:,:,i),nlon,nlat,nlev,nlonx(i),&
+            nlatx(i),nlevx(i))
+       call coarsen3d(corfield(:,:,:,1),corfield(:,:,:,i),nlon,nlat,nlev,&
+            nlonx(i),nlatx(i),nlevx(i))
        call coarsen3d(sigma0(:,1),sigma0(:,i),1,1,nlev,1,1,nlevx(i))
     enddo
 
@@ -190,14 +203,14 @@ contains
 !       iunit=1
 
     if(mode.eq.'T')then
-       call callsolvegen(ftest,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,&
-            ny2,debug)
+       call callsolvegen(ftest,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,&
+            dlev2,sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,&
+            toler,ny1,ny2,debug)
     endif
 
     if(mode.eq.'t')then
-       call callsolveQG(ftest,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,feta,nres,alfa,toler)
+       call callsolveQG(ftest,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,&
+            dlev2,sigma0,feta,nres,alfa,toler)
     endif
 
     if(mode.eq.'G')then            
@@ -236,8 +249,8 @@ contains
 
     if(mode.eq.'Q')then
        do i=1,2
-          call callsolveQG(rhs(:,:,:,:,i),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,feta,nres,alfa,toler)
+          call callsolveQG(rhs(:,:,:,:,i),zero,omega,nlonx,nlatx,nlevx,dx2,&
+               dy2,dlev2,sigma0,feta,nres,alfa,toler)
           omegas_QG(:,:,:,i)=omega(:,:,:,1)
        enddo
 
