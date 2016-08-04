@@ -89,7 +89,7 @@ contains
                call write_omegas ( outfile, time-time_1+1, calc_b, omegas )
                call write3d ( outfile, time-time_1+1, ome_name, w)
             end if
-            call write_tendencies ( outfile, time-time_1+1, calc_b, hTends )
+            call write_height_tendencies(outfile,time-time_1+1,calc_b,hTends)
             call write3d ( outfile, time-time_1+1, ztend_name, dz_dt )
          end if
 
@@ -231,7 +231,7 @@ contains
       end do
     end function friction
 
-    subroutine write_tendencies ( file, time, calc_b, hTends )
+    subroutine write_height_tendencies ( file, time, calc_b, hTends )
       type ( wrf_file ), intent ( in ) :: file
       integer, intent ( in ) :: time
       logical, intent ( in ) :: calc_b
