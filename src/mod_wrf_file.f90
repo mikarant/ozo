@@ -181,13 +181,6 @@ contains
 
     f % xdim = (/(i, i=1,f%dims(1), 1)/)
     f % ydim = (/(i, i=1,f%dims(2), 1)/)
-!    call check ( nf90_inq_varid ( wrf_infile % ncid, trim ( rname(1) ), varid ) )
-!    call check ( nf90_get_var ( wrf_infile % ncid, varid, f % xdim, &
-!         start = [ 1 ], count = [ f % dims(1)  ] ) )
-    
-!    call check ( nf90_inq_varid ( wrf_infile % ncid, trim ( rname(2) ), varid ) )
-!    call check ( nf90_get_var ( wrf_infile % ncid, varid, f % ydim, &
-!         start = [ 1 ], count = [ f % dims(2)  ] ) )
 
     print*,"Outputfile created!"
   end function create_out_file
