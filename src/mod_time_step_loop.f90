@@ -10,7 +10,7 @@ contains
 
   subroutine time_step_loop ( wrfin_file, outfile, time_1, time_n, alfa, &
                               toler, ny1, ny2, mode, calc_omegas, calc_b, &
-                              debug )
+                              debug, calc_div )
     ! This subroutine contains the main time stepping loop. It gets both
     ! input and output files as input arguments. 
     character :: mode
@@ -24,7 +24,7 @@ contains
     real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
     integer, dimension (:), allocatable :: tdim
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends, omegas_QG
-    logical, intent(in) :: calc_omegas,calc_b,debug
+    logical, intent(in) :: calc_omegas,calc_b,debug, calc_div
     
     if (calc_b) then 
        n_terms = n_terms + 1
@@ -65,13 +65,13 @@ contains
          mulfact  = calmul(p_sfc, p_levs, nlev)
          sigma = define_sigma(T, p_levs)
          !   Calculation of velocity potential
-         call irrotationalWind(u,v,dx,dy,uKhi,vKhi)
+         if(calc_div) call irrotationalWind(u,v,dx,dy,uKhi,vKhi)
 
          if ( calc_omegas ) then
             call calculate_omegas( wrfin_file, T, u, v, w, z, &
                  q, fx, fy, dT_dt, zeta, zetatend, uKhi, vKhi, sigma, &
                  mulfact, alfa, toler, ny1, ny2, mode, calc_b, debug, &
-                 omegas, omegas_QG )
+                 calc_div, omegas, omegas_QG )
          else
             omegas = read_omegas ( outfile, time-time_1+1 )
          end if

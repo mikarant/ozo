@@ -7,11 +7,11 @@ program zo
   character :: mode
   real :: alfa, toler
   integer :: time_1, time_n, ny1, ny2
-  logical :: calc_omegas, calc_b, debug
+  logical :: calc_omegas, calc_b, debug, calc_div
   type ( wrf_file ) :: wrfin_file, out_file
 
   namelist/PARAM/infile,outfile,alfa,toler,ny1,ny2,time_1,time_n,&
-       mode,calc_omegas,debug
+       mode,calc_omegas,calc_div,debug
   read(*,nml=PARAM)
   calc_b=.false.
 
@@ -32,7 +32,7 @@ program zo
   end if
 
   call time_step_loop ( wrfin_file, out_file, time_1, time_n, alfa, toler, &
-                        ny1, ny2, mode, calc_omegas, calc_b, debug)
+                        ny1, ny2, mode, calc_omegas, calc_b, debug, calc_div)
   call close_wrf_file ( wrfin_file )
   call close_wrf_file ( out_file )
 

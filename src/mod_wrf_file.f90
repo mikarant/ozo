@@ -195,7 +195,7 @@ contains
   function open_wrf_file ( fname ) result ( f )
     character ( * ), intent ( in ) :: fname
     type ( wrf_file ) :: f
-    integer :: i, dimid, varid, dimids ( 4 ), nres
+    integer :: i, dimid, varid, nres
 
     print*,"Opening file: ",fname
     call check( nf90_open ( fname, NF90_WRITE, f % ncid ) )
@@ -204,7 +204,6 @@ contains
     do i = 1, 4
        call check ( nf90_inq_dimid ( &
             f % ncid, trim ( rname ( i ) ), dimid ) )
-!       dimids ( i ) = dimid
        call check ( nf90_inquire_dimension ( &
             f % ncid, dimid, len = f % dims ( i ) ) )
     end do

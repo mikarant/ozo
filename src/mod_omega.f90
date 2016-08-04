@@ -8,7 +8,7 @@ contains
 
   subroutine calculate_omegas( file, t, u, v, omegaan, z, q, xfrict, yfrict, &
        ttend, zetaraw, zetatend, uKhi, vKhi, sigmaraw, mulfact, alfa, toler, &
-       ny1, ny2, mode, calc_b, debug, omegas, omegas_QG )
+       ny1, ny2, mode, calc_b, debug, calc_div, omegas, omegas_QG )
 
     real,dimension(:,:,:,:),intent(inout) :: omegas, omegas_QG
     real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend,zetatend
@@ -17,7 +17,7 @@ contains
     real,                   intent(in) :: alfa,toler
     integer,                intent(in) :: ny1,ny2
     character,              intent(in) :: mode
-    logical,                intent(in) :: calc_b,debug
+    logical,                intent(in) :: calc_b,debug,calc_div
     type ( wrf_file ),      intent(in) :: file
 
     real,dimension(:,:,:,:,:),allocatable :: rhs
@@ -90,8 +90,10 @@ contains
        rhs(:,:,:,1,termF) = ffrict(xfrict,yfrict,corfield(:,:,:,1),dx,dy,dlev,mulfact)
        rhs(:,:,:,1,termQ) = fdiab(q,lev,dx,dy,mulfact)
        rhs(:,:,:,1,termA) = fimbal(zetatend,ttend,corfield(:,:,:,1),lev,dx,dy,dlev,mulfact)
-       rhs(:,:,:,1,termVKhi) = fvort(ukhi,vkhi,zetaraw,corfield(:,:,:,1),dx,dy,dlev,mulfact)
-       rhs(:,:,:,1,termTKhi) = ftemp(ukhi,vkhi,t,lev,dx,dy,mulfact)
+       if(calc_div)then
+          rhs(:,:,:,1,termVKhi) = fvort(ukhi,vkhi,zetaraw,corfield(:,:,:,1),dx,dy,dlev,mulfact)
+          rhs(:,:,:,1,termTKhi) = ftemp(ukhi,vkhi,t,lev,dx,dy,mulfact)
+       endif
     endif
 
 !   Deriving quantities needed for the LHS of the 
@@ -206,19 +208,22 @@ contains
        enddo
        
        if (calc_b) then
-          !       Write(*,*)'Boundary conditions'        
           call callsolvegen(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
                sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
           omegas(:,:,:,8)=omega(:,:,:,1)
        end if
-
-       call callsolvegen(rhs(:,:,:,:,termvkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
-       omegas(:,:,:,termvkhi)=omega(:,:,:,1)
-       call callsolvegen(rhs(:,:,:,:,termtkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
-       omegas(:,:,:,termtkhi)=omega(:,:,:,1)
-    endif
+       if (calc_div) then
+          call callsolvegen(rhs(:,:,:,:,termvkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+               sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+          omegas(:,:,:,termvkhi)=omega(:,:,:,1)
+          call callsolvegen(rhs(:,:,:,:,termtkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+               sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+          omegas(:,:,:,termtkhi)=omega(:,:,:,1)
+       else
+           omegas(:,:,:,termvkhi)=0.
+           omegas(:,:,:,termtkhi)=0.
+        endif
+     endif
 
     if(mode.eq.'Q')then
        do i=1,2
