@@ -73,3 +73,4 @@ Thus, with that data, you can run OZO for two timesteps (h=118-119).
 `calc_omegas`: True, if you want to calculate vertical motion fields. False, if you have already calculated them, and want now recalculate only height tendencies.  
 In the latter case, omegas are read from the output file.
 
+`calc_div`: Choose if you want to calculate omega and height tendency fields by divergent wind.
