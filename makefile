@@ -13,7 +13,7 @@ SRC             = ozo.f90 mod_const.f90 mod_poisson_DFT.f90 mod_zo.f90 \
 	          mod_common_subrs.f90 mod_time_step_loop.f90 \
 	          mod_wrf_file.f90 mkl_poisson.f90 mkl_dfti.f90 \
 	          mod_poisson_green.f90 mod_poisson_interp.f90 \
-		  mod_omega.f90 mod_omega_subrs.f90
+		  mod_omega.f90
 OBJS            = $(SRC:.f90=.o) 
 
 vpath %.f90 $(MKLROOT)/include src
