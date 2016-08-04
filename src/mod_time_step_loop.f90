@@ -13,19 +13,20 @@ contains
                               debug, calc_div )
     ! This subroutine contains the main time stepping loop. It gets both
     ! input and output files as input arguments. 
-    character :: mode
-    type ( wrf_file ) :: wrfin_file, outfile
-    integer :: time_1, time_n, time, i, ny1, ny2
-    real :: alfa, toler
+    type ( wrf_file ), intent(in) :: wrfin_file, outfile
+    character,         intent(in) :: mode
+    logical,           intent(in) :: calc_omegas,calc_b,debug, calc_div
+    integer,           intent(in) :: time_1, time_n, ny1, ny2
+    real,              intent(in) :: alfa, toler
     real, dimension ( :, :, : ), pointer :: T, u, v, z
-    real, dimension ( :, :, : ), allocatable :: &
-         dT_dt, du_dt, dv_dt, dz_dt, fx, fy, q, w, mulfact,zeta,zetatend,&
-         ukhi,vkhi,sigma
-    real, dimension ( :, : ), allocatable :: mu_inv, p_sfc
-    integer, dimension (:), allocatable :: tdim
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends, omegas_QG
-    logical, intent(in) :: calc_omegas,calc_b,debug, calc_div
-    
+    real, dimension ( :, :, : ),    allocatable :: dT_dt, du_dt, dv_dt, dz_dt, &
+                                                   fx, fy, q, w, mulfact,zeta, &
+                                                   zetatend,ukhi,vkhi,sigma
+    real, dimension ( :, : ),       allocatable :: mu_inv, p_sfc
+    integer, dimension ( : ),       allocatable :: tdim
+    integer :: time, i
+
     if (calc_b) then 
        n_terms = n_terms + 1
     end if
@@ -78,7 +79,7 @@ contains
 
          call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
               dx, dy, corpar, q, fx, fy, dz_dt, dT_dt, zeta, zetatend, &
-              uKhi, vKhi, sigma, mulfact, calc_b, debug, hTends )
+              uKhi, vKhi, sigma, mulfact, calc_b, hTends )
          
          ! Write data to the output file
          if ( mode .eq. 'Q' ) then

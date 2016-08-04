@@ -11,8 +11,7 @@ contains
 !------------SUBROUTINES--------------
 !
   subroutine calculate_tendencies(omegas,t,u,v,w,z,lev,dx,dy,corpar,q,xfrict,&
-       yfrict,ztend,ttend,zeta,zetatend,uKhi,vKhi,sigma,mulfact,calc_b,debug,&
-       hTends)
+       yfrict,ztend,ttend,zeta,zetatend,uKhi,vKhi,sigma,mulfact,calc_b,hTends)
 
 !   This is the main subroutine of solving the Zwack-Okossi equation. Input 
 !   arguments are variables from WRF and omegas, and output of this subroutine
@@ -23,7 +22,7 @@ contains
     real,dimension(:,:,:),  intent(in) :: ttend,mulfact,uKhi,vKhi,sigma
     real,dimension(:),      intent(in) :: lev,corpar
     real,                   intent(in) :: dx,dy 
-    logical,                intent(in) :: calc_b,debug
+    logical,                intent(in) :: calc_b
     real,dimension(:,:,:,:),intent(inout) :: hTends
     real,dimension(:,:,:),  intent(inout) :: z,q,ztend,zetatend
 

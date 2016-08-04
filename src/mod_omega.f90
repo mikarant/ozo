@@ -191,7 +191,8 @@ contains
 
     if(mode.eq.'T')then
        call callsolvegen(ftest,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+            sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,&
+            ny2,debug)
     endif
 
     if(mode.eq.'t')then
@@ -202,22 +203,30 @@ contains
     if(mode.eq.'G')then            
 
        do i=1,5
-          call callsolvegen(rhs(:,:,:,:,i),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-               sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+          if(debug)print*,omega_long_names(i)
+          call callsolvegen(rhs(:,:,:,:,i),zero,omega,nlonx,nlatx,nlevx,dx2,&
+               dy2,dlev2,sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,&
+               alfa,toler,ny1,ny2,debug)
           omegas(:,:,:,i)=omega(:,:,:,1)
        enddo
        
        if (calc_b) then
-          call callsolvegen(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-               sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+          if(debug)print*,ome_b_long_name
+          call callsolvegen(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,&
+               dlev2,sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,&
+               toler,ny1,ny2,debug)
           omegas(:,:,:,8)=omega(:,:,:,1)
        end if
        if (calc_div) then
-          call callsolvegen(rhs(:,:,:,:,termvkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-               sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+          if(debug)print*,omega_long_names(6)
+          call callsolvegen(rhs(:,:,:,:,termvkhi),zero,omega,nlonx,nlatx,nlevx,&
+               dx2,dy2,dlev2,sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,&
+               nres,alfa,toler,ny1,ny2,debug)
           omegas(:,:,:,termvkhi)=omega(:,:,:,1)
-          call callsolvegen(rhs(:,:,:,:,termtkhi),zero,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-               sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,nres,alfa,toler,ny1,ny2)
+          if(debug)print*,omega_long_names(7)
+          call callsolvegen(rhs(:,:,:,:,termtkhi),zero,omega,nlonx,nlatx,nlevx,&
+               dx2,dy2,dlev2,sigma0,sigma,feta,corfield,d2zetadp,dudp,dvdp,&
+               nres,alfa,toler,ny1,ny2,debug)
           omegas(:,:,:,termtkhi)=omega(:,:,:,1)
        else
            omegas(:,:,:,termvkhi)=0.

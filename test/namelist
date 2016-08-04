@@ -6,7 +6,7 @@
   ny1=4,ny2=2,
   mode='G',
   calc_omegas=.true.,
-  calc_div=.false.
+  calc_div=.true.
   debug = .true.
 /
 
