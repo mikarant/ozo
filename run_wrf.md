@@ -123,6 +123,6 @@ In addition of levels, following values are recommended for the rest of the name
 
 [//]: # (Reference links)
 
-[WRF]: <https://software.intel.com/en-us/articles/free_mkl>
+[WRF]: <http://www2.mmm.ucar.edu/wrf/users/download/get_source.html>
 [tutorial]: <http://www2.mmm.ucar.edu/wrf/OnLineTutorial/index.htm>
 [pinterp]: <http://www2.mmm.ucar.edu/wrf/OnLineTutorial/Tools/p_interp.htm>
