@@ -24,9 +24,9 @@ module mod_wrf_file
   character ( 3 ), parameter :: htend_b_name='htb'
   character ( 9 ), parameter :: ztend_name='ztend_WRF'
   character ( 7 ), parameter :: ome_name='ome_WRF'
-  character ( 18 ), dimension ( 4 ), parameter :: rname = &
-       [ 'west_east         ', 'south_north       ', 'num_metgrid_levels', &
-         'Time              ' ]
+  character ( 11 ), dimension ( 4 ), parameter :: rname = &
+       [ 'west_east  ', 'south_north', 'vlevs      ', &
+         'time       ' ]
   character ( 37 ), dimension ( 3 ), parameter :: QG_omega_long_names = &
        [ 'QG omega due to vorticity advection  ', &
        'QG omega due to temperature advection', &
@@ -244,10 +244,9 @@ contains
 
     print*,"Getting pressure level information from the input file..."
     allocate ( f % pressure_levels ( f % dims ( 3 ) ) )
-    call check ( nf90_inq_varid ( f % ncid, 'PRES', varid ) )
+    call check ( nf90_inq_varid ( f % ncid, 'LEV', varid ) )
     call check ( nf90_get_var ( f % ncid, varid, f % pressure_levels, &
-         start = [ 1, 1, 1, 2 ], &
-         count = [ 1, 1, size ( f % pressure_levels ), 1 ] ) )
+         start = [ 1 ], count = [ size ( f % pressure_levels ) ] ) )
 
     f % nlon(1) = f % dims(1)
     f % nlat(1) = f % dims(2)
@@ -267,11 +266,12 @@ contains
     
     print*,"Getting time information from the input file..."
     allocate ( f % times ( f % dims ( 4 ) ) )
-    call check ( nf90_inq_varid ( f % ncid, 'Time', varid ) )
+!    f % times = (/ ( i, i = 0, f % dims ( 4 ) - 1, 1 ) /) 
+    call check ( nf90_inq_varid ( f % ncid, 'XTIME', varid ) )
     call check ( nf90_get_var ( f % ncid, varid, f % times, &
          start = [ 1 ], &
          count = [ size ( f % times ) ] ) )
-    f % times = f % times * 3600
+    f % times = f % times * 60
 
     print*,"Getting coriolisparameter from the input file..."
     allocate ( f % corpar ( f % dims ( 2 ) ) )
