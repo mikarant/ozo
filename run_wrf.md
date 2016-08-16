@@ -100,22 +100,21 @@ That file is the output netcdf-file of the simulation and contains the data on m
 ### 4. Interpolating to pressure levels
 
 
-WRF Tutorial provides good instructions to compile and run p\_interp utility:
+To interpolate WRF output to pressure levels, you need to download utility called wrf\_interp:
 
-[http://www2.mmm.ucar.edu/wrf/OnLineTutorial/Tools/p_interp.htm][pinterp]
+[http://www2.mmm.ucar.edu/wrf/users/download/get_sources.html#utilities][wrfinterp]
+
+Tarball contains a README-file for compiling the program. 
 
 
-
-OZO requires pressure levels to be evenly spaced, so we recommend following values for them to the _namelist.pinterp_:  
+OZO requires pressure levels to be evenly spaced, so we recommend following values for them to the _namelist.vinterp_:  
 
 `interp_levels  = 1000.,950.,900.,850.,800.,750.,700.,650.,600.,550.,500.,450.,400.,350.,300.,250.,200.,150.,100.,`  
 
 
-In addition of levels, following values are recommended for the rest of the namelist variables:  
+In addition to levels, following values are recommended for some of the namelist variables:  
 
-`extrapolate    = 1,`
-
-`interp_method  = 2,`  
+`extrapolate    = 1,` 
 
 `unstagger_grid = .TRUE.`  
 
@@ -125,4 +124,4 @@ In addition of levels, following values are recommended for the rest of the name
 
 [WRF]: <http://www2.mmm.ucar.edu/wrf/users/download/get_source.html>
 [tutorial]: <http://www2.mmm.ucar.edu/wrf/OnLineTutorial/index.htm>
-[pinterp]: <http://www2.mmm.ucar.edu/wrf/OnLineTutorial/Tools/p_interp.htm>
+[wrfinterp]: <http://www2.mmm.ucar.edu/wrf/users/download/get_sources.html#utilities>
