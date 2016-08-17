@@ -455,15 +455,15 @@ contains
           call poisson_solver_2D( gvortTends ( :, :, k, 8 ), &
                dx, dy, hTends(:,:,k,8), bd_0 ( :, k ), bd_0 ( :, k ) )
        end if
-       ! "Pseudo" height tendency
+       ! Vorticity advection by divergent winds
        call poisson_solver_2D( gvortTends ( :, :, k, termVKhi ), & 
             dx, dy, hTends(:,:,k,termVKhi), bd_ay ( :, k ), bd_by ( :, k ) )
-       ! WRF omega height tendency
+       ! Thermal advection by divergent winds
        call poisson_solver_2D( gvortTends ( :, :, k, termTKhi ), & 
             dx, dy, hTends(:,:,k,termTKhi), bd_ay ( :, k ), bd_by ( :, k ) )
        ! WRF omega height tendency
-       call poisson_solver_2D( gvtend_omegaWRF ( :, :, k ), & 
-            dx, dy, hTends(:,:,k,termTKhi), bd_ay ( :, k ), bd_by ( :, k ) )
+ !      call poisson_solver_2D( gvtend_omegaWRF ( :, :, k ), & 
+ !           dx, dy, hTends(:,:,k,termTKhi), bd_ay ( :, k ), bd_by ( :, k ) )
     enddo
     
   end subroutine zwack_okossi
