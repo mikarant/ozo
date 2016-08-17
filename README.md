@@ -4,43 +4,40 @@ This is a README-file for OZO software.
 
 
 ## Source code
-Source code files of the OZO are located in the directory called _src_. 
+Source code files of the OZO are located in the _src_ directory. 
 
 1. mod\_common\_subrs.f90  
-	Includes calculation subroutines which are common for solving both omega and zwack-okossi equation, such as horizontal and vertical derivatives, laplacian and relative vorticity.
+	Includes calculation subroutines which are common for both omega and zwack-okossi equation, such as approximation of horizontal and vertical derivatives, laplacian etc.
 	
 2. mod\_const.f90  
 	This short module contains only definition of some natural constants.
 
 3. mod\_omega.f90  
-	This file contains the main routine of the solving of omega equation. All the other subroutines called by this routine are located in a file mod\_omega\_subrs.f90.
-
-4. mod\_omega\_subrs.f90  
-	All of the omega-related subroutines are located here.
+	This module contains subroutines related to the solving of the omega equation.
 	
-5. mod\_poisson\_DFT.f90  
-	This module contains subroutines related to solving of Poisson's equation in the Zwack-Okossi equation. 
+4. mod\_poisson\_DFT.f90  
+	This module contains subroutines related to the solving of the Poisson's equation in the Zwack-Okossi equation. 
 	
-6. mod\_subrs.f90  
-	Module for solving the Zwack-Okossi equation and all subroutines related to it.
+6. mod\_zo.f90  
+	This module contains the solving of the Zwack-Okossi equation and all other relevant subroutines.
 	
 7. mod\_time\_step\_loop.f90  
-	Contains time stepping loop + some input/output routines. 
+	Contains the main time stepping loop + some input/output routines. 
 
 8. mod\_wrf\_file.f90  
-	This module includes routines to create and handle input and output files.
+	This module includes netcdf IO routines to create and handle input and output files.
 	
 9. ozo.f90  
-	This is the main program of the OZO.
+	The main program of the OZO.
 	
 ## Running WRF and OZO
 _run\_wrf_ includes instructions to compile and run WRF model to produce input data for OZO.  
 
-_run\_ozo_ includes instrutions to compile and OZO itself. 
+_run\_ozo_ includes instructions to compile and run OZO itself. 
 
 ## Test data
-Test data for testing the functionality of OZO can be found from the Downloads. It contains output of WRF baroclinic wave simulation from timesteps 117-120.  
-Thus, with that data, you can run OZO for two timesteps (h=118-119).
+Test data for testing the functionality of OZO can be found from the Downloads. It contains output of the WRF baroclinic wave simulation from timesteps 117-120.  
+Thus, with that data, OZO can be run for two timesteps (h=118-119).
 
 ## Namelist
 
@@ -73,4 +70,4 @@ Thus, with that data, you can run OZO for two timesteps (h=118-119).
 `calc_omegas`: True, if you want to calculate vertical motion fields. False, if you have already calculated them, and want now recalculate only height tendencies.  
 In the latter case, omegas are read from the output file.
 
-`calc_div`: Choose if you want to calculate omega and height tendency fields by divergent wind.
+`calc_div`: Choose if you want to calculate omega and height tendency fields due to divergent vorticity and thermal advection.
