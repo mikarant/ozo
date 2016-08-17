@@ -16,11 +16,11 @@ And here is information about downloading and compiling WRF on your local comput
 
 ### 1. Downloading and compiling WRF on your local computer
 
-Get the source code of the WRF version 3.7.1 and extract it:
+Get the source code of the WRF version 3.8.1 and extract it:
 
 ```sh
-wget http://www2.mmm.ucar.edu/wrf/src/WRFV3.7.1.TAR.gz
-tar xvf WRFV3.7.1.TAR.gz
+wget http://www2.mmm.ucar.edu/wrf/src/WRFV3.8.1.TAR.gz
+tar xvf WRFV3.8.1.TAR.gz
 ```
 
 Go to the appeared directory and run following commands. Those will compile the model for a single processor job with no nesting and using gfortran compiler. 
