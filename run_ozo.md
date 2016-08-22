@@ -18,9 +18,9 @@ It can be downloaded for free, but registration is required.
 
 2. Go to the local directory where you want to put the program
 
-3. Write to the command line (provided that you are added as an user to the private repository):
+3. Write to the command line:
 
-        wget --user=<email> --password=<password> https://bitbucket.org/mikarant/ozo/get/master.tar.gz
+        wget https://bitbucket.org/mikarant/ozo/get/master.tar.gz
 
 
 4. Extract the tarball by command
@@ -39,9 +39,9 @@ For running the test case, you need to download a test data. Data file is in net
         cd ozo/test
 
 
-2. Download the data by command (provided that you are added as an user to the private repository):
+2. Download the data by command:
 
-        wget --user=<email> --password=<password> https://bitbucket.org/mikarant/ozo/downloads/test_WRF.nc
+        wget https://bitbucket.org/mikarant/ozo/downloads/test_WRF.nc
 
 
 ## 4. Compiling the program
