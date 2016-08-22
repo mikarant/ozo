@@ -118,13 +118,18 @@ wget http://www2.mmm.ucar.edu/wrf/src/WRF_INTERP.TAR.gz
 tar -xvf WRF_INTERP.TAR.gz
 ```
 
+If you are using gfortran, you may need to do small change to the source code. After that, compile it:
 
-OZO requires pressure levels to be evenly spaced, so we recommend following values for them to the _namelist.vinterp_:  
+```sh
+sed -i 's/\.eq\. \.T/.eqv. .T/' wrf_interp.F90
+gfortran -o wrf_interp.exe wrf_interp.F90 -I/usr/include -free -L/usr/lib -lnetcdff
+```
 
-`interp_levels  = 1000.,950.,900.,850.,800.,750.,700.,650.,600.,550.,500.,450.,400.,350.,300.,250.,200.,150.,100.,`  
+Next, you need change some namelist values in the _namelist.vinterp_:  
 
+`interp_levels  = 1000,-100,50`  
 
-In addition to levels, following values are recommended for some of the namelist variables:  
+`start_date =  '0001-01-01_00'`  
 
 `extrapolate    = 1,` 
 
