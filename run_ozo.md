@@ -53,13 +53,19 @@ Downloaded directory contains a makefile for compiling and running the program. 
 
         emacs makefile
 
-3. Change following paths according to where netcdf and mkl libraries are located locally in your computer:
+3. Change following paths according to where netcdf and mkl libraries are located locally in your computer. If you are using newer version of the MKL, change also the version number from the path.
 
         NETCDF_INCLUDES = -I/usr/include  
         NETCDF_LIBS     = -L/usr/lib -lnetcdff  
         MKLROOT         = /home/mikarant/intel/compilers_and_libraries_2016.2.181/linux/mkl  
 
-4. Save your changes and close the makefile
+4. Open _deps.mk_ and change also the paths of the two MKL objects used in the program:
+
+        emacs deps.mk
+        mkl_poisson.o : /home/mikarant/intel/compilers_and_libraries_2016.2.181/linux/mkl/include/mkl_poisson.f90 mkl_dfti.o 
+        mkl_dfti.o : /home/mikarant/intel/compilers_and_libraries_2016.2.181/linux/mkl/include/mkl_dfti.f90 
+
+5. Save your changes and close the makefile and deps.mk
 
 If your changed paths are correct, you should be now able to compile the program. Compiling can be done by just writing command
 ```bash
