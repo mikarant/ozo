@@ -125,16 +125,32 @@ sed -i 's/\.eq\. \.T/.eqv. .T/' wrf_interp.F90
 gfortran -o wrf_interp.exe wrf_interp.F90 -I/usr/include -free -L/usr/lib -lnetcdff
 ```
 
-Next, you need change some namelist values in the _namelist.vinterp_:  
+Next, you need change some namelist values in the _namelist.vinterp_. Here are example values:  
 
-`interp_levels  = 1000,-100,50`  
+```sh
+&io
+ path_to_input = '/home/mikarant/WRFV3/test/em_b_wave'
+ path_to_output = '/home/mikarant/WRFV3/test/em_b_wave/interp'
+ root_name = 'wrfout'
+ grid_id = 1
+ start_date =  '0001-01-01_00'
+ leap_year  = .FALSE.
+ debug = .TRUE.
+/
 
-`start_date =  '0001-01-01_00'`  
+&interp_in
+  interp_levels = 1000,-100,50 
+  extrapolate = 1 
+  unstagger_grid = .TRUE. 
+  vert_coordinate = 'pres'
+/
+```
 
-`extrapolate    = 1,` 
+After this, run the program:
 
-`unstagger_grid = .TRUE.`  
-
+```sh
+./wrf_interp.exe
+```
 
 
 [//]: # (Reference links)
