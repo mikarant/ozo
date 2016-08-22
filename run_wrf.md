@@ -104,7 +104,19 @@ To interpolate WRF output to pressure levels, you need to download utility calle
 
 [http://www2.mmm.ucar.edu/wrf/users/download/get_sources.html#utilities][wrfinterp]
 
-1. Build
+Create a directory for the program:
+
+```sh
+mkdir -p ~/wrf/wrf_interp
+cd $_
+```
+
+Get the source code and extract it:
+
+```sh
+wget http://www2.mmm.ucar.edu/wrf/src/WRF_INTERP.TAR.gz
+tar -xvf WRF_INTERP.TAR.gz
+```
 
 
 OZO requires pressure levels to be evenly spaced, so we recommend following values for them to the _namelist.vinterp_:  
