@@ -104,7 +104,7 @@ To interpolate WRF output to pressure levels, you need to download utility calle
 
 [http://www2.mmm.ucar.edu/wrf/users/download/get_sources.html#utilities][wrfinterp]
 
-Tarball contains a README-file for compiling the program. 
+1. Build
 
 
 OZO requires pressure levels to be evenly spaced, so we recommend following values for them to the _namelist.vinterp_:  
