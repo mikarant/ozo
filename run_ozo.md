@@ -8,7 +8,7 @@ This is a manual for downloading, compiling and running the OZO program in your 
 
 2. Intel Math Kernel Library. The program uses Intel's MKL library for solving Poisson's equation. 
 It can be downloaded for free, but registration is required. 
-   See more: [https://software.intel.com/en-us/articles/free_mkl] [MKL]
+   See more: [https://software.intel.com/en-us/intel-mkl] [MKL]
    
 3. GNU's gfortran compiler
 
@@ -80,5 +80,5 @@ in the ozo-directory.
 
 [//]: # (Reference links)
 
-[MKL]: <https://software.intel.com/en-us/articles/free_mkl>
+[MKL]: <https://software.intel.com/en-us/intel-mkl>
 
