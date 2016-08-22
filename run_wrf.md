@@ -146,7 +146,7 @@ Next, you need change some namelist values in the _namelist.vinterp_. Here are e
 /
 ```
 
-After this, run the program:
+After that, run the program:
 
 ```sh
 ./wrf_interp.exe
