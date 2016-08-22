@@ -55,7 +55,7 @@ Section _&time\_control_:
 `history_interval = 60` Output interval in seconds. 
 
 `iofields_filename = = "iofield_list.txt"` This is optional. By default, WRF outputs huge number of unnecessary variables.  
-With that file you can change the number of output variables. This part needs to be added to the namelist since it is not there by default.
+With that file you can change the number of output variables. You can find this file from wrf-directory.
 
 
 Section &physics:  
