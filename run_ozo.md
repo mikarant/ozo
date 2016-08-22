@@ -6,9 +6,9 @@ This is a manual for downloading, compiling and running the OZO program in your 
 
 1. Standard NETCDF-library
 
-2. Intel Math Kernel Library. The program uses Intel's MKL library for solving Poisson's equation. 
-It can be downloaded for free, but registration is required. 
-   See more: [https://software.intel.com/en-us/intel-mkl] [MKL]
+2. Intel Math Kernel Library.  
+The program uses Intel's MKL library for solving Poisson's equation. It can be downloaded for free, but registration is required. See more: [https://software.intel.com/en-us/intel-mkl] [MKL]  
+The package includes an installation script which is recommended to use.
    
 3. GNU's gfortran compiler
 
