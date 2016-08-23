@@ -17,10 +17,11 @@ The program uses Intel's MKL library for solving Poisson's equation. It can be d
 
 2. Go to the local directory where you want to put the program
 
-3. To get the last version (last commit) of the OZO, write to the command line:
+3. Write to the command line:
 
-        wget https://bitbucket.org/mikarant/ozo/get/master.tar.gz
+        git clone https://mikarant@bitbucket.org/mikarant/ozo.git
 
+That command clones the repository to your own computer.
 
 4. Extract the tarball by command
 
