@@ -22,10 +22,10 @@ The program uses Intel's MKL library for solving Poisson's equation. It can be d
         git clone https://mikarant@bitbucket.org/mikarant/ozo.git
  That command clones the repository for your own computer.
 
-4. Next time, you may want to download the latest version of the program before using. That can be done by command:
+4. After cloning, if you want download the latest version of the ozo, you can do it by command
 
         git pull origin master
-
+ 
 
 If the download was succesful, you should now have folder called `mikarant-ozo-xxxx` appeared to your local drive. In the folder name, xxxx refers the last commit ID.
 
