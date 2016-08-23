@@ -21,7 +21,7 @@ The program uses Intel's MKL library for solving Poisson's equation. It can be d
 
         git clone https://mikarant@bitbucket.org/mikarant/ozo.git
 
-  That command clones the repository for your own computer.
+ That command clones the repository for your own computer.
 
 4. Extract the tarball by command
 
