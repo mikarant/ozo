@@ -1,6 +1,6 @@
 SHELL           = /bin/bash
 FC              = gfortran
-
+MAKEDEPF90      = ~/bin/makedepf90
 NETCDF_INCLUDES = -I/usr/include
 NETCDF_LIBS     = -L/usr/lib -lnetcdff
 MKLROOT         = /home/mikarant/intel/compilers_and_libraries_2016.2.181/linux/mkl
@@ -36,5 +36,6 @@ clean :
 
 # Create dependencies automatically
 deps.mk : src/*.f90 mkl_poisson.f90 mkl_dfti.f90
+	[ -x $(MAKEDEPF90) ] && $(MAKEDEPF90) -b '' $^ > $@
 
 include deps.mk
