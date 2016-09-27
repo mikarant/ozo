@@ -1,12 +1,12 @@
  &PARAM
-  infile='/home/mikarant/data/interp/wrfout_d01_0001-01-01_00:00:00_INTRP',
+  infile='/home/mikarant/data/interp/wrfout_d01_0001-01-01_INTRP.nc',
   outfile='/home/mikarant/ozo/test/ozo_output_test.nc',
   time_1=2,time_n=240,
   alfa=0.2,toler=5e-5,
   ny1=4,ny2=2,
   mode='G',
   calc_omegas=.true.,
-  calc_div=.true.
+  calc_div=.false.
   debug = .false.
 /
 

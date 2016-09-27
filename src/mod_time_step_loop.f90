@@ -46,8 +46,7 @@ contains
       allocate ( omegas_QG ( nlon, nlat, nlev, 3 ) )
       allocate ( ukhi (nlon, nlat, nlev) )
       allocate ( vkhi (nlon, nlat, nlev) )
-      allocate ( w(nlon,nlat,nlev))
-      w=0.
+ !     allocate ( w(nlon,nlat,nlev))
 
       call read_T_u_v_z ( wrfin_file, time_1 - 2 )
       call read_T_u_v_z ( wrfin_file, time_1 - 1 )
@@ -62,7 +61,7 @@ contains
          fx     = friction ( wrfin_file, time, 'U', mu_inv )
          fy     = friction ( wrfin_file, time, 'V', mu_inv )
          p_sfc  = real2d ( wrfin_file, time, [ 'PSFC' ]  )
-!         w      = real3d ( wrfin_file, time, [ 'WW' ]  )
+         w      = real3d ( wrfin_file, time, [ 'WW' ]  )
          zeta   = curl_cart ( u, v, dx, dy )
          zetatend = curl_cart ( du_dt, dv_dt, dx, dy )
          mulfact  = calmul(p_sfc, p_levs, nlev)
