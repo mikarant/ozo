@@ -55,11 +55,11 @@ Section _&time\_control_:
 `history_interval = 60` Output interval in seconds. 
 
 `iofields_filename = = "iofield_list.txt"` This is optional. By default, WRF outputs huge number of unnecessary variables.  
-With that file you can change the number of output variables. You can find this file from wrf-directory.
+With that file you can change the number of output variables. You can find an example file from wrf-directory.
 
 
 Section &physics:  
-These values can be changed according your taste, but provided numbers are more or less the simplest schemes.  
+Recommended values are below. No radiation is usually included.
 
 `mp_physics = 2`  
 
@@ -118,14 +118,14 @@ wget http://www2.mmm.ucar.edu/wrf/src/WRF_INTERP.TAR.gz
 tar -xvf WRF_INTERP.TAR.gz
 ```
 
-If you are using gfortran, you may need to do small change to the source code. After that, compile it:
+If you are using gfortran, you may need to do a small change to the source code. After that, compile it:
 
 ```sh
 sed -i 's/\.eq\. \.T/.eqv. .T/' wrf_interp.F90
 gfortran -o wrf_interp.exe wrf_interp.F90 -I/usr/include -free -L/usr/lib -lnetcdff
 ```
 
-Next, you need change some namelist values in the _namelist.vinterp_. Here are example values:  
+Next, you need to change some namelist values in the _namelist.vinterp_. Here are example values:  
 
 ```sh
 &io
