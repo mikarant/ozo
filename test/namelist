@@ -1,6 +1,6 @@
  &PARAM
-  infile='/home/mikarant/data/interp/wrfout_d01_0001-01-01_INTRP.nc',
-  outfile='/home/mikarant/ozo/test/ozo_output_test.nc',
+  infile='/home/mikarant/data/em_b_wave_100km_T/wrfout_d01_INTRP_T1',
+  outfile='/home/mikarant/ozo/test/ozo_output_test_T1.nc',
   time_1=2,time_n=240,
   alfa=0.2,toler=5e-5,
   ny1=4,ny2=2,

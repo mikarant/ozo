@@ -46,8 +46,7 @@ contains
       allocate ( omegas_QG ( nlon, nlat, nlev, 3 ) )
       allocate ( ukhi (nlon, nlat, nlev) )
       allocate ( vkhi (nlon, nlat, nlev) )
- !     allocate ( w(nlon,nlat,nlev))
-
+ 
       call read_T_u_v_z ( wrfin_file, time_1 - 2 )
       call read_T_u_v_z ( wrfin_file, time_1 - 1 )
       i=0
@@ -93,6 +92,8 @@ contains
             call write_height_tendencies(outfile,time-time_1+1,calc_b,hTends)
             call write3d ( outfile, time-time_1+1, ztend_name, dz_dt )
          end if
+
+         call write3d ( outfile, time-time_1+1, 'GHT', z)
 
       end do
 
