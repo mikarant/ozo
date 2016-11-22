@@ -94,6 +94,7 @@ contains
          end if
 
          call write3d ( outfile, time-time_1+1, 'GHT', z)
+         call write2d ( outfile, time-time_1+1, 'PSFC', p_sfc)
 
       end do
 
@@ -314,6 +315,16 @@ contains
                 [ 1, 1, 1, time ], &
                 [ nlon, nlat, nlev, 1 ] ) )
         end do
+
+        if (calc_b) then
+           call check ( nf90_inq_varid ( ncid, &
+                trim ( ome_b_name ), varid ) )
+           call check ( nf90_put_var ( ncid, varid, &
+                omegas ( :, :, :, 8 ), &
+                [ 1, 1, 1, time ], &
+                [ nlon, nlat, nlev, 1 ] ) )
+        end if
+
       end associate
     end subroutine write_omegas_QG
 
@@ -340,6 +351,28 @@ contains
       end associate
 
     end subroutine write3d
+
+    subroutine write2d ( file, time, name, data )
+      type ( wrf_file ), intent ( in ) :: file
+      integer, intent ( in ) :: time
+      character(*) :: name
+      real, dimension ( :, : ) :: data
+      integer :: varid
+
+      associate ( &
+           ncid => file % ncid, &
+           nlon => file % dims ( 1 ), &
+           nlat => file % dims ( 2 ) )
+        
+        call check ( nf90_inq_varid ( ncid, &
+             trim ( name ), varid ) )
+        call check ( nf90_put_var ( ncid, varid, &
+             data, [ 1, 1, time ], &
+             [ nlon, nlat, 1 ] ) )
+
+      end associate
+
+    end subroutine write2d
   end subroutine time_step_loop
 
 end module mod_time_step_loop

@@ -17,9 +17,9 @@ module mod_wrf_file
        htend_term_names &
        = [ 'htv   ', 'htt   ', 'htf   ', 'htq   ', 'hta   ', &
        'htvKhi', 'httKhi' ]
-  character ( 8 ), dimension ( 3 ), parameter :: &
+  character ( 8 ), dimension ( 2 ), parameter :: &
        QG_omega_term_names &
-       = [ 'ome_v_QG', 'ome_t_QG', 'ome_b_QG' ]
+       = [ 'ome_v_QG', 'ome_t_QG' ]
   character ( 5 ), parameter :: ome_b_name='ome_b'
   character ( 3 ), parameter :: htend_b_name='htb'
   character ( 9 ), parameter :: ztend_name='ztend_WRF'
@@ -27,10 +27,9 @@ module mod_wrf_file
   character ( 11 ), dimension ( 4 ), parameter :: rname = &
        [ 'west_east  ', 'south_north', 'vlevs      ', &
          'time       ' ]
-  character ( 37 ), dimension ( 3 ), parameter :: QG_omega_long_names = &
+  character ( 37 ), dimension ( 2 ), parameter :: QG_omega_long_names = &
        [ 'QG omega due to vorticity advection  ', &
-       'QG omega due to temperature advection', &
-       'QG omega due to boundary conditions  ' ]
+       'QG omega due to temperature advection' ]
   character ( 49 ), dimension ( 7 ), parameter :: omega_long_names = &
        [ 'omega due to vorticity advection                 ', &
        'omega due to temperature advection               ', &
@@ -71,10 +70,10 @@ contains
     type ( wrf_file ) :: f
     integer :: dimids(4),i,status,varid,varids(4)
     character :: mode
-    
+
     ! Create a new netcdf file
     call check( nf90_create ( fname, NF90_CLOBBER, f % ncid ) )
-    
+
     ! Copy dimension information from wrf input file
     f % dims = wrf_infile % dims
     f % pressure_levels = wrf_infile % pressure_levels
@@ -84,7 +83,7 @@ contains
        call def_dim(f%ncid,rname(i),dimids(i),f%dims(i),.FALSE.)
     enddo
     call def_dim(f%ncid,rname(4),dimids(4),f%dims(4),.TRUE.)
-    
+
     ! Add axis attributes to dimensions
     do i = 1, 4
        call check ( nf90_inq_varid ( &
@@ -209,6 +208,16 @@ contains
             trim('geopotential height') ) )
        call check( nf90_put_att(f % ncid, varid,trim('units'),&
             trim('gpm') ) )
+
+    ! Create psfc variable
+       status = nf90_def_var ( f % ncid, trim ( 'PSFC' ), NF90_FLOAT, &
+            (/ 1, 2, 4/), varid )
+       if ( .not. ( status == nf90_enameinuse .or. status == NF90_NOERR ) ) &
+            call check ( status )
+       call check( nf90_put_att(f % ncid, varid,trim('description'),&
+            trim('sfc pressure') ) )
+       call check( nf90_put_att(f % ncid, varid,trim('units'),&
+            trim('Pa') ) )
     
 
     ! Stop defining mode

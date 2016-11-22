@@ -210,7 +210,7 @@ contains
 
     if(mode.eq.'t')then
        call callsolveQG(ftest,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,&
-            dlev2,sigma0,feta,nres,alfa,toler)
+            dlev2,sigma0,feta,nres,alfa,toler,debug)
     endif
 
     if(mode.eq.'G')then            
@@ -249,15 +249,18 @@ contains
 
     if(mode.eq.'Q')then
        do i=1,2
+          if(debug)print*,QG_omega_long_names(i)
           call callsolveQG(rhs(:,:,:,:,i),zero,omega,nlonx,nlatx,nlevx,dx2,&
-               dy2,dlev2,sigma0,feta,nres,alfa,toler)
+               dy2,dlev2,sigma0,feta,nres,alfa,toler,debug)
           omegas_QG(:,:,:,i)=omega(:,:,:,1)
        enddo
 
-!       Write(*,*)'Boundary conditions'        
-       call callsolveQG(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
-            sigma0,feta,nres,alfa,toler)
-       omegas_QG(:,:,:,3)=omega(:,:,:,1)
+       if (calc_b) then
+          !       Write(*,*)'Boundary conditions'        
+          call callsolveQG(zero,boundaries,omega,nlonx,nlatx,nlevx,dx2,dy2,dlev2,&
+               sigma0,feta,nres,alfa,toler,debug)
+          omegas_QG(:,:,:,3)=omega(:,:,:,1)
+       endif
 
     endif
 
@@ -403,25 +406,27 @@ contains
 
     dzdx = xder_cart(z,dx)
     dzdy = yder_cart(z,dy) 
-
     i=1
+    j=1
     do k=1,nlev
-       do j=1,nlat
-          if(abs(corpar(i,j,k)).gt.1e-7)then
+       if(abs(corpar(i,j,k)).gt.1e-7)then
+          do j=1,nlat
              do i=1,nlon
                 u(i,j,k)=-g*dzdy(i,j,k)/corpar(i,j,k) 
-                v(i,j,k)=g*dzdx(i,j,k)/corpar(i,j,k) 
+                v(i,j,k)=g*dzdx(i,j,k)/corpar(i,j,k)
              enddo
-          endif
-       enddo
-       do j=1,nlat
-          if(abs(corpar(i,j,k)).lt.1e-7)then
+          enddo
+       endif
+       i=1
+       j=1
+       if(abs(corpar(i,j,k)).lt.1e-7)then
+          do j=1,nlat
              do i=1,nlon
                 u(i,j,k)=(u(i,j+1,k)+u(i,j-1,k))/2.
                 v(i,j,k)=(v(i,j+1,k)+v(i,j-1,k))/2.
              enddo
-          endif
-       enddo
+          enddo
+       endif
     enddo
 
   end subroutine gwinds
@@ -620,10 +625,11 @@ contains
   end function fimbal
 
   subroutine callsolveQG(rhs,boundaries,omega,nlonx,nlatx,nlevx,&
-                         dx,dy,dlev,sigma0,feta,nres,alfa,toler)
+                         dx,dy,dlev,sigma0,feta,nres,alfa,toler,debug)
 !
 !   Calling solveQG. Multigrid algorithm.
 !
+    logical,intent(in) :: debug
     integer,intent(in) :: nres
     integer,dimension(:),intent(in) :: nlonx,nlatx,nlevx
     real,dimension(:),intent(in) :: dx,dy,dlev
@@ -636,7 +642,7 @@ contains
     real :: maxdiff,aomega
     integer :: iter,i,j,k,ires
 
-    integer,parameter :: itermax=1000
+    integer,parameter :: itermax=10000
     integer,parameter :: ny1=2,ny2=2 ! number of iterations at each grid 
                                      ! resolution when proceeding to coarser 
                                      ! (ny1) and when returning to finer (ny2)
@@ -693,9 +699,9 @@ contains
              enddo
           enddo
        enddo
-       print*,iter,maxdiff
+       if(debug)print*,iter,maxdiff
        if(maxdiff.lt.toler.or.iter.eq.itermax)then
-!          write(*,*)'iter,maxdiff',iter,maxdiff
+           if(debug)write(*,*)'iter,maxdiff',iter,maxdiff
           goto 10
        endif
        

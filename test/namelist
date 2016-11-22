@@ -1,12 +1,12 @@
  &PARAM
-  infile='/home/mikarant/data/em_b_wave_100km_T/wrfout_d01_INTRP_T1',
-  outfile='/home/mikarant/ozo/test/ozo_output_test_T1.nc',
-  time_1=2,time_n=240,
+  infile='/home/mikarant/data/em_b_wave_100km_T/wrfout_d01_INTRP_CTRL',
+  outfile='/home/mikarant/data/ozo_output_test.nc',
+  time_1=118,time_n=119,
   alfa=0.2,toler=5e-5,
   ny1=4,ny2=2,
-  mode='G',
+  mode='Q',
   calc_omegas=.true.,
   calc_div=.false.
-  debug = .false.
+  debug = .true.
 /
 
