@@ -11,7 +11,8 @@ contains
 !------------SUBROUTINES--------------
 !
   subroutine calculate_tendencies(omegas,t,u,v,w,z,lev,dx,dy,corpar,q,xfrict,&
-       yfrict,ztend,ttend,zeta,zetatend,uKhi,vKhi,sigma,mulfact,calc_b,hTends)
+       yfrict,ztend,ttend,zeta,zetatend,uKhi,vKhi,sigma,mulfact,calc_b,hTends,&
+       vadv,tadv,fvort,avortt)
 
 !   This is the main subroutine of solving the Zwack-Okossi equation. Input 
 !   arguments are variables from WRF and omegas, and output of this subroutine
@@ -27,7 +28,7 @@ contains
     real,dimension(:,:,:),  intent(inout) :: z,q,ztend,zetatend
 
     real,dimension(:,:,:,:),allocatable :: vortTends
-    real,dimension(:,:,:),allocatable :: sp,tadv,tadvs
+    real,dimension(:,:,:),allocatable :: sp,tadv,tadvs,vadv,fvort,avortt
     real,dimension(:,:,:),allocatable :: vorTend_omegaWRF
     real,dimension(:,:,:,:),allocatable :: temptend
     integer :: nlon,nlat,nlev
@@ -50,7 +51,7 @@ contains
 
     call vorticity_tendencies(omegas,u,v,w,uKhi,vKhi,zeta,zetatend,dx,dy,&
                         corpar,dlev,xfrict,yfrict,ztend,vortTends,mulfact,&
-                        vorTend_omegaWRF)
+                        vorTend_omegaWRF,vadv,fvort,avortt)
 
 !   Calculation of stability sigma and Sp (stability parameter)
     sp = define_sp(sigma,lev)
@@ -180,7 +181,8 @@ contains
       
   subroutine vorticity_tendencies(omegas,u,v,w,uKhi,vKhi,zeta,zetatend,&
                                   dx,dy,corpar,dlev,xfrict,yfrict,ztend,&
-                                  vortTends,mulfact,vorTend_omegaWRF)
+                                  vortTends,mulfact,vorTend_omegaWRF,&
+                                  vadv,fvort,avortt)
 !   This function calculates both direct and indirect (associated with vertical
 !   motions) vorticity tendencies of all five forcings (vorticity and thermal
 !   advection, friction, diabatic heating and ageostrophic vorticity tendency). 
@@ -196,7 +198,7 @@ contains
     
     real,dimension(:,:,:,:,:),allocatable :: vTend
     real,dimension(:,:,:,:),allocatable :: vTend_omegaWRF
-    real,dimension(:,:,:),allocatable :: eta,vadv,vadvs,avortt,fvort
+    real,dimension(:,:,:),allocatable :: eta,vadvs,avortt,fvort,vadv
     real :: dlev,dx,dy
     integer :: i,j,nlon,nlat,nlev
 

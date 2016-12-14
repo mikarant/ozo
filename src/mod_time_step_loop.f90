@@ -10,19 +10,20 @@ contains
 
   subroutine time_step_loop ( wrfin_file, outfile, time_1, time_n, alfa, &
                               toler, ny1, ny2, mode, calc_omegas, calc_b, &
-                              debug, calc_div )
+                              debug, calc_div, forc )
     ! This subroutine contains the main time stepping loop. It gets both
     ! input and output files as input arguments. 
     type ( wrf_file ), intent(in) :: wrfin_file, outfile
     character,         intent(in) :: mode
-    logical,           intent(in) :: calc_omegas,calc_b,debug, calc_div
+    logical,           intent(in) :: calc_omegas,calc_b,debug, calc_div, forc
     integer,           intent(in) :: time_1, time_n, ny1, ny2
     real,              intent(in) :: alfa, toler
     real, dimension ( :, :, : ), pointer :: T, u, v, z
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends, omegas_QG
     real, dimension ( :, :, : ),    allocatable :: dT_dt, du_dt, dv_dt, dz_dt, &
                                                    fx, fy, q, w, mulfact,zeta, &
-                                                   zetatend,ukhi,vkhi,sigma
+                                                   zetatend,ukhi,vkhi,sigma,vadv, &
+                                                   tadv,fvort,avortt
     real, dimension ( :, : ),       allocatable :: mu_inv, p_sfc
     integer, dimension ( : ),       allocatable :: tdim
     integer :: time, i
@@ -79,7 +80,8 @@ contains
 
          call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
               dx, dy, corpar, q, fx, fy, dz_dt, dT_dt, zeta, zetatend, &
-              uKhi, vKhi, sigma, mulfact, calc_b, hTends )
+              uKhi, vKhi, sigma, mulfact, calc_b, hTends, vadv, tadv, &
+              fvort, avortt )
          
          ! Write data to the output file
          if ( mode .eq. 'Q' ) then
@@ -95,6 +97,13 @@ contains
 
          call write3d ( outfile, time-time_1+1, 'GHT', z)
          call write2d ( outfile, time-time_1+1, 'PSFC', p_sfc)
+         if (forc) then
+            call write3d ( outfile, time-time_1+1, 'vadv', vadv)
+            call write3d ( outfile, time-time_1+1, 'tadv', tadv)
+            call write3d ( outfile, time-time_1+1, 'fvort', fvort)
+            call write3d ( outfile, time-time_1+1, 'diab', q)
+            call write3d ( outfile, time-time_1+1, 'ageo', avortt)
+         end if
 
       end do
 
