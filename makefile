@@ -3,7 +3,7 @@ FC              = gfortran
 MAKEDEPF90      = ~/bin/makedepf90
 NETCDF_INCLUDES = -I/usr/include
 NETCDF_LIBS     = -L/usr/lib -lnetcdff
-MKLROOT         = /home/mikarant/intel/compilers_and_libraries_2016.2.181/linux/mkl
+MKLROOT         = /opt/intel/compilers_and_libraries/linux/mkl
 #FCFLAGS         = -g -pg -fbacktrace -fcheck=all -Wall $(NETCDF_INCLUDES) -m64 -I$(MKLROOT)/include
 FCFLAGS         = -Ofast -pg -fbacktrace -fcheck=all -Wall $(NETCDF_INCLUDES) -m64 -I$(MKLROOT)/include
 LDFLAGS         = $(NETCDF_LIBS) -L$(MKLROOT)/lib/intel64 -Wl,--no-as-needed -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lpthread -lm
