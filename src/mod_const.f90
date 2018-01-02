@@ -3,7 +3,7 @@ module mod_const
 
 ! This module contains only constants used in programs.
   
-  real, parameter :: r = 287.,&          ! Gas constant for dry air
+  real, parameter :: r = 287.058,&          ! Gas constant for dry air
                      cp = 1004.,&        ! Specific heat of dry air
                      g=9.80665           ! Gravitational acceleration
 
