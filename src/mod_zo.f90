@@ -205,8 +205,6 @@ contains
     nlon=size(u,1); nlat=size(u,2); nlev=size(u,3)
 
     allocate(eta(nlon,nlat,nlev))
-    allocate(avortt(nlon,nlat,nlev))
-    allocate(fvort(nlon,nlat,nlev))
     allocate(vTend(nlon,nlat,nlev,3,n_terms))
     allocate(vTend_omegaWRF(nlon,nlat,nlev,3))
 

@@ -47,6 +47,8 @@ contains
       allocate ( omegas_QG ( nlon, nlat, nlev, 3 ) )
       allocate ( ukhi (nlon, nlat, nlev) )
       allocate ( vkhi (nlon, nlat, nlev) )
+      allocate ( avortt (nlon, nlat, nlev) )
+      allocate ( fvort (nlon, nlat, nlev) )
  
       call read_T_u_v_z ( wrfin_file, time_1 - 2 )
       call read_T_u_v_z ( wrfin_file, time_1 - 1 )
