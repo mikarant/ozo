@@ -38,7 +38,7 @@ For running the test case, you need to download a test data. Data file is in net
 
 2. Download the data by command:
 
-        wget https://bitbucket.org/mikarant/ozo/downloads/test_WRF.nc
+        wget https://bitbucket.org/mikarant/ozo/downloads/test_wrf.nc
 
 
 ## 4. Compiling the program
