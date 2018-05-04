@@ -1,13 +1,14 @@
- &PARAM
-  infile='/home/mikarant/data/em_b_wave_100km_T/wrfout_d01_INTRP_CTRL',
-  outfile='/home/mikarant/data/ozo_output_100km_test.nc',
-  time_1=118,time_n=118,
+&PARAMETER_NAMELIST
+  infile='/home/mikarant/test_wrf_7tsteps.nc4',
+  outfile='/home/mikarant/ozo_output_100km_7tsteps.nc',
+  time_1=2,time_n=6,
   alfa=0.2,toler=5e-5,
   ny1=4,ny2=2,
-  mode='Q',
+  mode='G',
   calc_omegas=.true.,
   calc_div=.false.,
   debug = .true.,
-  forc = .true.
+  forc = .false.,
+  ellipticity_correction = .false.
 /
 

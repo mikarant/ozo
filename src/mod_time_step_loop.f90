@@ -8,38 +8,47 @@ module mod_time_step_loop
 
 contains
 
-  subroutine time_step_loop ( wrfin_file, outfile, time_1, time_n, alfa, &
-       toler, ny1, ny2, mode, calc_omegas, calc_b, &
-       debug, calc_div, forc )
+  subroutine time_step_loop ( wrfin_file, out_file, param, calc_b, debug)
     ! This subroutine contains the main time stepping loop. It gets both
     ! input and output files as input arguments.
-    type ( wrf_file ), intent(in) :: wrfin_file, outfile
-    character,         intent(in) :: mode
-    logical,           intent(in) :: calc_omegas,calc_b,debug, calc_div, forc
-    integer,           intent(in) :: time_1, time_n, ny1, ny2
-    real,              intent(in) :: alfa, toler
+    type ( wrf_file ), intent(in) :: wrfin_file, out_file
+    type ( parameters), intent(in) :: param
+    logical,           intent(in) :: debug, calc_b
     real, dimension ( :, :, : ), pointer :: T, u, v, z
     real, dimension ( :, :, :, : ), allocatable :: omegas, hTends, omegas_QG
     real, dimension ( :, :, : ),    allocatable :: dT_dt, du_dt, dv_dt, dz_dt, &
          fx, fy, q, w, mulfact,zeta, &
-         zetatend,ukhi,vkhi,sigma,vadv, &
-         tadv,fvort,avortt
+         zetatend,ukhi,vkhi,sigma,vadv, dudp, dvdp, &
+         tadv,fvort,avortt, zeta_elcorr, sigma_elcorr
     real, dimension ( :, : ),       allocatable :: mu_inv, p_sfc
     integer, dimension ( : ),       allocatable :: tdim
     integer :: time, i
 
-    if (calc_b) then
-       n_terms = n_terms + 1
-    end if
-
     associate ( &
+         time_1 => param % time_1, &
+         time_n => param % time_n, &
+         alfa => param % alfa, &
+         toler => param % toler, &
+         ny1 => param % ny1, &
+         ny2 => param % ny2, &
+         mode => param % mode, &
+         calc_omegas => param % calc_omegas, &
+         calc_div => param % calc_div, &
+         forc => param % forc, &
+         ellipticity_correction => param % ellipticity_correction, &
+
          nlon   => wrfin_file % dims ( 1 ), &
          nlat   => wrfin_file % dims ( 2 ), &
          nlev   => wrfin_file % dims ( 3 ), &
          dx     => wrfin_file % dx(1), &
          dy     => wrfin_file % dy(1), &
+         dlev     => wrfin_file % dlev(1), &
          p_levs => wrfin_file % pressure_levels, &
          corpar => wrfin_file % corpar )
+
+    if (calc_b) then
+       n_terms = n_terms + 1
+    end if
 
     allocate ( tdim ( time_n-time_1+1 ) )
     allocate ( hTends ( nlon, nlat, nlev, n_terms ) )
@@ -49,6 +58,8 @@ contains
     allocate ( vkhi (nlon, nlat, nlev) )
     allocate ( avortt (nlon, nlat, nlev) )
     allocate ( fvort (nlon, nlat, nlev) )
+    allocate ( sigma_elcorr (nlon, nlat, nlev) )
+    allocate ( zeta_elcorr (nlon, nlat, nlev) )
 
     call read_T_u_v_z ( wrfin_file, time_1 - 2 )
     call read_T_u_v_z ( wrfin_file, time_1 - 1 )
@@ -68,16 +79,27 @@ contains
        zetatend = curl_cart ( du_dt, dv_dt, dx, dy )
        mulfact  = calmul(p_sfc, p_levs, nlev)
        sigma = define_sigma(T, p_levs)
+
+       dudp = pder(u,dlev)
+       dvdp = pder(v,dlev)
+
+       call calculate_ellipticity_correction (sigma, sigmamin, etamin, zeta, corpar,&
+            dudp, dvdp, sigma_elcorr, zeta_elcorr)
+       call write3d ( out_file, time-time_1+1, 'zeta_elcorr', zeta_elcorr)
+       call write3d ( out_file, time-time_1+1, 'sigma_elcorr', sigma_elcorr)
+
        !   Calculation of velocity potential
        if(calc_div) call irrotationalWind(u,v,dx,dy,uKhi,vKhi)
+
+
 
        if ( calc_omegas ) then
           call calculate_omegas( wrfin_file, T, u, v, w, z, &
                q, fx, fy, dT_dt, zeta, zetatend, uKhi, vKhi, sigma, &
-               mulfact, alfa, toler, ny1, ny2, mode, calc_b, debug, &
-               calc_div, omegas, omegas_QG )
+               mulfact, param, debug, calc_b, &
+               omegas, omegas_QG, sigma_elcorr, zeta_elcorr, dudp, dvdp )
        else
-          omegas = read_omegas ( outfile, time-time_1+1 )
+          omegas = read_omegas ( out_file, time-time_1+1 )
        end if
 
        call calculate_tendencies ( omegas, T, u, v, w, z, p_levs, &
@@ -87,31 +109,31 @@ contains
 
        ! Write data to the output file
        if ( mode .eq. 'Q' ) then
-          call write_omegas_QG ( outfile, time-time_1+1, omegas_QG )
+          call write_omegas_QG ( out_file, time-time_1+1, omegas_QG, calc_b )
        else if ( mode .eq. 'G' ) then
           if (calc_omegas) then
-             call write_omegas ( outfile, time-time_1+1, calc_b, omegas )
-             call write3d ( outfile, time-time_1+1, ome_name, w)
+             call write_omegas ( out_file, time-time_1+1, calc_b, omegas )
+             call write3d ( out_file, time-time_1+1, ome_name, w)
           end if
-          call write_height_tendencies(outfile,time-time_1+1,calc_b,hTends)
-          call write3d ( outfile, time-time_1+1, ztend_name, dz_dt )
+          call write_height_tendencies(out_file,time-time_1+1,calc_b,hTends)
+          call write3d ( out_file, time-time_1+1, ztend_name, dz_dt )
        end if
 
-       call write3d ( outfile, time-time_1+1, 'GHT', z)
-       call write2d ( outfile, time-time_1+1, 'PSFC', p_sfc)
+       call write3d ( out_file, time-time_1+1, 'GHT', z)
+       call write2d ( out_file, time-time_1+1, 'PSFC', p_sfc)
        if (forc) then
-          call write3d ( outfile, time-time_1+1, 'vadv', vadv)
-          call write3d ( outfile, time-time_1+1, 'tadv', tadv)
-          call write3d ( outfile, time-time_1+1, 'fvort', fvort)
-          call write3d ( outfile, time-time_1+1, 'diab', q)
-          call write3d ( outfile, time-time_1+1, 'ageo', avortt)
+          call write3d ( out_file, time-time_1+1, 'vadv', vadv)
+          call write3d ( out_file, time-time_1+1, 'tadv', tadv)
+          call write3d ( out_file, time-time_1+1, 'fvort', fvort)
+          call write3d ( out_file, time-time_1+1, 'diab', q)
+          call write3d ( out_file, time-time_1+1, 'ageo', avortt)
        end if
 
     end do
 
     ! Write dimension data to the output file
     if ( calc_omegas .or. mode .eq. 'Q' ) then
-       call write_dimensions ( outfile, tdim )
+       call write_dimensions ( out_file, tdim )
     end if
 
   end associate
@@ -308,9 +330,10 @@ end if
 end associate
 end subroutine write_omegas
 
-subroutine write_omegas_QG ( file, time, omegas_QG )
+subroutine write_omegas_QG ( file, time, omegas_QG, calc_b )
 type ( wrf_file ), intent ( in ) :: file
 integer, intent ( in ) :: time
+logical, intent(in) :: calc_b
 real, dimension ( :, :, :, : ) :: omegas_QG
 integer :: t, varid
 associate ( &

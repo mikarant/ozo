@@ -1,4 +1,5 @@
 module mod_wrf_file
+  use mod_const
   use netcdf
   implicit none
 
@@ -62,6 +63,39 @@ module mod_wrf_file
   end type wrf_file
 
 contains
+
+  subroutine read_parameters(param)
+    type (parameters), intent(out) :: param
+    character*140 :: infile, outfile
+    character :: mode
+    real :: alfa, toler
+    integer :: time_1, time_n, ny1, ny2
+    logical :: calc_div, calc_omegas, forc, ellipticity_correction, debug
+
+    namelist/PARAMETER_NAMELIST/ infile,outfile,alfa, &
+         toler,ny1,ny2,time_1,time_n,&
+         mode,calc_omegas,calc_div,debug,forc, &
+         ellipticity_correction
+
+    ellipticity_correction=.true.
+
+    read(*,nml=PARAMETER_NAMELIST)
+    param % infile = infile
+    param % outfile = outfile
+    param % alfa = alfa
+    param % toler = toler
+    param % ny1 = ny1
+    param % ny2 = ny2
+    param % time_1 = time_1
+    param % time_n = time_n
+    param % mode = mode
+    param % calc_omegas = calc_omegas
+    param % calc_div = calc_div
+    param % forc = forc
+    param % ellipticity_correction = ellipticity_correction
+
+  end subroutine read_parameters
+
 
   function create_out_file ( fname, wrf_infile, mode, calc_b, forc ) result ( f )
     character ( * ),   intent ( in ) :: fname ! file name
@@ -219,6 +253,12 @@ contains
     call check( nf90_put_att(f % ncid, varid,trim('units'),&
          trim('Pa') ) )
 
+    call define_field3d(f % ncid, 'sigma_elcorr', &
+         'Ellipticity correction for sigma', 'x', dimids)
+
+    call define_field3d(f % ncid, 'zeta_elcorr', &
+         'Ellipticity correction for zeta', 'x', dimids)
+
     if (forc) then
 
        ! Create vadv variable
@@ -279,7 +319,28 @@ contains
     f % ydim = (/(i, i=1,f%dims(2), 1)/)
 
     print*,"Outputfile created!"
+
   end function create_out_file
+
+  subroutine define_field3d(ncid, name, desc, units, dimids)
+    integer, intent(in) :: ncid, dimids(4)
+    integer :: varid
+    character(*), intent(in) :: name, desc, units
+    integer :: status
+
+    status = nf90_def_var ( ncid, trim(name), NF90_FLOAT, &
+         dimids, varid )
+    !status = nf90_def_var ( 1, 'x', NF90_FLOAT, &
+    !     [2,2,2,2], 5 )
+
+    if ( .not. ( status == nf90_enameinuse .or. status == NF90_NOERR ) ) &
+         call check ( status )
+    call check( nf90_put_att(ncid, varid, 'description',&
+         trim(desc) ) )
+    call check( nf90_put_att(ncid, varid,'units',&
+         trim(units) ) )
+
+  end subroutine define_field3d
 
   function open_wrf_file ( fname ) result ( f )
     character ( * ), intent ( in ) :: fname

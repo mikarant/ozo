@@ -1,7 +1,16 @@
 module mod_const
   implicit none
 
-  ! This module contains only constants used in programs.
+  type parameters
+     character*140 :: infile, outfile
+     character :: mode
+     real :: alfa, toler
+     integer :: time_1, time_n, ny1, ny2
+     logical :: calc_div, calc_b, calc_omegas, forc, ellipticity_correction
+  end type parameters
+
+  !   Threshold values to keep the generalized omega equation elliptic.
+  real,parameter :: sigmamin=2e-7,etamin=2e-6
 
   real, parameter :: &
        r = 287.058, &       ! Gas constant for dry air

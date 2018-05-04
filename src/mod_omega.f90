@@ -7,18 +7,17 @@ module mod_omega
 contains
 
   subroutine calculate_omegas( file, t, u, v, omegaan, z, q, xfrict, yfrict, &
-       ttend, zetaraw, zetatend, uKhi, vKhi, sigmaraw, mulfact, alfa, toler, &
-       ny1, ny2, mode, calc_b, debug, calc_div, omegas, omegas_QG )
+       ttend, zetaraw, zetatend, uKhi, vKhi, sigmaraw, mulfact, param, debug, calc_b, &
+       omegas, omegas_QG, sigma_elcorr, zeta_elcorr, dudp1, dvdp1)
 
     real,dimension(:,:,:,:),intent(inout) :: omegas, omegas_QG
     real,dimension(:,:,:),  intent(inout) :: z,q,u,v,ttend,zetatend
-    real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict,sigmaraw
+    real,dimension(:,:,:),  intent(in) :: t,omegaan,xfrict,yfrict,sigmaraw, &
+         sigma_elcorr, zeta_elcorr, dudp1, dvdp1
     real,dimension(:,:,:),  intent(in) :: mulfact,zetaraw,uKhi,vKhi
-    real,                   intent(in) :: alfa,toler
-    integer,                intent(in) :: ny1,ny2
-    character,              intent(in) :: mode
-    logical,                intent(in) :: calc_b,debug,calc_div
+    logical,                intent(in) :: debug, calc_b
     type ( wrf_file ),      intent(in) :: file
+    type ( parameters ),         intent(in) :: param
 
     real,dimension(:,:,:,:,:),allocatable :: rhs
     real,dimension(:,:,:,:),allocatable :: boundaries,zero,sigma,feta,corfield
@@ -26,9 +25,6 @@ contains
     real,dimension(:,:,:),  allocatable :: zeta
     real,dimension(:,:),    allocatable :: sigma0
     integer :: i,j,k
-
-    !   Threshold values to keep the generalized omega equation elliptic.
-    real,parameter :: sigmamin=2e-7,etamin=2e-6
 
     !   For iubound, ilbound and iybound are 0, horizontal boundary
     !   conditions are used at the upper, lower and north/south boundaries
@@ -42,6 +38,14 @@ contains
     iybound=1 ! 1 for "real" omega as north/south boundary condtion
 
     associate ( &
+         alfa => param % alfa, &
+         toler => param % toler, &
+         ny1 => param % ny1, &
+         ny2 => param % ny2, &
+         mode => param % mode, &
+         calc_div => param % calc_div, &
+         ellipticity_correction => param % ellipticity_correction, &
+
          nlon => file % nlon(1), &
          nlat => file % nlat(1), &
          nlev => file % nlev(1), &
@@ -66,6 +70,9 @@ contains
     allocate(dudp(nlon,nlat,nlev,nres),dvdp(nlon,nlat,nlev,nres))
     allocate(sigma0(nlev,nres))
     allocate(rhs(nlon,nlat,nlev,nres,n_terms))
+
+    dudp(:,:,:,1) = dudp1
+    dvdp(:,:,:,1) = dvdp1
 
     !   Calculation of coriolisparameter field
     do j=1,nlat
@@ -102,16 +109,20 @@ contains
     !   Deriving quantities needed for the LHS of the
     !   QG and/or generalised omega equation.
 
-    !   1. Pressure derivatives of wind components
-
-    dudp(:,:,:,1) = pder(u,dlev)
-    dvdp(:,:,:,1) = pder(v,dlev)
     !!
     !   2. Modifying stability and vorticity on the LHS to keep
     !   the solution elliptic
     !
-    call modify(sigmaraw,sigmamin,etamin,zetaraw, file % corpar,&
-         dudp(:,:,:,1),dvdp(:,:,:,1),sigma(:,:,:,1),feta(:,:,:,1),zeta)
+    if (ellipticity_correction) then
+       sigma(:,:,:,1) = sigmaraw + sigma_elcorr
+       zeta = zetaraw + zeta_elcorr
+    else
+       sigma(:,:,:,1) = sigmaraw
+       zeta = zetaraw
+    endif
+
+    feta(:,:,:,1) = corfield(:,:,:,1) * (zeta + corfield(:,:,:,1))
+
     !
     !   3. Second pressure derivative of vorticity
     !
@@ -431,14 +442,12 @@ subroutine gwinds(z,dx,dy,corpar,u,v)
 
 end subroutine gwinds
 
-subroutine modify(sigmaraw,sigmamin,etamin,zetaraw,&
-     corpar,dudp,dvdp,sigma,feta,zeta)
-  !   Modifying stability and vorticity to keep the LHS of the genearlized
-  !   omega equation elliptic
-  !
+subroutine calculate_ellipticity_correction ( sigmaraw,sigmamin,etamin,zetaraw,&
+     corpar,dudp,dvdp,sigma_elcorr,zeta_elcorr)
+
   real,dimension(:,:,:),intent(in) :: sigmaraw,zetaraw,dudp,dvdp
   real,dimension(:),    intent(in) :: corpar
-  real,dimension(:,:,:),intent(inout) :: zeta,feta,sigma
+  real,dimension(:,:,:),intent(out) :: zeta_elcorr, sigma_elcorr
   real,                 intent(in) :: sigmamin,etamin
   integer :: nlon,nlat,nlev,i,j,k
 
@@ -446,29 +455,29 @@ subroutine modify(sigmaraw,sigmamin,etamin,zetaraw,&
   nlat=size(sigmaraw,2)
   nlev=size(sigmaraw,3)
 
+  sigma_elcorr = max( 0.0, sigmamin - sigmaraw)
+  zeta_elcorr  = 0.0
+
   do k=1,nlev
      do j=1,nlat
         do i=1,nlon
-           sigma(i,j,k)=max(sigmaraw(i,j,k),sigmamin)
-           zeta(i,j,k)=0.
            ! Northern Hemisphere
            if(corpar(j).gt.1e-7)then
-              zeta(i,j,k)=max(zetaraw(i,j,k),etamin+corpar(j)/ &
-                   (4*sigma(i,j,k))*(dudp(i,j,k)**2.+dvdp(i,j,k)**2.) &
-                   -corpar(j))
+              zeta_elcorr(i,j,k) = max( 0.0, etamin+corpar(j)/ &
+                   (4*(sigmaraw(i,j,k) + sigma_elcorr(i,j,k)))*(dudp(i,j,k)**2.+dvdp(i,j,k)**2.) &
+                   -corpar(j) - zetaraw(i,j,k) )
            endif
            ! Southern Hemisphere
            if(corpar(j).lt.-1e-7)then
-              zeta(i,j,k)=min(zetaraw(i,j,k),-etamin+corpar(j)/ &
-                   (4*sigma(i,j,k))*(dudp(i,j,k)**2.+dvdp(i,j,k)**2.) &
-                   -corpar(j))
+              zeta_elcorr(i,j,k) = min( 0.0, -etamin+corpar(j)/ &
+                   (4*(sigmaraw(i,j,k) + sigma_elcorr(i,j,k)))*(dudp(i,j,k)**2.+dvdp(i,j,k)**2.) &
+                   -corpar(j) - zetaraw(i,j,k) )
            endif
-           feta(i,j,k)=(zeta(i,j,k)+corpar(j))*corpar(j)
         enddo
      enddo
   enddo
 
-end subroutine modify
+end subroutine calculate_ellipticity_correction
 
 function aave(f) result(res)
   !   Calculation of area mean (res) of field f in cartesian coordinates.
