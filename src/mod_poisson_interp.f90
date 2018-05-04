@@ -1,8 +1,8 @@
 module mod_poisson_interp
-  implicit none 
+  implicit none
 
 contains
-  
+
   subroutine interpolate_mc_to_vc( f_mc, f_vc, BCTYPE )
     implicit none
 
@@ -34,7 +34,7 @@ contains
     select case ( BCTYPE )
 
     case ( "PPPP" ) ! Periodic y-dimension
-       
+
        do i = 2, nlon
           f_vc ( i, 1 ) = ( f_mc ( i, 1) + &
                f_mc ( i-1, 1 ) + &
@@ -52,14 +52,14 @@ contains
        f_vc ( nlon + 1, nlat + 1 ) = f_vc ( 1, 1 )
 
     case ( "PPDD", "PPNN" ) ! Diriclet y-dimension
-       
+
        do i = 2, nlon
           f_vc ( i, 1 ) = ( f_mc ( i, 1 ) + &
                f_mc ( i-1, 1 ) ) / 2
           f_vc ( i, nlat + 1 ) = ( f_mc ( i, nlat ) + &
                f_mc ( i-1, nlat ) ) / 2
        enddo
-       
+
        f_vc ( 1, 1 ) =  ( f_mc ( 1, 1 ) + &
             f_mc ( nlon, 1 ) ) / 2
        f_vc ( nlon + 1, 1 ) = f_vc ( 1, 1 )

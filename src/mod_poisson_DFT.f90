@@ -1,6 +1,6 @@
 module mod_poisson_DFT
   implicit none
-  
+
 contains
 
   subroutine poisson_solver_2D(f, dx, dy, phi, bd_ay, bd_by)
@@ -13,16 +13,16 @@ contains
          bd_ay, bd_by
     real, intent ( in ) :: dx, dy
     character ( 3 ), parameter :: solver="DFT"
-        
+
     select case ( solver )
-       case ( "DFT" )
-          call poisson_solver_DFT( f, dx, dy, bd_ay, bd_by, phi )
-       case ( "Gre" )
-          call poisson_solver_Green ( f, dx, dy, phi )
-       end select
-       
+    case ( "DFT" )
+       call poisson_solver_DFT( f, dx, dy, bd_ay, bd_by, phi )
+    case ( "Gre" )
+       call poisson_solver_Green ( f, dx, dy, phi )
+    end select
+
   end subroutine poisson_solver_2D
- 
+
   subroutine poisson_solver_DFT ( rho, dx, dy, bd_ay, bd_by, phi )
     use mkl_poisson
     use mod_poisson_interp
@@ -31,7 +31,7 @@ contains
     real, dimension ( :, : ), intent ( out ) :: phi
     integer :: ipar(128), stat, nx, ny
     double precision :: q, ax, bx, ay, by
-    double precision, dimension ( : ), intent ( in ) :: bd_ay, bd_by 
+    double precision, dimension ( : ), intent ( in ) :: bd_ay, bd_by
     double precision, dimension ( : ), allocatable :: &
          dpar, bd_ax, bd_bx
     character ( 4 ), parameter :: BCTYPE="PPDD"

@@ -3,20 +3,20 @@ module mod_common_subrs
   implicit none
 contains
 
-!-------------------------------------------------------------------------------
-! This module contains some general subroutines which can be used both 
-! generalized omega equation and Zwack-okossi equation. 
-!-------------------------------------------------------------------------------
+  !-------------------------------------------------------------------------------
+  ! This module contains some general subroutines which can be used both
+  ! generalized omega equation and Zwack-okossi equation.
+  !-------------------------------------------------------------------------------
 
   function calmul(psfc,lev,nlev) result (mulfact)
-!   Calculation of multiplication factors for the attenuation of
-!   below-ground forcings
+    !   Calculation of multiplication factors for the attenuation of
+    !   below-ground forcings
     real,dimension(:,:),  intent(in) :: psfc
-    real,dimension(:),    intent(in) :: lev 
+    real,dimension(:),    intent(in) :: lev
     integer,              intent(in) :: nlev
     real,dimension(:,:,:),allocatable :: mulfact
     real :: pm1
-    integer :: i,j,k,nlon,nlat,factor 
+    integer :: i,j,k,nlon,nlat,factor
     nlon=size(psfc,1); nlat=size(psfc,2)
     allocate(mulfact(nlon,nlat,nlev))
     factor=2
@@ -39,7 +39,7 @@ contains
              enddo
           enddo
        enddo
-       
+
     case (2) ! new version with mass-centered cells
        mulfact=1.
        do i=1,nlon
@@ -63,18 +63,18 @@ contains
              enddo
           enddo
        enddo
-          
+
     end select
   end function calmul
 
   subroutine irrotationalWind(u,v,dx,dy,uKhi,vKhi)
-!   This subroutine calculates irrotational wind components (uKhi,vKhi) from
-!   velocity potential. 
+    !   This subroutine calculates irrotational wind components (uKhi,vKhi) from
+    !   velocity potential.
     use mod_poisson_DFT
     implicit none
 
     real,dimension(:,:,:),intent(in) :: u,v
-    real,                 intent(in) :: dx,dy 
+    real,                 intent(in) :: dx,dy
     real,dimension(:,:,:),intent(out) :: uKhi,vKhi
 
     integer :: nlon,nlat,nlev,k
@@ -85,12 +85,12 @@ contains
     allocate(khi(nlon,nlat,nlev))
     allocate(bd_0(nlon+1))
 
-!   Calculate the divergence of wind
+    !   Calculate the divergence of wind
     dudx = xder_cart(u,dx)
     dvdy = yder_cart(v,dy)
-    
 
-!   Velocity potential is equal to inverse laplacian of divergence
+
+    !   Velocity potential is equal to inverse laplacian of divergence
 
     bd_0=0.0e0
     do k=1,nlev
@@ -98,35 +98,35 @@ contains
             bd_0,bd_0)
     enddo
 
-!   Derivatives of velocity potential
+    !   Derivatives of velocity potential
     dkhidx = xder_cart(khi,dx)
     dkhidy = yder_cart(khi,dy)
 
-!   Wind components are equal to derivatives
+    !   Wind components are equal to derivatives
     uKhi=dkhidx
     vKhi=dkhidy
-              
+
   end subroutine irrotationalWind
 
   function curl_cart ( u, v, dx, dy ) result ( zeta )
     real, dimension ( :, :, : ), intent ( in ) :: u, v
     real,                        intent ( in ) :: dx,dy
     real, dimension ( :, :, : ), allocatable :: zeta, du_dy, dv_dx
-    
+
     allocate ( zeta ( size (u, 1 ), size ( u, 2 ), &
          size ( u, 3 ) ) )
 
     du_dy = yder_cart(u,dy)
     dv_dx = xder_cart(v,dx)
     zeta = dv_dx - du_dy
-    
+
   end function curl_cart
 
   function pder(f,dp) result (dfdp)
-!   Estimation of pressure derivatives.
-!   One-sided derivatives are used at top and bottom levels
-!   Accuracy=1 means second-order accuracy
-!   Accuracy=2 fourth-order accuracy
+    !   Estimation of pressure derivatives.
+    !   One-sided derivatives are used at top and bottom levels
+    !   Accuracy=1 means second-order accuracy
+    !   Accuracy=2 fourth-order accuracy
     implicit none
 
     real,dimension(:,:,:),intent(in) :: f
@@ -141,29 +141,29 @@ contains
     accuracy=1
     select case (accuracy)
 
-       case(1)
-          dfdp(:,:,2:nlev-1)=f(:,:,3:nlev)-f(:,:,1:nlev-2)
-          dfdp(:,:,2:nlev-1)=dfdp(:,:,2:nlev-1)*inv_dp
-          
-          dfdp(:,:,1)=(f(:,:,2)-f(:,:,1))/dp
-          dfdp(:,:,nlev)=(f(:,:,nlev)-f(:,:,nlev-1))/dp
-       case(2)
-          do k=3,nlev-2
-             dfdp(:,:,k)=f(:,:,k-2)-8.*f(:,:,k-1)+8.*f(:,:,k+1) &
-                  -f(:,:,k+2)
-             dfdp(:,:,k)=dfdp(:,:,k)/(12.*dp)
-          enddo
-          dfdp(:,:,2)=(dfdp(:,:,3)-dfdp(:,:,1))/(2.*dp)
-          dfdp(:,:,nlev-1)=(dfdp(:,:,nlev)-dfdp(:,:,nlev-2))/(2.*dp)
-          dfdp(:,:,1)=(f(:,:,2)-f(:,:,1))/dp
-          dfdp(:,:,nlev)=(f(:,:,nlev)-f(:,:,nlev-1))/dp
+    case(1)
+       dfdp(:,:,2:nlev-1)=f(:,:,3:nlev)-f(:,:,1:nlev-2)
+       dfdp(:,:,2:nlev-1)=dfdp(:,:,2:nlev-1)*inv_dp
 
-       end select
+       dfdp(:,:,1)=(f(:,:,2)-f(:,:,1))/dp
+       dfdp(:,:,nlev)=(f(:,:,nlev)-f(:,:,nlev-1))/dp
+    case(2)
+       do k=3,nlev-2
+          dfdp(:,:,k)=f(:,:,k-2)-8.*f(:,:,k-1)+8.*f(:,:,k+1) &
+               -f(:,:,k+2)
+          dfdp(:,:,k)=dfdp(:,:,k)/(12.*dp)
+       enddo
+       dfdp(:,:,2)=(dfdp(:,:,3)-dfdp(:,:,1))/(2.*dp)
+       dfdp(:,:,nlev-1)=(dfdp(:,:,nlev)-dfdp(:,:,nlev-2))/(2.*dp)
+       dfdp(:,:,1)=(f(:,:,2)-f(:,:,1))/dp
+       dfdp(:,:,nlev)=(f(:,:,nlev)-f(:,:,nlev-1))/dp
+
+    end select
 
   end function pder
 
   function xder_cart(f,dx) result(dfdx)
-!   Calculation of x derivatives. Periodic domain in x assumed
+    !   Calculation of x derivatives. Periodic domain in x assumed
     implicit none
 
     real,dimension(:,:,:),intent(in) :: f
@@ -175,7 +175,7 @@ contains
     allocate(dfdx(nlon,nlat,nlev))
     acc=1
     inv_dx = 1.0 / (2.*dx)
-    
+
     select case (acc)
     case (1)
        do k=1,nlev
@@ -208,7 +208,7 @@ contains
                    i2=2
                 end if
                 dfdx(i,j,k)=(f(i_2,j,k)-8*f(i_1,j,k)+8*f(i1,j,k)-f(i2,j,k))&
-                            /(12*dx)
+                     /(12*dx)
              enddo
           enddo
        enddo
@@ -216,9 +216,9 @@ contains
 
   end function xder_cart
 
-  function yder_cart(f,dy) result(dfdy)                          
-!   Calculation of y derivatives
-!   One-sided estimates are used at the southern and northern boundaries
+  function yder_cart(f,dy) result(dfdy)
+    !   Calculation of y derivatives
+    !   One-sided estimates are used at the southern and northern boundaries
     implicit none
 
     real,dimension(:,:,:),intent(in) :: f
@@ -231,7 +231,7 @@ contains
     inv_dy = 1.0 / (2.*dy)
     acc=1
     select case(acc)
-       
+
     case(1)
        do k=1,nlev
           do j=2,nlat-1
@@ -255,10 +255,10 @@ contains
                    dfdy(i,nlat-1,k)=(f(i,nlat,k)-f(i,nlat-2,k))/(2*dy)
                 else if(j==nlat)then
                    dfdy(i,nlat,k)=(f(i,nlat-2,k)-4*f(i,nlat-1,k) &
-                                 +3*f(i,nlat,k))/(2*dy)
+                        +3*f(i,nlat,k))/(2*dy)
                 else
-                   dfdy(i,j,k)=(f(i,j-2,k)-8*f(i,j-1,k)+8*f(i,j+1,k)& 
-                               -f(i,j+2,k))/(12*dy)
+                   dfdy(i,j,k)=(f(i,j-2,k)-8*f(i,j-1,k)+8*f(i,j+1,k)&
+                        -f(i,j+2,k))/(12*dy)
                 end if
              enddo
           enddo
@@ -267,9 +267,9 @@ contains
 
 
   end function yder_cart
-  
+
   function advect_cart(u,v,f,dx,dy) result(adv)
-!   Computing u*dfdx + v*dfdy in cartesian coordinates
+    !   Computing u*dfdx + v*dfdy in cartesian coordinates
     implicit none
 
     real,dimension(:,:,:),intent(in) :: u,v,f
@@ -279,16 +279,16 @@ contains
 
     dfdx = xder_cart(f,dx)
     dfdy = yder_cart(f,dy)
-    
-    adv=u*dfdx+v*dfdy   
-  
+
+    adv=u*dfdx+v*dfdy
+
   end function advect_cart
 
   function define_sigma(t,lev) result(sigma)
-!   Calculatig sigma stability parameter in isobaric coordinates
+    !   Calculatig sigma stability parameter in isobaric coordinates
     use mod_const
     implicit none
-   
+
     real,dimension(:,:,:),intent(in) :: t
     real,dimension(:),    intent(in) :: lev
     real                             :: dlev
@@ -308,11 +308,11 @@ contains
     do k=1,nlev
        sigma(:,:,k)=-R*t(:,:,k)/lev(k)*dThetaDp(:,:,k)
     enddo
-    
+
   end function define_sigma
 
   function define_sp(sigma,lev) result(sp)
-!   Calculating Sp stability parameter
+    !   Calculating Sp stability parameter
     use mod_const
     implicit none
 
@@ -326,14 +326,14 @@ contains
     do k=1,size(sigma,3)
        sp(:,:,k)=sigma(:,:,k)*lev(k)/r
     enddo
-    
+
   end function define_sp
 
   function laplace_cart(f,dx,dy) result(lapl)
-!     Laplace operator in cartesian coordinates.
-!     The domain is assumed to be periodic in east-west-direction
-!     ** At the northern and southern boundaries, second y derivative
-!     is assumed to be zero
+    !     Laplace operator in cartesian coordinates.
+    !     The domain is assumed to be periodic in east-west-direction
+    !     ** At the northern and southern boundaries, second y derivative
+    !     is assumed to be zero
     implicit none
 
     real,dimension(:,:,:),intent(in) :: f
@@ -359,7 +359,7 @@ contains
        lapl ( nlon, :, : ) = f( nlon - 1, :, : ) + f ( 1, :, : ) &
             - 2 * f( nlon, :, : )
        lapl = lapl * inv_dx
-       
+
        ! y-directon
        lapl ( :, 2 : nlat -1, : ) = lapl ( :, 2 : nlat -1, : ) &
             + ( f ( :, 1 : nlat -2, : ) + f ( :, 3 : nlat, :) &
@@ -373,16 +373,16 @@ contains
                 ! x-direction
                 if(i==1)then
                    lapl(i,j,k)=(-(1/12)*f(nlon-1,j,k)+(4/3)*f(nlon,j,k)-(5/2)*f(i,j,k) &
-                     +(4/3)*f(i+1,j,k)-(1/12)*f(i+2,j,k))/(dx*dx)
+                        +(4/3)*f(i+1,j,k)-(1/12)*f(i+2,j,k))/(dx*dx)
                 else if(i==2)then
                    lapl(i,j,k)=(-(1/12)*f(nlon,j,k)+(4/3)*f(i-1,j,k)-(5/2)*f(i,j,k) &
                         +(4/3)*f(i+1,j,k)-(1/12)*f(i+2,j,k))/(dx*dx)
                 else if(i==nlon-1)then
                    lapl(i,j,k)=(-(1/12)*f(i-2,j,k)+(4/3)*f(i-1,j,k)-(5/2)*f(i,j,k) &
-                     +(4/3)*f(i+1,j,k)-(1/12)*f(1,j,k))/(dx*dx)
+                        +(4/3)*f(i+1,j,k)-(1/12)*f(1,j,k))/(dx*dx)
                 else if(i==nlon)then
                    lapl(i,j,k)=(-(1/12)*f(i-2,j,k)+(4/3)*f(i-1,j,k)-(5/2)*f(i,j,k) &
-                     +(4/3)*f(1,j,k)-(1/12)*f(2,j,k))/(dx*dx)
+                        +(4/3)*f(1,j,k)-(1/12)*f(2,j,k))/(dx*dx)
                 else
                    lapl(i,j,k)=-(1/12)*f(i-2,j,k)+(4/3)*f(i-1,j,k)-(5/2)*f(i,j,k) &
                         +(4/3)*f(i+1,j,k)-(1/12)*f(i+2,j,k)
@@ -409,9 +409,9 @@ contains
              enddo
           enddo
        enddo
-       
-    end select     
-          
+
+    end select
+
   end function laplace_cart
-  
+
 end module mod_common_subrs

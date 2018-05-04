@@ -4,10 +4,10 @@ module mod_poisson_green
 contains
 
   subroutine poisson_solver_Green ( f, dx, dy, hgttend )
-!
-!   New version of "height_tendency", using precalculated response kernel
-!   (JR 10.12.2015)
- 
+    !
+    !   New version of "height_tendency", using precalculated response kernel
+    !   (JR 10.12.2015)
+
     implicit none
     real, dimension ( :, :, : ), allocatable, save  :: response
     real, dimension ( :, : ), intent ( in ) :: f
@@ -23,7 +23,7 @@ contains
        allocate(response(nlon/2+1,nlat,(nlat+1)/2))
        call responsekernel(response,nlon,nlat,dx,dy)
     end if
-    
+
     hgttend=0.0e0
 
     do i=1,nlon
@@ -48,7 +48,7 @@ contains
 
   end subroutine poisson_solver_Green
 
-  subroutine responsekernel(response,nlon,nlat,dx,dy) 
+  subroutine responsekernel(response,nlon,nlat,dx,dy)
 
     implicit none
     real,dimension(:,:,:),intent(inout) :: response
@@ -61,7 +61,7 @@ contains
     do j0=1,(nlat+1)/2
        forcing=0.
        forcing(1,j0,1)=1.
-       call invert_lapl(forcing,nlon,nlat,1,dx,dy,res1) 
+       call invert_lapl(forcing,nlon,nlat,1,dx,dy,res1)
        do i=1,nlon/2+1
           do j=1,nlat
              response(i,j,j0)=res1(i,j,1)
@@ -72,13 +72,13 @@ contains
 
   end subroutine responsekernel
 
-   subroutine invert_lapl(forcing,nlon,nlat,nlev,dx,dy,phi)
-!
-!   Former "height_tendency". Only name of subroutine changed (JR 10.12.15)
-!
-!   Calculation of inverse of laplacian with iteration and by using function laplace2_cart.
-!   Southern and northern boundaries are left as zero.
-!
+  subroutine invert_lapl(forcing,nlon,nlat,nlev,dx,dy,phi)
+    !
+    !   Former "height_tendency". Only name of subroutine changed (JR 10.12.15)
+    !
+    !   Calculation of inverse of laplacian with iteration and by using function laplace2_cart.
+    !   Southern and northern boundaries are left as zero.
+    !
     implicit none
     real,dimension(:,:,:),intent(in) :: forcing
     real,intent(in) :: dx,dy
@@ -87,7 +87,7 @@ contains
 
     integer :: nlon,nlat,l,i,j,k,itermax
     real :: coeff(nlon,nlat,nlev),lapl2(nlon,nlat,nlev)
-     
+
     phi=0.
     itermax=1000
 
@@ -101,20 +101,20 @@ contains
           enddo
        enddo
     enddo
-    
+
   end subroutine invert_lapl
 
   subroutine laplace2_cart(f,lapl2,coeff,dx,dy)
-!
-!     As laplace_cart
-!       - jätetään kussakin pisteessä paikallisen arvon osuus pois
-!       - lasketaan paikallisen arvon kerroin coeff
-!
+    !
+    !     As laplace_cart
+    !       - jätetään kussakin pisteessä paikallisen arvon osuus pois
+    !       - lasketaan paikallisen arvon kerroin coeff
+    !
     real,dimension(:,:,:),intent(in) :: f
     real,    intent ( in )  :: dx, dy
     real,dimension(:,:,:), intent ( out ) :: lapl2, coeff
     integer :: nlon, nlat, nlev
- 
+
     nlon=size(f,1)
     nlat=size(f,2)
     nlev=size(f,3)
@@ -132,7 +132,7 @@ contains
     coeff ( :, 2 : nlat -1, : ) = -2.0 / (dx * dx ) -2.0 / (dy * dy )
     coeff ( :, 1,    : ) = -2.0 / (dx * dx )
     coeff ( :, nlat, : ) = -2.0 / (dx * dx )
- 
+
   end subroutine laplace2_cart
 
 
